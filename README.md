@@ -1,2 +1,1 @@
-# skeleton
-Python skeleton project directory
+Python tools for random data analysis.

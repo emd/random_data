@@ -4,14 +4,14 @@ except ImportError:
     from distutils.core import setup
 
 config = {
-    'name': 'projectname',
+    'name': 'random_data',
     'version': '0.1',
-    'packages': ['NAME'],
+    'packages': ['random_data'],
     'install_requires': ['nose'],
     'author': 'Evan M. Davis',
     'author_email': 'emd@mit.edu',
-    'url': 'URL to get it at.',
-    'description': 'My Project'
+    'url': '',
+    'description': 'Python tools for random data analysis.'
 }
 
 setup(**config)
