@@ -31,6 +31,7 @@ class Spectrogram(object):
 
         # Compute spectrogram
         # Does mlab.specgram really return one-sided spec???
+        # colormap???
         Gxx, f, t, im = pylab.specgram(x, NFFT=NFFT, Fs=Fs)
 
         self.Gxx = Gxx
