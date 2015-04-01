@@ -60,7 +60,8 @@ class Spectrogram(object):
         [t] = 1 / `Fsunits`
 
     '''
-    def __init__(self, x, Fs, df, xunits=None, Fsunits=None, funits=None):
+    def __init__(self, x, Fs, df, xunits=None, Fsunits=None, funits=None,
+                 overlap_frac=0):
         '''Create an instance of the Spectrogram class.'''
         # Check that supported units are being used prior to
         # performing any calculations
@@ -70,7 +71,8 @@ class Spectrogram(object):
             raise ValueError('Units of signal required!')
 
         if Fsunits == 'Hz':
-            self.Fsunits = Fsunits
+            self._Fs = Fs
+            self._Fsunits = Fsunits
         else:
             raise ValueError('Only sampling frequencies in Hz supported!')
 
@@ -92,12 +94,17 @@ class Spectrogram(object):
         # *closest* in value to the specified bin size `df`
         exponent = np.log2(Fs / df)            # exact
         exponent = np.int(np.round(exponent))  # for nearest power of 2
-        NFFT = 2 ** exponent
+        self._NFFT = 2 ** exponent
 
-        # TODO: noverlap???
+        # A nonzero overlap decreases spectrogram "graininess"
+        # and increases the number of spectrogram time bins
+        self._noverlap = int(overlap_frac * self._NFFT)
+
+        # TODO: detrend
 
         # Compute spectrogram, where `Gxx` is the one-sided PSD
-        Gxx, f, t = specgram(x, NFFT=NFFT, Fs=Fs)
+        Gxx, f, t = specgram(x, Fs=Fs, NFFT=self._NFFT,
+                             noverlap=self._noverlap)
 
         self.Gxx = Gxx * Hz_per_kHz
         self.f = f / Hz_per_kHz
@@ -112,7 +119,7 @@ class Spectrogram(object):
         else:
             raise ValueError('Only kHz spectrogram frequency bins supported!')
 
-        if self.Fsunits is 'Hz':
+        if self._Fsunits is 'Hz':
             xaxisunits = 's'
         else:
             raise ValueError('Only sampling frequencies in Hz supported!')
