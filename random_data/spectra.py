@@ -11,7 +11,7 @@ from matplotlib.mlab import specgram
 
 class Spectrogram(object):
     '''Spectrogram class.'''
-    def __init__(self, x, Fs, df, cmap='Purples'):
+    def __init__(self, x, Fs, df):
         # In the absence of zero-padding, the window size `NFFT`
         # determines the size of the FFT frequency bins for
         # a given signal sampled at frequency `Fs` via
