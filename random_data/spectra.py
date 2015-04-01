@@ -34,39 +34,49 @@ class Spectrogram(object):
         Units of time series `x`. Default value of `None` prevents
         incorrect method usage.
 
-    funits - string
+    Fsunits -string
         Units of sampling frequency `Fs` and spectrogram frequency bin
         spacing `df`. Default value of `None` prevents incorrect method usage.
+
+    funits - string
+        Units of spectrogram frequency bins. Default value of `None`
+        prevents incorrect method usage.
 
     Attributes:
     -----------
     Gxx - array, (`M`, `N`)
         One-sided power spectral density as a function of frequency bin `f`
         and time bin `t`.
-        [Gxx] = [x]^2 / [Fs]
+        [Gxx] = (`xunits`)^2 / `funits`
 
     f - array, (`M`,)
         Frequency bins
-        [f] = [Fs]
+        [f] = `funits`
 
     t - array, (`N`,)
         Time bins
-        [t] = 1 / [Fs]
+        [t] = 1 / `Fsunits`
 
     '''
-    def __init__(self, x, Fs, df, xunits=None, funits=None):
+    def __init__(self, x, Fs, df, xunits=None, Fsunits=None, funits=None):
         '''Create an instance of the Spectrogram class.'''
         # Check that supported units are being used prior to
         # performing any calculations
         if xunits is not None:
             self.xunits = xunits
         else:
-            raise ValueError('Units of time series required!')
+            raise ValueError('Units of signal required!')
 
-        if funits == 'Hz':
-            self.funits = funits
+        if Fsunits == 'Hz':
+            self.Fsunits = Fsunits
         else:
             raise ValueError('Only sampling frequencies in Hz supported!')
+
+        if funits == 'kHz':
+            self.funits = funits
+            Hz_per_kHz = 1e3
+        else:
+            raise ValueError('Only kHz spectrogram frequency bins supported!')
 
         # In the absence of zero-padding, the window size `NFFT`
         # determines the size of the FFT frequency bins for
@@ -82,25 +92,30 @@ class Spectrogram(object):
         exponent = np.int(np.round(exponent))  # for nearest power of 2
         NFFT = 2 ** exponent
 
+        # TODO: noverlap???
+
         # Compute spectrogram, where `Gxx` is the one-sided PSD
         Gxx, f, t = specgram(x, NFFT=NFFT, Fs=Fs)
 
-        self.Gxx = Gxx
-        self.f = f
+        self.Gxx = Gxx * Hz_per_kHz
+        self.f = f / Hz_per_kHz
         self.t = t
 
     def plotSpec(self):
         # Check that supported units are being used prior to
         # performing any calculations
-        if self.funits == 'Hz':
-            xunits = 's'
-            yunits = 'kHz'
-            yconv = 1e3
+        if self.funits is 'kHz':
+            yaxisunits = 'kHz'
+        else:
+            raise ValueError('Only kHz spectrogram frequency bins supported!')
+
+        if self.Fsunits is 'Hz':
+            xaxisunits = 's'
         else:
             raise ValueError('Only sampling frequencies in Hz supported!')
 
         # Obtain local copy, calculate power in dB, and flip array vertically
-        Z = yconv * self.Gxx.copy()
+        Z = self.Gxx.copy()
         Z = 10 * np.log10(Z)
         Z = np.flipud(Z)
 
@@ -108,17 +123,17 @@ class Spectrogram(object):
         xmin = self.t[0]
         xmax = self.t[-1]
 
-        ymin = self.f[0] / yconv
-        ymax = self.f[-1] / yconv
+        ymin = self.f[0]
+        ymax = self.f[-1]
 
         extent = xmin, xmax, ymin, ymax
 
         plt.imshow(Z, cmap='Purples', extent=extent, aspect='auto')
         plt.colorbar()
-        plt.xlabel('$t \, [\mathrm{' + xunits + '}]$', fontsize=16)
-        plt.ylabel('$f \, [\mathrm{' + yunits + '}]$', fontsize=16)
+        plt.xlabel('$t \, [\mathrm{' + xaxisunits + '}]$', fontsize=16)
+        plt.ylabel('$f \, [\mathrm{' + yaxisunits + '}]$', fontsize=16)
         plt.title('$|G_{xx}(f)|^2 \, [\mathrm{' + self.xunits +
-                  '}^2 / \mathrm{' + yunits + '}]$',
+                  '}^2 / \mathrm{' + yaxisunits + '}]$',
                   fontsize=16)
         plt.show()
 
