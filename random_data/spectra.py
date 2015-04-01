@@ -103,7 +103,8 @@ class Spectrogram(object):
         self.f = f / Hz_per_kHz
         self.t = t
 
-    def plotSpec(self):
+    def plotSpec(self, fignum, cmap='Purples'):
+        '''Plot spectrogram in figure `fignum`.'''
         # Check that supported units are being used prior to
         # performing any calculations
         if self.funits is 'kHz':
@@ -129,8 +130,10 @@ class Spectrogram(object):
 
         extent = xmin, xmax, ymin, ymax
 
+        plt.figure(fignum)
+        plt.clf()
         plt.imshow(Z, norm=LogNorm(), extent=extent, aspect='auto',
-                   cmap='Purples')
+                   cmap=cmap)
         plt.colorbar(format=LogFormatter(labelOnlyBase=True))
         plt.xlabel('$t \, [\mathrm{' + xaxisunits + '}]$', fontsize=16)
         plt.ylabel('$f \, [\mathrm{' + yaxisunits + '}]$', fontsize=16)
