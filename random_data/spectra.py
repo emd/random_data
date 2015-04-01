@@ -26,6 +26,15 @@ class Spectrogram(object):
         Sampling frequency
         [Fs] = 1 / [time]
 
+    t0 - float
+        Time corresponding to first data point in signal `x`
+        [t0] = 1 / [Fs]
+
+    overlap_frac - float
+        Fraction of overlap between spectrogram windows
+        0 <= overlap_frac < 1
+        [overlap_frac] = unitless
+
     df - float
         Desired frequency resolution of spectrogram. For reasons
         of computational efficiency, the resulting frequency resolution
@@ -60,8 +69,9 @@ class Spectrogram(object):
         [t] = 1 / `Fsunits`
 
     '''
-    def __init__(self, x, Fs, df, xunits=None, Fsunits=None, funits=None,
-                 overlap_frac=0):
+    def __init__(self, x, Fs, df,
+                 t0=0., overlap_frac=0.,
+                 xunits=None, Fsunits=None, funits=None):
         '''Create an instance of the Spectrogram class.'''
         # Check that supported units are being used prior to
         # performing any calculations
@@ -100,6 +110,11 @@ class Spectrogram(object):
         # and increases the number of spectrogram time bins
         self._noverlap = int(overlap_frac * self._NFFT)
 
+        # Times of initial (`_t0`) and final (`_tf`) points in signal `x`
+        # [_t0] = [_tf] = 1 / [Fs]
+        self._t0 = t0
+        self._tf = t0 + (len(x) / self._Fs)
+
         # TODO: detrend
 
         # Compute spectrogram, where `Gxx` is the one-sided PSD
@@ -108,7 +123,7 @@ class Spectrogram(object):
 
         self.Gxx = Gxx * Hz_per_kHz
         self.f = f / Hz_per_kHz
-        self.t = t
+        self.t = t + self._t0
 
     def plotSpec(self, fignum, cmap='Purples'):
         '''Plot spectrogram in figure `fignum`.'''
@@ -128,9 +143,9 @@ class Spectrogram(object):
         Z = self.Gxx.copy()
         Z = np.flipud(Z)
 
-        # TODO: (1) xlims not exact currently??
-        xmin = self.t[0]
-        xmax = self.t[-1]
+        # Determine (x, y) extent of plot
+        xmin = self._t0
+        xmax = self._tf
 
         ymin = self.f[0]
         ymax = self.f[-1]
