@@ -50,39 +50,41 @@ class RandomSignal(object):
             [x] = Arbitrary Units
 
     '''
-    def __init__(self, Fs, T, fc=None, pole=None):
+    def __init__(self, Fs, T, fc=np.inf, pole=None):
         '''
         '''
         self.Fs = Fs
         self.fc = fc
         self.pole = pole
 
-        dt = 1. / Fs
+        # As we are dealing with *real* signals, the Fourier transform
+        # is Hermitian, so we can simply look at the one-sided spectrum.
+        # This reduces the number of bins in the frequency domain by 2.
+        Nfreq_1sided = T * Fs / 2.
 
-        # Number of frequency bins `Nfreq`, specified such that
-        # the resulting signal has length equal to a power of 2
-        # for most efficient FFT computations
-        exponent = np.log2(T / dt)          # exact
-        exponent = int(np.round(exponent))  # nearest power of 2
-        Nfreq = (2 ** exponent) + 1
+        # However, we want the resulting signal to have length equal
+        # to a power of 2 for most efficient FFT computations, so
+        # we will find the nearest power of 2
+        exponent = int(np.round(np.log2(Nfreq_1sided)))
+        Nfreq_1sided = (2 ** exponent) + 1
 
-        # The realized time, using `Nfreq` as determined above
-        self.T = Nfreq * dt
-        Ntimes = 2 * (Nfreq - 1)
+        # The realized time, using `Nfreq_1sided` as determined above
+        Ntimes = 2 * (Nfreq_1sided - 1)
+        self.T = Ntimes / Fs
         self.t = np.linspace(0, self.T, Ntimes)
 
         # Construct the random signal in the frequency domain
-        self.f = np.linspace(0, Fs / 2., Nfreq)
+        self.f = np.linspace(0, Fs / 2., Nfreq_1sided)
 
         # Signal phase, random
-        ph = 2 * np.pi * np.random.random(Nfreq)
+        ph = 2 * np.pi * np.random.random(Nfreq_1sided)
 
         # Signal magnitude, random
-        Xf = np.abs(np.random.standard_normal(Nfreq))
+        Xf = np.abs(np.random.standard_normal(Nfreq_1sided))
 
         # If desired, weight signal magnitude with a pole of order `pole`
         # above cutoff frequency `fc`
-        if fc is not None:
+        if pole is not None:
             Xf = Xf / (1 + ((self.f / fc) ** pole))
 
         # Random signal's frequency domain representation, magnitude and phase
