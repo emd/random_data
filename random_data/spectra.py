@@ -26,6 +26,12 @@ class Spectrogram(object):
         Sampling frequency
         [Fs] = 1 / [time]
 
+    df - float
+        Desired frequency resolution of spectrogram. For reasons
+        of computational efficiency, the resulting frequency resolution
+        may not be *exactly* the value specified
+        [df] = [Fs]
+
     t0 - float
         Time corresponding to first data point in signal `x`
         [t0] = 1 / [Fs]
@@ -35,11 +41,8 @@ class Spectrogram(object):
         0 <= overlap_frac < 1
         [overlap_frac] = unitless
 
-    df - float
-        Desired frequency resolution of spectrogram. For reasons
-        of computational efficiency, the resulting frequency resolution
-        may not be *exactly* the value specified
-        [df] = [Fs]
+    detrend - string
+        [ 'default' | 'constant' | 'mean' | 'linear' | 'none'] or callable
 
     xunits - string
         Units of time series `x`. Default value of `None` prevents
@@ -70,7 +73,7 @@ class Spectrogram(object):
 
     '''
     def __init__(self, x, Fs, df,
-                 t0=0., overlap_frac=0.,
+                 t0=0., overlap_frac=0., detrend='linear',
                  xunits=None, Fsunits=None, funits=None):
         '''Create an instance of the Spectrogram class.'''
         # Check that supported units are being used prior to
@@ -115,11 +118,11 @@ class Spectrogram(object):
         self._t0 = t0
         self._tf = t0 + (len(x) / self._Fs)
 
-        # TODO: detrend
+        self._detrend = detrend
 
         # Compute spectrogram, where `Gxx` is the one-sided PSD
         Gxx, f, t = specgram(x, Fs=Fs, NFFT=self._NFFT,
-                             noverlap=self._noverlap)
+                             noverlap=self._noverlap, detrend=detrend)
 
         self.Gxx = Gxx * Hz_per_kHz
         self.f = f / Hz_per_kHz
