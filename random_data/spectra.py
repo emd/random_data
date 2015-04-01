@@ -116,7 +116,7 @@ class Spectrogram(object):
         # Times of initial (`_t0`) and final (`_tf`) points in signal `x`
         # [_t0] = [_tf] = 1 / [Fs]
         self._t0 = t0
-        self._tf = t0 + (len(x) / self._Fs)
+        self._tf = t0 + ((len(x) - 1) / self._Fs)
 
         self._detrend = detrend
 
