@@ -3,8 +3,10 @@
 '''
 
 
+# Standard library imports
 import numpy as np
-from matplotlib.pylab import specgram
+import matplotlib.pyplot as plt
+from matplotlib.mlab import specgram
 
 
 class Spectrogram(object):
@@ -25,9 +27,39 @@ class Spectrogram(object):
         NFFT = 2 ** exponent
 
         # Compute spectrogram, where `Gxx` is the one-sided PSD
-        Gxx, f, t, im = specgram(x, NFFT=NFFT, Fs=Fs, cmap=cmap)
+        Gxx, f, t = specgram(x, NFFT=NFFT, Fs=Fs)
 
         self.Gxx = Gxx
         self.f = f
         self.t = t
-        self.im = im
+
+    def plotSpec(self):
+        # Obtain local copy, calculate power in dB, and flip array vertically
+        Z = self.Gxx.copy()
+        Z = 10 * np.log10(Z)
+        Z = np.flipud(Z)
+
+        # [t] = s
+        # TODO: (1) Enforce that time is in seconds; (2) xlims not exact now??
+        xmin = self.t[0]
+        xmax = self.t[-1]
+
+        # [f] = kHz
+        # TODO: (1) Enforce that resulting frequency in kHz; (2) same as above
+        units = 1e3
+        ymin = self.f[0] / units
+        ymax = self.f[-1] / units
+
+        extent = xmin, xmax, ymin, ymax
+
+        plt.imshow(Z, cmap='Purples', extent=extent, aspect='auto')
+        plt.colorbar()
+        # TODO: Ensure these labels are correct
+        plt.xlabel('$t \, [\mathrm{s}]$', fontsize=16)
+        plt.ylabel('$f \, [\mathrm{kHz}]$', fontsize=16)
+        plt.title('$|G_{xx}(f)|^2$',
+                  fontsize=16)
+        plt.show()
+
+        # TODO: Return image handle???
+        return
