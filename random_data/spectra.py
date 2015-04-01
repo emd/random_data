@@ -5,8 +5,10 @@
 
 # Standard library imports
 import numpy as np
-import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 from matplotlib.mlab import specgram
+import matplotlib.pyplot as plt
+from matplotlib.ticker import LogFormatter
 
 
 class Spectrogram(object):
@@ -114,9 +116,8 @@ class Spectrogram(object):
         else:
             raise ValueError('Only sampling frequencies in Hz supported!')
 
-        # Obtain local copy, calculate power in dB, and flip array vertically
+        # Obtain local copy and flip array vertically
         Z = self.Gxx.copy()
-        Z = 10 * np.log10(Z)
         Z = np.flipud(Z)
 
         # TODO: (1) xlims not exact currently??
@@ -128,8 +129,9 @@ class Spectrogram(object):
 
         extent = xmin, xmax, ymin, ymax
 
-        plt.imshow(Z, cmap='Purples', extent=extent, aspect='auto')
-        plt.colorbar()
+        plt.imshow(Z, norm=LogNorm(), extent=extent, aspect='auto',
+                   cmap='Purples')
+        plt.colorbar(format=LogFormatter(labelOnlyBase=True))
         plt.xlabel('$t \, [\mathrm{' + xaxisunits + '}]$', fontsize=16)
         plt.ylabel('$f \, [\mathrm{' + yaxisunits + '}]$', fontsize=16)
         plt.title('$|G_{xx}(f)|^2 \, [\mathrm{' + self.xunits +
