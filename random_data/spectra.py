@@ -143,10 +143,6 @@ class Spectrogram(object):
         else:
             raise ValueError('Only sampling frequencies in Hz supported!')
 
-        # Obtain local copy and flip array vertically
-        Z = self.Gxx.copy()
-        Z = np.flipud(Z)
-
         # Determine (x, y) extent of plot
         xmin = self._t0
         xmax = self._tf
@@ -158,8 +154,8 @@ class Spectrogram(object):
 
         plt.figure(fignum)
         plt.clf()
-        plt.imshow(Z, norm=LogNorm(), extent=extent, aspect='auto',
-                   cmap=cmap)
+        plt.imshow(np.flipud(self.Gxx), norm=LogNorm(),
+                   extent=extent, aspect='auto', cmap=cmap)
         plt.colorbar(format=LogFormatter(labelOnlyBase=True))
         plt.xlabel('$t \, [\mathrm{' + xaxisunits + '}]$', fontsize=16)
         plt.ylabel('$f \, [\mathrm{' + yaxisunits + '}]$', fontsize=16)
