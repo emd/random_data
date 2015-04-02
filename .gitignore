@@ -1,2 +1,5 @@
 *.pyc
 *.swp
+build/*
+random_data.egg-info/*
+dist/*
