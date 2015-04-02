@@ -130,7 +130,7 @@ class Spectrogram(object):
         self.t = t + self._t0
 
     def plotSpec(self, fignum, cmap='Purples'):
-        '''Plot spectrogram in figure `fignum`.'''
+        '''Plot spectrogram in figure `fignum` and return figure instance.'''
         # Check that supported units are being used prior to
         # performing any calculations
         if self.funits is 'kHz':
@@ -152,7 +152,7 @@ class Spectrogram(object):
 
         extent = xmin, xmax, ymin, ymax
 
-        plt.figure(fignum)
+        fig = plt.figure(fignum)
         plt.clf()
         plt.imshow(np.flipud(self.Gxx), norm=LogNorm(),
                    extent=extent, aspect='auto', cmap=cmap)
@@ -164,4 +164,4 @@ class Spectrogram(object):
                   fontsize=16)
         plt.show()
 
-        return
+        return fig
