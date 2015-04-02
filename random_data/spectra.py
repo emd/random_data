@@ -73,7 +73,7 @@ class Spectrogram(object):
 
     '''
     def __init__(self, x, Fs, df,
-                 t0=0., overlap_frac=0., detrend='linear',
+                 t0=0., overlap_frac=0.5, detrend='linear',
                  xunits=None, Fsunits=None, funits=None):
         '''Create an instance of the Spectrogram class.'''
         # Check that supported units are being used prior to
