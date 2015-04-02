@@ -84,7 +84,8 @@ class Spectrogram(object):
             raise ValueError('Units of signal required!')
 
         if Fsunits == 'Hz':
-            self._Fs = Fs
+            # Avoid integer division problems by converting to a float
+            self._Fs = float(Fs)
             self._Fsunits = Fsunits
         else:
             raise ValueError('Only sampling frequencies in Hz supported!')
