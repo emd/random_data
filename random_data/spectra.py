@@ -130,7 +130,8 @@ class Spectrogram(object):
         self.t = t + self._t0
 
     def plotSpec(self, fignum, cmap='Purples'):
-        '''Plot spectrogram in figure `fignum` and return figure instance.'''
+        '''Plot spectrogram in figure `fignum`:int and return
+        the corresponding matplotlib.figure.Figure instance.'''
         # Check that supported units are being used prior to
         # performing any calculations
         if self.funits is 'kHz':
