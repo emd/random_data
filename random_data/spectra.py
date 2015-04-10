@@ -67,9 +67,17 @@ class Spectrogram(object):
         Frequency bins
         [f] = `funits`
 
+    df - float
+        Frequency bin spacing
+        [df] = `funits`
+
     t - array, (`N`,)
         Time bins
         [t] = 1 / `Fsunits`
+
+    dt - float
+        Time bin size
+        [dt] = 1 / `Fsunits`
 
     '''
     def __init__(self, x, Fs, df,
@@ -130,6 +138,7 @@ class Spectrogram(object):
         self.f = f / Hz_per_kHz
         self.df /= Hz_per_kHz
         self.t = t + self._t0
+        self.dt = np.mean(np.diff(self.t))
 
     def plotSpec(self, fignum, cmap='Purples'):
         '''Plot spectrogram in figure `fignum`:int and return
