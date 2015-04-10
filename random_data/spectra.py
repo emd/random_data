@@ -106,9 +106,10 @@ class Spectrogram(object):
         # `NFFT` is a power of 2. Here, we take `NFFT` to be
         # the power of 2 that yields a frequency bin size
         # *closest* in value to the specified bin size `df`
-        exponent = np.log2(Fs / df)            # exact
+        exponent = np.log2(self._Fs / df)            # exact
         exponent = np.int(np.round(exponent))  # for nearest power of 2
         self._NFFT = 2 ** exponent
+        self.df = self._Fs / self._NFFT
 
         # A nonzero overlap decreases spectrogram "graininess"
         # and increases the number of spectrogram time bins
@@ -127,6 +128,7 @@ class Spectrogram(object):
 
         self.Gxx = Gxx * Hz_per_kHz
         self.f = f / Hz_per_kHz
+        self.df /= Hz_per_kHz
         self.t = t + self._t0
 
     def plotSpec(self, fignum, cmap='Purples'):
