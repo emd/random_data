@@ -25,7 +25,7 @@ class RandomSignal(object):
         fc - float, optional
             Cutoff frequency; frequencies f > fc will be "cutoff"
             with a strength determined by `pole`
-            [fc] = 1 / [Fs]
+            [fc] = [Fs]
 
         pole - float, optional
             Order of the pole for f > fc
