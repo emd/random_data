@@ -143,7 +143,8 @@ class Spectrogram(object):
         self.t = t + self._t0
         self.dt = np.mean(np.diff(self.t))
 
-    def plotSpec(self, ax=None, fig=None, geometry=111, cmap='Purples'):
+    def plotSpec(self, ax=None, fig=None, geometry=111,
+                 title=None, cmap='Purples'):
         '''Plot spectrogram.
 
         Parameters:
@@ -168,6 +169,10 @@ class Spectrogram(object):
             the location of the axis instance in the provided or created
             figure. The standard matplotlib subplot geometry indexing is
             used (see `<matplotlib.pyplot.subplot>` for more information).
+
+        title - string
+            The title of the spectrogram to be placed over the subplot
+            specified by `axis`.
 
         cmap - string
             Colormap used for spectrogram. Default matplotlib colormaps
@@ -215,12 +220,15 @@ class Spectrogram(object):
         # Create plot
         im = ax.imshow(np.flipud(self.Gxx), norm=LogNorm(),
                        extent=extent, aspect='auto', cmap=cmap)
-        cb = plt.colorbar(im, format=LogFormatter(labelOnlyBase=True))
+
+        # Labeling
         ax.set_xlabel('$t \, [\mathrm{' + xaxisunits + '}]$', fontsize=16)
         ax.set_ylabel('$f \, [\mathrm{' + yaxisunits + '}]$', fontsize=16)
-        ax.set_title('$|G_{xx}(f)|^2 \, [\mathrm{' + self.xunits +
-                     '}^2 / \mathrm{' + yaxisunits + '}]$',
-                     fontsize=16)
+        if title is not None:
+            ax.set_title(title, fontsize=16)
+
+        # Colorbar
+        cb = plt.colorbar(im, format=LogFormatter(labelOnlyBase=True))
         cb.set_label('$|G_{xx}(f)|^2 \, [\mathrm{' + self.xunits +
                      '}^2 / \mathrm{' + yaxisunits + '}]$',
                      fontsize=16)
