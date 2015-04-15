@@ -10,6 +10,9 @@ from matplotlib.mlab import specgram
 import matplotlib.pyplot as plt
 from matplotlib.ticker import LogFormatter
 
+# Related 3rd-party imports
+from event_manager.for_matplotlib import FigureList
+
 
 class Spectrogram(object):
     '''Spectrogram class.
@@ -140,7 +143,7 @@ class Spectrogram(object):
         self.t = t + self._t0
         self.dt = np.mean(np.diff(self.t))
 
-    def plotSpec(self, ax, cmap='Purples'):
+    def plotSpec(self, ax=None, fig=None, geometry=111, cmap='Purples'):
         '''Plot spectrogram.
 
         Parameters:
@@ -148,13 +151,46 @@ class Spectrogram(object):
         ax - :py:class:`AxesSubplot <matplotlib.axes._subplots.AxesSubplot>`
             instance corresponding to the axis (i.e. "subplot") where
             the spectrogram will be drawn. `ax` will (obviously) be
-            modified by this method.
+            modified by this method. If an axis instance is not provided,
+            an axis will automatically be created.
+
+        fig - :py:class:`Figure <matplotlib.figure.Figure>` instance
+            If an axis instance is *not* provided, one can provide
+            a figure instance (and an axis `geometry`, describing the
+            location of the axis instance in the figure) to control
+            which window is plotted in. If a figure instance is not
+            provided (and axis instance is also not provided),
+            a figure instance will be created with the next available
+            window number.
+
+        geometry - int, or tuple
+            If an axis instance is *not* provided, `geometry` determines
+            the location of the axis instance in the provided or created
+            figure. The standard matplotlib subplot geometry indexing is
+            used (see `<matplotlib.pyplot.subplot>` for more information).
 
         cmap - string
             Colormap used for spectrogram. Default matplotlib colormaps
             are found in :py:module:`cm <matplotlib.cm>`.
 
+        Returns:
+        --------
+        ax - :py:class:`AxesSubplot <matplotlib.axes._subplots.AxesSubplot>`
+            instance corresponding to the axis (i.e. "subplot") where
+            the spectrogram will be drawn. This is either identical to
+            the axis instance used during the call or, if an axis instance
+            was not provided, the axis instance created during the call.
+
         '''
+        # If an axis instance is not provided, create one
+        if ax is None:
+            # If, in addition, a figure instance is not provided,
+            # create a figure with the next lowest consecutive window number
+            if fig is None:
+                fig = plt.figure(FigureList().getNext())
+            # Create axis with desired subplot geometry
+            ax = fig.add_subplot(geometry)
+
         # Check that supported units are being used prior to
         # performing any calculations
         if self.funits is 'kHz':
@@ -176,6 +212,7 @@ class Spectrogram(object):
 
         extent = xmin, xmax, ymin, ymax
 
+        # Create plot
         im = ax.imshow(np.flipud(self.Gxx), norm=LogNorm(),
                        extent=extent, aspect='auto', cmap=cmap)
         cb = plt.colorbar(im, format=LogFormatter(labelOnlyBase=True))
@@ -187,3 +224,5 @@ class Spectrogram(object):
         cb.set_label('$|G_{xx}(f)|^2 \, [\mathrm{' + self.xunits +
                      '}^2 / \mathrm{' + yaxisunits + '}]$',
                      fontsize=16)
+
+        return ax
