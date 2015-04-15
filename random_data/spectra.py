@@ -140,9 +140,21 @@ class Spectrogram(object):
         self.t = t + self._t0
         self.dt = np.mean(np.diff(self.t))
 
-    def plotSpec(self, fignum, cmap='Purples'):
-        '''Plot spectrogram in figure `fignum`:int and return
-        the corresponding matplotlib.figure.Figure instance.'''
+    def plotSpec(self, ax, cmap='Purples'):
+        '''Plot spectrogram.
+
+        Parameters:
+        -----------
+        ax - :py:class:`AxesSubplot <matplotlib.axes._subplots.AxesSubplot>`
+            instance corresponding to the axis (i.e. "subplot") where
+            the spectrogram will be drawn. `ax` will (obviously) be
+            modified by this method.
+
+        cmap - string
+            Colormap used for spectrogram. Default matplotlib colormaps
+            are found in :py:module:`cm <matplotlib.cm>`.
+
+        '''
         # Check that supported units are being used prior to
         # performing any calculations
         if self.funits is 'kHz':
@@ -164,16 +176,14 @@ class Spectrogram(object):
 
         extent = xmin, xmax, ymin, ymax
 
-        fig = plt.figure(fignum)
-        plt.clf()
-        plt.imshow(np.flipud(self.Gxx), norm=LogNorm(),
-                   extent=extent, aspect='auto', cmap=cmap)
-        plt.colorbar(format=LogFormatter(labelOnlyBase=True))
-        plt.xlabel('$t \, [\mathrm{' + xaxisunits + '}]$', fontsize=16)
-        plt.ylabel('$f \, [\mathrm{' + yaxisunits + '}]$', fontsize=16)
-        plt.title('$|G_{xx}(f)|^2 \, [\mathrm{' + self.xunits +
-                  '}^2 / \mathrm{' + yaxisunits + '}]$',
-                  fontsize=16)
-        plt.show()
-
-        return fig
+        im = ax.imshow(np.flipud(self.Gxx), norm=LogNorm(),
+                       extent=extent, aspect='auto', cmap=cmap)
+        cb = plt.colorbar(im, format=LogFormatter(labelOnlyBase=True))
+        ax.set_xlabel('$t \, [\mathrm{' + xaxisunits + '}]$', fontsize=16)
+        ax.set_ylabel('$f \, [\mathrm{' + yaxisunits + '}]$', fontsize=16)
+        ax.set_title('$|G_{xx}(f)|^2 \, [\mathrm{' + self.xunits +
+                     '}^2 / \mathrm{' + yaxisunits + '}]$',
+                     fontsize=16)
+        cb.set_label('$|G_{xx}(f)|^2 \, [\mathrm{' + self.xunits +
+                     '}^2 / \mathrm{' + yaxisunits + '}]$',
+                     fontsize=16)
