@@ -240,9 +240,67 @@ class Spectrogram(object):
 
         # Colorbar
         cb = plt.colorbar(im, format=LogFormatter(labelOnlyBase=True),
-                          orientation='horizontal')
+                          ax=ax, orientation='horizontal')
         cb.set_label('$|G_{xx}(f)|^2 \, [\mathrm{' + self.xunits +
                      '}^2 / \mathrm{' + yaxisunits + '}]$',
                      fontsize=16)
 
         return ax
+
+
+def compare_spectrograms(S1, S2, title1=None, title2=None,
+                         fmin=None, fmax=None, fig=None, cmap='Purples'):
+    '''Plot spectrograms `S1` and `S2` side-by-side.
+
+    Parameters:
+    -----------
+    S1 (S2) - :py:class:`Spectrogram <random_data.spectra.Spectrogram>`
+        Spectrogram instance corresponding to signal 1 (2).
+
+    title1 (title2) - string
+        The title to be placed over `S1` (`S2`).
+
+    fmin (fmax) - float
+        The minimum (maximum) frequency displayed in spectrogram plot.
+        If `None`, use the minimum (maximum) frequency in `self.f`.
+        [fmin] = [fmax] = [S1.f] = [S2.f]
+
+    fig - :py:class:`Figure <matplotlib.figure.Figure>` instance
+        in which the spectrograms `S1` and `S2` will be plotted.
+        If a figure instance is not provided, a figure instance
+        will be created with the next available window number.
+
+    cmap - string
+        Colormap used for spectrogram. Default matplotlib colormaps
+        are found in :py:module:`cm <matplotlib.cm>`.
+
+    Returns:
+    --------
+    fig - :py:class:`Figure <matplotlib.figure.Figure>` instance
+        in which the spectrograms `S1` and `S2` are plotted.
+        If a figure instance was provided during the function call,
+        the returned figure instance will be identical to `fig`.
+        If a figure instance was not provided during the function call,
+        the returned figure instance will correspond to the instance
+        automatically created during the function call.
+
+        This is useful as one can (for example) then get the subplot axes
+        via
+
+                    axes = fig.get_axes()
+
+        and subsequently manipulate the subplots.
+
+    '''
+    # If a figure instance is not provided, create a figure
+    # with the next lowest consecutive window number
+    if fig is None:
+        fig = plt.figure(FigureList().getNext())
+
+    ax1 = fig.add_subplot(121)
+    ax2 = fig.add_subplot(122)
+
+    S1.plotSpec(fmin=fmin, fmax=fmax, ax=ax1, title=title1, cmap=cmap)
+    S2.plotSpec(fmin=fmin, fmax=fmax, ax=ax2, title=title2, cmap=cmap)
+
+    return fig
