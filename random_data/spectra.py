@@ -134,7 +134,7 @@ class Spectrogram(object):
         self._detrend = detrend
 
         # Compute spectrogram, where `Gxx` is the one-sided PSD
-        Gxx, f, t = specgram(x, Fs=Fs, NFFT=self._NFFT,
+        Gxx, f, t = specgram(x, Fs=self._Fs, NFFT=self._NFFT,
                              noverlap=self._noverlap, detrend=detrend)
 
         self.Gxx = Gxx * Hz_per_kHz
