@@ -143,12 +143,18 @@ class Spectrogram(object):
         self.t = t + self._t0
         self.dt = np.mean(np.diff(self.t))
 
-    def plotSpec(self, ax=None, fig=None, geometry=111,
+    def plotSpec(self, fmin=None, fmax=None,
+                 ax=None, fig=None, geometry=111,
                  title=None, cmap='Purples'):
         '''Plot spectrogram.
 
         Parameters:
         -----------
+        fmin (fmax) - float
+            The minimum (maximum) frequency displayed in spectrogram plot.
+            If `None`, use the minimum (maximum) frequency in `self.f`.
+            [fmin] = [fmax] = [self.f]
+
         ax - :py:class:`AxesSubplot <matplotlib.axes._subplots.AxesSubplot>`
             instance corresponding to the axis (i.e. "subplot") where
             the spectrogram will be drawn. `ax` will (obviously) be
@@ -208,17 +214,22 @@ class Spectrogram(object):
         else:
             raise ValueError('Only sampling frequencies in Hz supported!')
 
-        # Determine (x, y) extent of plot
-        xmin = self._t0
-        xmax = self._tf
+        # Determine (x, y) extent of plot; time on x-axis, frequency on y-axis
+        tmin = self._t0
+        tmax = self._tf
 
-        ymin = self.f[0]
-        ymax = self.f[-1]
+        if fmin is None:
+            fmin = self.f[0]
+        if fmax is None:
+            fmax = self.f[-1]
 
-        extent = xmin, xmax, ymin, ymax
+        extent = tmin, tmax, fmin, fmax
+
+        # Find frequencies `f` satisfying fmin <= f <= fmax
+        find = np.where(np.logical_and(self.f >= fmin, self.f <= fmax))[0]
 
         # Create plot
-        im = ax.imshow(np.flipud(self.Gxx), norm=LogNorm(),
+        im = ax.imshow(np.flipud(self.Gxx[find, :]), norm=LogNorm(),
                        extent=extent, aspect='auto', cmap=cmap)
 
         # Labeling
