@@ -228,7 +228,8 @@ class Spectrogram(object):
             ax.set_title(title, fontsize=16)
 
         # Colorbar
-        cb = plt.colorbar(im, format=LogFormatter(labelOnlyBase=True))
+        cb = plt.colorbar(im, format=LogFormatter(labelOnlyBase=True),
+                          orientation='horizontal')
         cb.set_label('$|G_{xx}(f)|^2 \, [\mathrm{' + self.xunits +
                      '}^2 / \mathrm{' + yaxisunits + '}]$',
                      fontsize=16)
