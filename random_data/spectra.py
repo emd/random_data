@@ -17,76 +17,68 @@ from event_manager.for_matplotlib import FigureList
 class Spectrogram(object):
     '''Spectrogram class.
 
-    Input Parameters:
-    -----------------
-    x - array, (`L`,)
-        Time series from which spectrogram is generated.
-        The signal is discrete, i.e. x = x(t_n) = x(n / Fs) = x_n
-        for integer `n` and sampling frequency `Fs`
-        [x] = Arbitrary
-
-    Fs - float
-        Sampling frequency
-        [Fs] = 1 / [time]
-
-    df - float
-        Desired frequency resolution of spectrogram. For reasons
-        of computational efficiency, the resulting frequency resolution
-        may not be *exactly* the value specified
-        [df] = [Fs]
-
-    t0 - float
-        Time corresponding to first data point in signal `x`
-        [t0] = 1 / [Fs]
-
-    overlap_frac - float
-        Fraction of overlap between spectrogram windows
-        0 <= overlap_frac < 1
-        [overlap_frac] = unitless
-
-    detrend - string
-        [ 'default' | 'constant' | 'mean' | 'linear' | 'none'] or callable
-
-    xunits - string
-        Units of time series `x`. Default value of `None` prevents
-        incorrect method usage.
-
-    Fsunits -string
-        Units of sampling frequency `Fs` and spectrogram frequency bin
-        spacing `df`. Default value of `None` prevents incorrect method usage.
-
-    funits - string
-        Units of spectrogram frequency bins. Default value of `None`
-        prevents incorrect method usage.
-
     Attributes:
     -----------
     Gxx - array, (`M`, `N`)
-        One-sided power spectral density as a function of frequency bin `f`
-        and time bin `t`.
+        Estimates of one-sided power spectral density as a function of
+        frequency bin `f` and time bin `t`.
         [Gxx] = (`xunits`)^2 / `funits`
 
     f - array, (`M`,)
-        Frequency bins
+        Frequency bin midpoints.
         [f] = `funits`
 
-    df - float
-        Frequency bin spacing
-        [df] = `funits`
-
     t - array, (`N`,)
-        Time bins
+        Time bin midpoints.
         [t] = 1 / `Fsunits`
 
-    dt - float
-        Time bin size
-        [dt] = 1 / `Fsunits`
-
     '''
-    def __init__(self, x, Fs, df,
+    def __init__(self, x, Fs, Twindow,
                  t0=0., overlap_frac=0.5, detrend='linear',
                  xunits=None, Fsunits=None, funits=None):
-        '''Create an instance of the Spectrogram class.'''
+        '''Create an instance of the Spectrogram class.
+
+        Input Parameters:
+        -----------------
+        x - array, (`L`,)
+            Time series from which spectrogram is generated.
+            The signal is discrete, i.e. x = x(t_n) = x(n / Fs) = x_n
+            for integer `n` and sampling frequency `Fs`.
+            [x] = Arbitrary
+
+        Fs - float
+            Sampling frequency.
+            [Fs] = 1 / [time]
+
+        Twindow - float
+            Window length over which spectral estimates of `x` are computed.
+            [Twindow] = 1 / [Fs]
+
+        t0 - float
+            Time corresponding to first data point in signal `x`.
+            [t0] = 1 / [Fs]
+
+        overlap_frac - float
+            Fraction of overlap between spectrogram windows
+            0 <= overlap_frac < 1.
+            [overlap_frac] = unitless
+
+        detrend - string
+            [ 'default' | 'constant' | 'mean' | 'linear' | 'none'] or callable
+
+        xunits - string
+            Units of time series `x`. Default value of `None` prevents
+            incorrect method usage.
+
+        Fsunits -string
+            Units of sampling frequency `Fs`. Default value of `None` prevents
+            incorrect method usage.
+
+        funits - string
+            Units of spectrogram frequency bins. Default value of `None`
+            prevents incorrect method usage.
+
+        '''
         # Check that supported units are being used prior to
         # performing any calculations
         if xunits is not None:
@@ -107,36 +99,30 @@ class Spectrogram(object):
         else:
             raise ValueError('Only kHz spectrogram frequency bins supported!')
 
-        # In the absence of zero-padding, the window size `NFFT`
-        # determines the size of the FFT frequency bins for
-        # a given signal sampled at frequency `Fs` via
+        # TODO: get Pint to convert this to unitless number!!!
         #
-        #       FFT frequency bin size = Fs / NFFT
-        #
-        # However, the FFT is most efficiently computed when
-        # `NFFT` is a power of 2. Here, we take `NFFT` to be
-        # the power of 2 that yields a frequency bin size
-        # *closest* in value to the specified bin size `df`
-        exponent = np.log2(self._Fs / df)            # exact
-        exponent = np.int(np.round(exponent))  # for nearest power of 2
+        # The FFT is most efficiently computed when `NFFT` is a power of 2.
+        # Here, we take `NFFT` to be the power of 2 that yields a window size
+        # *closest* in value to the specified window size `Twindow`.
+        exponent = np.log2(Fs * Twindow)            # exact
+        exponent = np.int(np.round(exponent))       # for nearest power of 2
         self._NFFT = 2 ** exponent
-        self.df = self._Fs / self._NFFT
 
         # A nonzero overlap decreases spectrogram "graininess"
-        # and increases the number of spectrogram time bins
+        # and increases the number of spectrogram time bins.
+        # However, increased overlap also leads to increased
+        # correlation between time bins.
         self._noverlap = int(overlap_frac * self._NFFT)
 
         self._detrend = detrend
 
         # Compute spectrogram, where `Gxx` is the one-sided PSD
         Gxx, f, t = specgram(x, Fs=self._Fs, NFFT=self._NFFT,
-                             noverlap=self._noverlap, detrend=detrend)
+                             noverlap=self._noverlap, detrend=self._detrend)
 
         self.Gxx = Gxx * Hz_per_kHz
         self.f = f / Hz_per_kHz
-        self.df /= Hz_per_kHz
         self.t = t + t0
-        self.dt = np.mean(np.diff(self.t))
 
     def plotSpec(self, fmin=None, fmax=None,
                  ax=None, fig=None, geometry=111,
