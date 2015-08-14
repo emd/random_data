@@ -35,7 +35,7 @@ class Spectrogram(object):
     '''
     def __init__(self, x, Fs, Twindow,
                  t0=0., overlap_frac=0.5, detrend='linear',
-                 xunits=None, Fsunits=None, funits=None):
+                 xunits=None, Fsunits=None, funits=None, verbose=True):
         '''Create an instance of the Spectrogram class.
 
         Input Parameters:
@@ -78,6 +78,9 @@ class Spectrogram(object):
             Units of spectrogram frequency bins. Default value of `None`
             prevents incorrect method usage.
 
+        verbose - bool
+            If True, print spectral calculation parameters to screen.
+
         '''
         # Check that supported units are being used prior to
         # performing any calculations
@@ -104,9 +107,13 @@ class Spectrogram(object):
         # The FFT is most efficiently computed when `NFFT` is a power of 2.
         # Here, we take `NFFT` to be the power of 2 that yields a window size
         # *closest* in value to the specified window size `Twindow`.
-        exponent = np.log2(Fs * Twindow)            # exact
+        exponent = np.log2(self._Fs * Twindow)      # exact
         exponent = np.int(np.round(exponent))       # for nearest power of 2
         self._NFFT = 2 ** exponent
+
+        if verbose:
+            print '\nWindow length = ' + str(self._NFFT / self._Fs) + ' s'
+            print '# pts. / window = ' + str(self._NFFT)
 
         # A nonzero overlap decreases spectrogram "graininess"
         # and increases the number of spectrogram time bins.
@@ -114,7 +121,13 @@ class Spectrogram(object):
         # correlation between time bins.
         self._noverlap = int(overlap_frac * self._NFFT)
 
+        if verbose:
+            print 'Window overlap = ' + str(int(overlap_frac * 100)) + '%'
+
         self._detrend = detrend
+
+        if verbose:
+            print 'Detrending = ' + self._detrend
 
         # Compute spectrogram, where `Gxx` is the one-sided PSD
         Gxx, f, t = specgram(x, Fs=self._Fs, NFFT=self._NFFT,
