@@ -126,11 +126,6 @@ class Spectrogram(object):
         # and increases the number of spectrogram time bins
         self._noverlap = int(overlap_frac * self._NFFT)
 
-        # Times of initial (`_t0`) and final (`_tf`) points in signal `x`
-        # [_t0] = [_tf] = 1 / [Fs]
-        self._t0 = t0
-        self._tf = t0 + ((len(x) - 1) / self._Fs)
-
         self._detrend = detrend
 
         # Compute spectrogram, where `Gxx` is the one-sided PSD
@@ -140,7 +135,7 @@ class Spectrogram(object):
         self.Gxx = Gxx * Hz_per_kHz
         self.f = f / Hz_per_kHz
         self.df /= Hz_per_kHz
-        self.t = t + self._t0
+        self.t = t + t0
         self.dt = np.mean(np.diff(self.t))
 
     def plotSpec(self, fmin=None, fmax=None,
@@ -215,8 +210,8 @@ class Spectrogram(object):
             raise ValueError('Only sampling frequencies in Hz supported!')
 
         # Determine (x, y) extent of plot; time on x-axis, frequency on y-axis
-        tmin = self._t0
-        tmax = self._tf
+        tmin = self.t[0]
+        tmax = self.t[-1]
 
         if fmin is None:
             fmin = self.f[0]
