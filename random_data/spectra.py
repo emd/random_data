@@ -5,6 +5,7 @@
 
 # Standard library imports
 import numpy as np
+from scipy.signal import fftconvolve, convolve2d
 from matplotlib.colors import LogNorm
 from matplotlib.mlab import specgram
 import matplotlib.pyplot as plt
@@ -32,9 +33,18 @@ class Spectrogram(object):
         Time bin midpoints.
         [t] = 1 / `Fsunits`
 
+    df - float
+        Spacing between frequency bins.
+        [df] = `funits`
+
+    dt - float
+        Spacing between time bins.
+        [dt] = 1 / `Fsunits`
+
     '''
     def __init__(self, x, Fs, Twindow,
                  t0=0., overlap_frac=0.5, detrend='linear',
+                 kernel_df=None, kernel_dt=None,
                  xunits=None, Fsunits=None, funits=None, verbose=True):
         '''Create an instance of the Spectrogram class.
 
@@ -65,6 +75,20 @@ class Spectrogram(object):
 
         detrend - string
             [ 'default' | 'constant' | 'mean' | 'linear' | 'none'] or callable
+
+        kernel_df - float
+            Size of convolution window in frequency dimension.
+            If `None` is specified, the kernel window size in the
+            frequency dimension is set to unity, and no convolution
+            in the frequency dimension occurs.
+            [kernel_df] = `funits`
+
+        kernel_dt - float
+            Size of convolution window in frequency dimension.
+            If `None` is specified, the kernel window size in the
+            time dimension is set to unity, and no convolution
+            in the time dimension occurs.
+            [kernel_dt] = 1 / [Fs_units] 
 
         xunits - string
             Units of time series `x`. Default value of `None` prevents
@@ -136,6 +160,84 @@ class Spectrogram(object):
         self.Gxx = Gxx * Hz_per_kHz
         self.f = f / Hz_per_kHz
         self.t = t + t0
+        self.df = self.f[1] - self.f[0]
+        self.dt = self.t[1] - self.t[0]
+
+        if (kernel_df is not None) or (kernel_dt is not None):
+            self.Gxx = self._convolve(
+                kernel_df=kernel_df, kernel_dt=kernel_dt, verbose=verbose)
+
+    def _convolve(self, kernel_df=None, kernel_dt=None, verbose=True):
+        '''Convolve spectrogram with specified kernel.
+
+        Currently, only a boxcar kernel is implemented. Convolution with
+        this kernel is equivalent to averaging over the kernel window.
+        Additional kernels may be implemented in the future
+        (e.g. an edge detection kernel for coherent modes, etc.).
+
+        Parameters:
+        -----------
+        kernel_df - float
+            Size of convolution window in frequency dimension.
+            If `None` is specified, the kernel window size in the
+            frequency dimension is set to unity, and no convolution
+            in the frequency dimension occurs.
+            [kernel_df] = [self.f]
+
+        kernel_dt - float
+            Size of convolution window in frequency dimension.
+            If `None` is specified, the kernel window size in the
+            time dimension is set to unity, and no convolution
+            in the time dimension occurs.
+            [kernel_dt] = [self.t]
+
+        verbose - bool
+            If True, print convolution window parameters to screen.
+
+        '''
+        # Determine size of kernel, with min size of *one* in each dimension
+        if kernel_df is not None:
+            Nf = max([int(round(kernel_df / self.df)), 1])
+        else:
+            Nf = 1
+
+        if kernel_dt is not None:
+            Nt = max([int(round(kernel_dt / self.dt)), 1])
+        else:
+            Nt = 1
+
+        if verbose:
+            if Nf > 1:
+                print 'Kernel df = ' + str(Nf * self.df) + ' kHz'
+            else:
+                print 'No convolution in frequency.'
+
+            if Nt > 1:
+                print 'Kernel dt = ' + str(Nt * self.dt) + ' s'
+            else:
+                print 'No convolution in time.'
+
+        # Create boxcar kernel for averaging over kernel window.
+        # Note that the integral of kernel should be *unity*
+        # in order to preserve spectral power.
+        kernel = np.ones([Nf, Nt]) / float(Nf * Nt)
+
+        # When convolving a matrix of shape (w1, w2) with a
+        # kernel of shape (k1, k2), convolution is *fastest*
+        # via an FFT if
+        #
+        #           k1 * k2 >= 4 log_2 (w1 * w2)
+        #
+        # Otherwise, a straightforward convolution is faster.
+        # Relevant background information here:
+        #
+        #       http://programmers.stackexchange.com/a/172839
+        if kernel.size >= (4 * np.log2(self.Gxx.size)):
+            Gxx_convolved = fftconvolve(self.Gxx, kernel, mode='same')
+        else:
+            Gxx_convolved = convolve2d(self.Gxx, kernel, mode='same')
+
+        return Gxx_convolved
 
     def plotSpec(self, fmin=None, fmax=None,
                  ax=None, fig=None, geometry=111,
