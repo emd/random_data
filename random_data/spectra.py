@@ -240,8 +240,8 @@ class Spectrogram(object):
         return Gxx_convolved
 
     def plotSpec(self, fmin=None, fmax=None,
-                 ax=None, fig=None, geometry=111,
-                 title=None, cmap='Purples'):
+                 vmin=None, vmax=None, cmap='Purples',
+                 ax=None, fig=None, geometry=111, title=None):
         '''Plot spectrogram.
 
         Parameters:
@@ -250,6 +250,15 @@ class Spectrogram(object):
             The minimum (maximum) frequency displayed in spectrogram plot.
             If `None`, use the minimum (maximum) frequency in `self.f`.
             [fmin] = [fmax] = [self.f]
+
+        vmin (vmax) - float
+            `self.Gxx` <= `vmin` will be mapped to the minimum color
+            specified by colormap `cmap`. Similarly, `self.Gxx` >= `vmax`
+            will be mapped to the maximum color specified by colormap `cmap`.
+            Specification of None for `vmin` (`vmax`) defaults to mapping
+            the minimum (maximum) value in `self.Gxx` to the minimum
+            (maximum) color specified by colormap `cmap`.
+            [vmin] = [vmax] = [self.Gxx]
 
         ax - :py:class:`AxesSubplot <matplotlib.axes._subplots.AxesSubplot>`
             instance corresponding to the axis (i.e. "subplot") where
@@ -326,7 +335,8 @@ class Spectrogram(object):
 
         # Create plot
         im = ax.imshow(np.flipud(self.Gxx[find, :]), norm=LogNorm(),
-                       extent=extent, aspect='auto', cmap=cmap)
+                       vmin=vmin, vmax=vmax, cmap=cmap,
+                       extent=extent, aspect='auto')
 
         # Labeling
         ax.set_xlabel('$t \, [\mathrm{' + xaxisunits + '}]$', fontsize=16)
