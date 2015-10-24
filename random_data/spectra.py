@@ -15,6 +15,70 @@ from matplotlib.ticker import LogFormatter
 from event_manager.for_matplotlib import FigureList
 
 
+class SpectralDensity(object):
+    '''A class for characterizing spectral densities.
+
+    Attributes:
+    -----------
+    kind - string
+        The kind of spectral density: {'autospectral', 'cross-spectral'}
+
+    '''
+    def __init__(self, x, y=None, Fs=1.0):
+        '''Create an instance of the `SpectralDensity` class.
+
+        Input Parameters:
+        -----------------
+        x (, y) - array_like, (`N`,)
+            The signal(s) from which the spectral density will be computed.
+            If `y` is `None`, the autospectral density of `x` is computed.
+            If `y` is not `None`, the cross-spectral density of `x` and `y`
+            is computed. Further, if `y` is not `None`, a ValueError is
+            raised if `x` and `y` contain a different number of samples.
+            Note that `x` and `y` must be sampled at the *same* rate, `Fs`.
+            [x] = arbitrary units
+            ([y] = arbitrary units, potentially different than [x])
+
+        Fs - float
+            The sampling rate of `x` (and `y`, if specified).
+            If not specified, `Fs` is assigned a value of unity such that
+            all frequencies are *normalized* to the sampling rate.
+            [Fs] = 1 / [time]
+
+        '''
+        # `mlab._spectral_helper(...)` and
+        # `scipy.signal.spectral._spectral_helper(...)` both convert
+        # `x` and `y` to numpy arrays, so we only need to convert them
+        # if we need numpy functionality (probably...)
+
+        if y is None:
+            # If `y` is None, compute the autospectral density
+            # as opposed to the cross-spectral density
+            self.kind = 'autospectral'
+        else:
+            if len(x) != len(y):
+                raise ValueError('`x` and `y` must have the same length!')
+
+            # If `y` is specified but is also equal to `x`,
+            # we are still computing the autospectral density
+            if y is x:
+                self.kind = 'autospectral'
+            else:
+                self.kind = 'cross-spectral'
+
+
+        pass
+
+    def getSpectralDensity(self):
+        pass
+
+    def getPhaseAngle(self):
+        pass
+
+    def getCoherence(self):
+        pass
+
+
 class Spectrogram(object):
     '''Spectrogram class.
 
