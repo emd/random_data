@@ -167,6 +167,10 @@ class SpectralDensity(object):
             as specified in :py:func: `csd <matplotlib.mlab.csd>`.
 
         '''
+        # Only real-valued signals are expected/supported at the moment
+        if np.iscomplexobj(x) or np.iscomplexobj(y):
+            raise ValueError('`x` and `y` must be real-valued signals!')
+
         # Determine if we are computing autospectral density or
         # cross-spectral density. If computing cross-spectral density,
         # ensure that both signals are the same length.
