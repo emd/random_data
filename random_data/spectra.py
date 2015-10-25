@@ -347,6 +347,149 @@ class SpectralDensity(object):
         return ax
 
 
+def _plot_image(x, y, z,
+                lim=None, ylim=None, vlim=None,
+                norm=None, cmap='Purples', fontsize=16,
+                title=None, xlabel=None, ylabel=None, cblabel=None,
+                ax=None, fig=None, geometry=111):
+    '''Create an image of z(y, x).
+
+    Parameters:
+    -----------
+    x - array_like, (`M`,)
+        The x-axis of image. It is assumed that the x-values correspond
+        to the midpoints of bins in the x-dimension (e.g. the midpoint
+        of the ensembles in
+            :py:class:`SpectralDensity <random_data.spectra.SpectralDensity>`)
+
+    y - array_like, (`N`,)
+        The y-axis of image. It is assumed that the y-values correspond
+        to discrete samples of a function, such as the discrete frequencies
+        of a discrete Fourier transform.
+
+    z - array_like, (`N`, `M`)
+        The array containing the image values.
+
+    xlim - array_like, (2,)
+        The minimum and maximum values of `x` to display.
+
+    ylim - array_like, (2,)
+        The minimum and maximum values of `y` to display.
+
+    vlim - array_like, (2,)
+        The minimum and maximum values of `z` to display.
+
+    norm - string or None
+        If `log`, display image on logarithmic scale;
+        otherwise, display image on linear scale.
+
+    cmap - string
+        Colormap used for image. Default matplotlib colormaps
+        are found in :py:module:`cm <matplotlib.cm>`.
+
+    title, xlabel, ylabel, cblabel - string
+        Titles of respective objects in image.
+
+    ax - :py:class:`AxesSubplot <matplotlib.axes._subplots.AxesSubplot>`
+        instance corresponding to the axis (i.e. "subplot") where
+        the image will be drawn. `ax` will (obviously) be
+        modified by this method. If an axis instance is not provided,
+        an axis will automatically be created.
+
+    fig - :py:class:`Figure <matplotlib.figure.Figure>` instance
+        If an axis instance is *not* provided, one can provide
+        a figure instance (and an axis `geometry`, describing the
+        location of the axis instance in the figure) to control
+        which window is plotted in. If a figure instance is not
+        provided (and axis instance is also not provided),
+        a figure instance will be created with the next available
+        window number.
+
+    geometry - int, or tuple
+        If an axis instance is *not* provided, `geometry` determines
+        the location of the axis instance in the provided or created
+        figure. The standard matplotlib subplot geometry indexing is
+        used (see `<matplotlib.pyplot.subplot>` for more information).
+
+    Returns:
+    --------
+    ax - :py:class:`AxesSubplot <matplotlib.axes._subplots.AxesSubplot>`
+        instance corresponding to the axis (i.e. "subplot") where
+        the spectrogram will be drawn. This is either identical to
+        the axis instance used during the call or, if an axis instance
+        was not provided, the axis instance created during the call.
+
+    '''
+    # Determine (x, y) extent of image
+    if xlim is not None:
+        xlim = np.sort(xlim)
+        xind = np.where(np.logical_and(x >= xlim[0], x <= xlim[1]))[0]
+    else:
+        xind = np.arange(len(x))
+
+    if ylim is not None:
+        ylim = np.sort(ylim)
+        yind = np.where(np.logical_and(y >= ylim[0], y <= ylim[1]))[0]
+    else:
+        yind = np.arange(len(y))
+
+    dx = x[1] - x[0]
+
+    extent = (x[xind[0]] - (0.5 * dx),
+              x[xind[-1]] + (0.5 * dx),
+              y[yind[0]],
+              y[yind[-1]])
+
+    # If an axis instance is not provided, create one
+    if ax is None:
+        # If, in addition, a figure instance is not provided,
+        # create a new figure
+        if fig is None:
+            fig = plt.figure()
+        # Create axis with desired subplot geometry
+        ax = fig.add_subplot(geometry)
+
+    if vlim is not None:
+        vlim = np.sort(vlim)
+    else:
+        vlim = [np.min(z[yind, :][:, xind]), np.max(z[yind, :][:, xind])]
+
+    if norm == 'log':
+        norm = LogNorm()
+    else:
+        norm = None
+
+    # Create plot
+    im = ax.imshow(np.flipud(z[yind, :][:, xind]),
+                   extent=extent, aspect='auto',
+                   vmin=vlim[0], vmax=vlim[1],
+                   norm=norm, cmap=cmap)
+
+    # Colorbar
+    if norm == 'log':
+        format = LogFormatter(labelOnlyBase=True)
+    else:
+        format = None
+
+    cb = plt.colorbar(im, format=format,
+                      ax=ax, orientation='horizontal')
+
+    # Labeling
+    if title is not None:
+        ax.set_title(title, fontsize=fontsize)
+
+    if xlabel is not None:
+        ax.set_xlabel(xlabel, fontsize=fontsize)
+
+    if ylabel is not None:
+        ax.set_ylabel(ylabel, fontsize=fontsize)
+
+    if cblabel is not None:
+        cb.set_label(cblabel, fontsize=fontsize)
+
+    return ax
+
+
 class Spectrogram(object):
     '''Spectrogram class.
 
@@ -684,149 +827,6 @@ class Spectrogram(object):
                      fontsize=16)
 
         return ax
-
-
-def _plot_image(x, y, z,
-                lim=None, ylim=None, vlim=None,
-                norm=None, cmap='Purples', fontsize=16,
-                title=None, xlabel=None, ylabel=None, cblabel=None,
-                ax=None, fig=None, geometry=111):
-    '''Create an image of z(y, x).
-
-    Parameters:
-    -----------
-    x - array_like, (`M`,)
-        The x-axis of image. It is assumed that the x-values correspond
-        to the midpoints of bins in the x-dimension (e.g. the midpoint
-        of the ensembles in
-            :py:class:`SpectralDensity <random_data.spectra.SpectralDensity>`)
-
-    y - array_like, (`N`,)
-        The y-axis of image. It is assumed that the y-values correspond
-        to discrete samples of a function, such as the discrete frequencies
-        of a discrete Fourier transform.
-
-    z - array_like, (`N`, `M`)
-        The array containing the image values.
-
-    xlim - array_like, (2,)
-        The minimum and maximum values of `x` to display.
-
-    ylim - array_like, (2,)
-        The minimum and maximum values of `y` to display.
-
-    vlim - array_like, (2,)
-        The minimum and maximum values of `z` to display.
-
-    norm - string or None
-        If `log`, display image on logarithmic scale;
-        otherwise, display image on linear scale.
-
-    cmap - string
-        Colormap used for image. Default matplotlib colormaps
-        are found in :py:module:`cm <matplotlib.cm>`.
-
-    title, xlabel, ylabel, cblabel - string
-        Titles of respective objects in image.
-
-    ax - :py:class:`AxesSubplot <matplotlib.axes._subplots.AxesSubplot>`
-        instance corresponding to the axis (i.e. "subplot") where
-        the image will be drawn. `ax` will (obviously) be
-        modified by this method. If an axis instance is not provided,
-        an axis will automatically be created.
-
-    fig - :py:class:`Figure <matplotlib.figure.Figure>` instance
-        If an axis instance is *not* provided, one can provide
-        a figure instance (and an axis `geometry`, describing the
-        location of the axis instance in the figure) to control
-        which window is plotted in. If a figure instance is not
-        provided (and axis instance is also not provided),
-        a figure instance will be created with the next available
-        window number.
-
-    geometry - int, or tuple
-        If an axis instance is *not* provided, `geometry` determines
-        the location of the axis instance in the provided or created
-        figure. The standard matplotlib subplot geometry indexing is
-        used (see `<matplotlib.pyplot.subplot>` for more information).
-
-    Returns:
-    --------
-    ax - :py:class:`AxesSubplot <matplotlib.axes._subplots.AxesSubplot>`
-        instance corresponding to the axis (i.e. "subplot") where
-        the spectrogram will be drawn. This is either identical to
-        the axis instance used during the call or, if an axis instance
-        was not provided, the axis instance created during the call.
-
-    '''
-    # Determine (x, y) extent of image
-    if xlim is not None:
-        xlim = np.sort(xlim)
-        xind = np.where(np.logical_and(x >= xlim[0], x <= xlim[1]))[0]
-    else:
-        xind = np.arange(len(x))
-
-    if ylim is not None:
-        ylim = np.sort(ylim)
-        yind = np.where(np.logical_and(y >= ylim[0], y <= ylim[1]))[0]
-    else:
-        yind = np.arange(len(y))
-
-    dx = x[1] - x[0]
-
-    extent = (x[xind[0]] - (0.5 * dx),
-              x[xind[-1]] + (0.5 * dx),
-              y[yind[0]],
-              y[yind[-1]])
-
-    # If an axis instance is not provided, create one
-    if ax is None:
-        # If, in addition, a figure instance is not provided,
-        # create a new figure
-        if fig is None:
-            fig = plt.figure()
-        # Create axis with desired subplot geometry
-        ax = fig.add_subplot(geometry)
-
-    if vlim is not None:
-        vlim = np.sort(vlim)
-    else:
-        vlim = [np.min(z[yind, :][:, xind]), np.max(z[yind, :][:, xind])]
-
-    if norm == 'log':
-        norm = LogNorm()
-    else:
-        norm = None
-
-    # Create plot
-    im = ax.imshow(np.flipud(z[yind, :][:, xind]),
-                   extent=extent, aspect='auto',
-                   vmin=vlim[0], vmax=vlim[1],
-                   norm=norm, cmap=cmap)
-
-    # Colorbar
-    if norm == 'log':
-        format = LogFormatter(labelOnlyBase=True)
-    else:
-        format = None
-
-    cb = plt.colorbar(im, format=format,
-                      ax=ax, orientation='horizontal')
-
-    # Labeling
-    if title is not None:
-        ax.set_title(title, fontsize=fontsize)
-
-    if xlabel is not None:
-        ax.set_xlabel(xlabel, fontsize=fontsize)
-
-    if ylabel is not None:
-        ax.set_ylabel(ylabel, fontsize=fontsize)
-
-    if cblabel is not None:
-        cb.set_label(cblabel, fontsize=fontsize)
-
-    return ax
 
 
 def compare_spectrograms(S1, S2, title1=None, title2=None,
