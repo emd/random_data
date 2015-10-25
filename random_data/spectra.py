@@ -322,7 +322,16 @@ class SpectralDensity(object):
         return Gxy
 
     def getPhaseAngle(self):
-        pass
+        'Get phase angle `theta_xy` of spectral density `Gxy`.'
+        if self.kind == 'autospectral':
+            # By definition, autospectral density is real-valued
+            # for real-valued signal `x`
+            self.theta_xy = np.zeros(self.Gxy.shape)
+        else:
+            # Unwrap phase along time dimension to avoid 2 * pi discontinuities
+            self.theta_xy = np.unwrap(np.angle(self.Gxy), axis=-1)
+
+        return
 
     def getCoherence(self):
         pass
@@ -348,7 +357,7 @@ class SpectralDensity(object):
 
 
 def _plot_image(x, y, z,
-                lim=None, ylim=None, vlim=None,
+                xlim=None, ylim=None, vlim=None,
                 norm=None, cmap='Purples', fontsize=16,
                 title=None, xlabel=None, ylabel=None, cblabel=None,
                 ax=None, fig=None, geometry=111):

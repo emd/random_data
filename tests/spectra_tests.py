@@ -113,3 +113,28 @@ def test_SpectralDensity_white_noise():
     noise_power_estimate = np.sum(np.mean(asd.Gxy, axis=-1)) * asd.df
 
     tools.assert_almost_equal(noise_power, noise_power_estimate, places=1)
+
+
+def test_SpectralDensity_getPhaseAngle():
+    # Sampling parameters
+    Fs = 32.
+    t0 = 0.
+    tf = 1000.
+    t = np.arange(t0, tf, 1. / Fs)
+
+    # Sinusoidal signal @ `f0`
+    f0 = 1
+    x = np.cos(2 * np.pi * f0 * t)
+
+    # `x`, phase shifted by `ph0`
+    ph0 = np.pi / 4
+    y = np.cos((2 * np.pi * f0 * t) + ph0)
+
+    Tens = 100.
+    csd = SpectralDensity(x, y, Fs=Fs, Tens=Tens, Nreal_per_ens=10)
+    csd.getPhaseAngle()
+
+    f_ind = np.where(np.abs(csd.f - f0) == np.min(np.abs(csd.f - f0)))[0]
+    ph0_est = np.mean(csd.theta_xy[f_ind, :], axis=-1)
+
+    tools.assert_almost_equal(ph0, ph0_est, places=3)
