@@ -61,7 +61,7 @@ class SpectralDensity(object):
         The window applied to each realization before taking the FFT.
 
     '''
-    def __init__(self, x, y=None, Fs=1.0, t0=0,
+    def __init__(self, x, y=None, Fs=1.0, t0=0.,
                  Tens=40960., Nreal_per_ens=10, fraction_overlap=0.5,
                  detrend='linear', window=mlab.window_hanning):
         '''Create an instance of the `SpectralDensity` class.
@@ -86,7 +86,7 @@ class SpectralDensity(object):
 
         t0 - float
             The initial time corresponding to `x[0]` (and `y[0]`).
-            [t0 = 1 / [Fs]
+            [t0] = 1 / [Fs]
 
         Tens - float
             The time window defining an ensemble. `Tens` determines the
@@ -106,12 +106,13 @@ class SpectralDensity(object):
             0 < `fraction_overlap` < 1, otherwise a ValueError is raised.
 
         detrend - string
-            The function applied to each realization before taking FFT. 
+            The function applied to each realization before taking FFT.
             May be [ 'default' | 'constant' | 'mean' | 'linear' | 'none']
             or callable, as specified in :py:func: `csd <matplotlib.mlab.csd>`.
 
         window - callable or ndarray
-            As specified in :py:func: `csd <matplotlib.mlab.csd>`.
+            The window applied to each realization before taking FFT,
+            as specified in :py:func: `csd <matplotlib.mlab.csd>`.
 
         '''
         # Determine if we are computing autospectral density or
@@ -131,7 +132,11 @@ class SpectralDensity(object):
         # Determine number of sample points to use per realization and
         # the number of overlapping points between adjacent realizations
         Npts_per_real = self._getNumPtsPerReal(Fs, Tens, Nreal_per_ens)
-        Npts_overlap = np.int(fraction_overlap * Npts_per_real)
+
+        if fraction_overlap > 0 and fraction_overlap < 1:
+            Npts_overlap = np.int(fraction_overlap * Npts_per_real)
+        else:
+            raise ValueError('`fraction_overlap` must be between 0 and 1!')
 
         # Record important aspects of computation
         self.fraction_overlap = np.float(Npts_overlap) / Npts_per_real
