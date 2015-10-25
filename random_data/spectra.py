@@ -17,30 +17,78 @@ from event_manager.for_matplotlib import FigureList
 
 
 class SpectralDensity(object):
-    '''A class for characterizing spectral densities.
+    '''A class for spectral density characterization.
+
+    For stationary signals `x` and `y`, the cross-spectral density `Sxy`
+    is defined as
+
+        Sxy(f) = lim_{T \\rightarrow \infty} (1 / T) E[ X*(f, T) Y(f, T)]
+
+    where X(f, T) and Y(f, T) are the finite-time Fourier transforms
+    of `x` and `y`, respectively, * denotes complex conjugation, and
+    E[...] denotes the expectation value operator. The crosspower
+    within a spectral band fmin < f < fmax is given as
+
+        Pxy(fmin < f < fmax) = \int_{fmin}^{fmax} Sxy(f) df
+
+    The total crosspower is obtained when fmin = -f_Ny and fmax = f_Ny,
+    where f_Ny is the Nyquist frequency of the signals.
+
+    For real-valued signal `x`, X(-f, T) = X*(f, T). Thus, if both
+    `x` and `y` are real-valued, Sxy(-f) = [Syx(f)]*, and only
+    one side of the spectral density is uniquely determined.
+    This class assumes that `x` and `y` are real-valued signals
+    such that a one-sided spectral density (f >= 0) is returned.
+    The one sided spectral density is denoted `Gxy`. As `Gxy`
+    is only defined for f >= 0, conservation of signal power requires
+
+                    Gxy(f) = 2 Sxy(f), f >= 0, and
+                    Gxy(f) = Sxy(f),   f == 0
+
+    If `y` == `x`, substitute y -> x in all of the documentation
+    below (e.g. `Gxy` -> `Gxx`). In such cases, the computed spectral
+    density is referred to as the autospectral density. For a
+    real-valued signal `x`, the corresponding autospectral density
+    `Gxx` is, by definition, also real-valued.
+
+    If `x` and `y` are stationary signals, the entire sample record
+    is referred to as an "ensemble". The spectral density is then
+    *estimated* by splitting the ensemble into a number of
+    (potentially overlapping) smaller segments, referred to as
+    "realizations". These realizations are detrended, windowed, and
+    FFT'd; the resulting FFTs are then averaged to obtain an
+    estimate of the spectral density. The ensemble averaging is
+    required for a statistically consistent definition of the
+    spectral density: that is, as T -> \infty, the estimated
+    spectral density only converges to the true spectral density
+    when the ensemble average is computed. In particular, the
+    random error in the estimate decreases as the number of
+    realizations increases; explicitly
+
+        random error in estimated Gxy = 1 / sqrt(# of realizations)
+
+    This class allows for analysis of *nonstationary* signals.
+    `x` and `y` are first split into a number of ensembles, where
+    `x` and `y` are approximately stationary over the ensemble time.
+    The estimation of the spectral density during each ensemble
+    then proceeds as above.
 
     Attributes:
     -----------
+    Below, `x` (`y`) refers to the signal(s) for which the spectral density
+    is computed, and `Fs` is the signal sampling rate.
+
     Gxy - array_like, (`L`, `M`)
-        The spectral density estimate. If a single signal `x` is provided
-        at object initialization, this corresponds to an autospectral density.
-        If two distinct signals `x` and `y` are provided at initialization,
-        the estimate corresponds to the cross-spectral density of `x` and `y`.
-        [Gxy] = [x] [y] / [Fs], where `x` (`y`) is the signal(s) for
-            which the spectral density has been computed and `Fs`
-            is the sampling rate of `x` (and `y`). Note that if
-            `Gxy` corresponds to an autospectral density estimate,
-            we substitute [y] -> [x] in the above units expression.
+        The one-sided (f >= 0) spectral density estimate.
+        [Gxy] = [x] [y] / [Fs]
 
     f - array_like, (`L`,)
         The frequencies at which the spectral density has been estimated.
-        [f] = [Fs], where `Fs` is the signal sampling rate provided
-            at object initialization.
+        [f] = [Fs]
 
     t - array_like, (`M`,)
         The temporal midpoint of each ensemble.
-        [t] = 1 / [Fs], where `Fs` is the signal sampling rate provided
-            at object initialization.
+        [t] = 1 / [Fs]
 
     random_error - float
         The fractional random error in the spectral density estimate `Gxy`,
@@ -59,6 +107,10 @@ class SpectralDensity(object):
 
     window - callable or ndarray
         The window applied to each realization before taking the FFT.
+
+    Methods:
+    --------
+    Type `help(SpectralDensity)` in the IPython console for a listing.
 
     '''
     def __init__(self, x, y=None, Fs=1.0, t0=0.,
