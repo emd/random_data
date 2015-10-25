@@ -24,7 +24,7 @@ class SpectralDensity(object):
         The kind of spectral density: {'autospectral', 'cross-spectral'}
 
     '''
-    def __init__(self, x, y=None, Fs=1.0):
+    def __init__(self, x, y=None, Fs=1.0, t0=0, Tens=40960., Nreal_per_ens=10):
         '''Create an instance of the `SpectralDensity` class.
 
         Input Parameters:
@@ -43,14 +43,27 @@ class SpectralDensity(object):
             The sampling rate of `x` (and `y`, if specified).
             If not specified, `Fs` is assigned a value of unity such that
             all frequencies are *normalized* to the sampling rate.
-            [Fs] = 1 / [time]
+            [Fs] = arbitrary units, but typically the inverse of
+            some unit of time.
+
+        t0 - float
+            The initial time corresponding to `x[0]` (and `y[0]`).
+            [t0 = 1 / [Fs]
+
+        Tens - float
+            The time window defining an ensemble. `Tens` determines the
+            time resolution of the spectral density calculations,
+            with larger `Tens` corresponding to reduced time resolution
+            and increased frequency resolution.
+            [Tens] = 1 / [Fs]
+
+        Nreal_per_ens - int
+            The number of realizations per ensemble. The random error in the
+            spectral density estimate decreases as 1 / sqrt(Nreal_per_ens).
+            The frequency resolution `df` of the spectral density estimate
+            is linearly related to the number of realizations.
 
         '''
-        # `mlab._spectral_helper(...)` and
-        # `scipy.signal.spectral._spectral_helper(...)` both convert
-        # `x` and `y` to numpy arrays, so we only need to convert them
-        # if we need numpy functionality (probably...)
-
         if y is None:
             # If `y` is None, compute the autospectral density
             # as opposed to the cross-spectral density
@@ -66,11 +79,78 @@ class SpectralDensity(object):
             else:
                 self.kind = 'cross-spectral'
 
+        Npts_per_real = self._getNumPtsPerReal(Fs, Tens, Nreal_per_ens)
 
-        pass
+        self.f = self.getFrequencies(Npts_per_real, Fs)
 
-    def getSpectralDensity(self):
-        pass
+        try:
+            self.df = self.f[1] - self.f[0]
+        except IndexError:
+            self.df = np.nan
+
+        self.t = self.getTimes(x, Fs, t0, Npts_per_real, Nreal_per_ens)
+
+        try:
+            self.dt = self.t[1] - self.t[0]
+        except IndexError:
+            self.dt = np.nan
+
+        # f, Gxx = mlab_Sft(y, npts_per_real, nens)
+
+    def _getNumPtsPerReal(self, Fs, Tens, Nreal_per_ens):
+        '''Get number of points per realization. This directly
+        determines the frequency resolution `df` of the resulting
+        spectral density estimate.
+
+        '''
+        # TODO: Ensure `Npts_per_real` is *not* a large prime number
+        # for which the FFT will run slowly...
+        return np.int(np.round(Tens * Fs / Nreal_per_ens))
+
+    def getFrequencies(self, Npts_per_real, Fs):
+        '''Get frequencies at which spectral density is estimated.
+        It is assumed that a one-sided spectral density is computed.
+
+        '''
+        return np.fft.rfftfreq(Npts_per_real, d=(1. / Fs))
+
+    def getTimes(self, x, Fs, t0, Npts_per_real, Nreal_per_ens):
+        '''Get time base for spectral density estimate that is consistent
+        with the number of points per realization. The returned time base
+        corresponds to the midpoint of each ensemble.
+
+        '''
+        # The ensemble forms the basic unit/discretization of time
+        # for the computed spectral density estimate, so let's determine
+        # the number of points in an ensemble and the corresponding
+        # time window that is *consistent* with `Npts_per_real` and
+        # `Nreal_per_ens`.
+        Npts_per_ensemble = Npts_per_real * Nreal_per_ens
+        Tens = Npts_per_ensemble / np.float(Fs)  # avoid integer division!
+
+        # Determine the number of *whole* ensembles in the data record
+        # (Disregard fractional ensemble at the end of the data, if present)
+        Nens = np.int(len(x) / Npts_per_ensemble)
+
+        # The returned time base corresponds to the midpoint of each ensemble
+        return t0 + (Tens * np.arange(0.5, Nens, 1))
+
+    def getSpectralDensity(self, x, y, Fs, Npts_per_real, Nreal_per_ens,
+                           Npts_overlap):
+
+        Gxy = np.zeros([len(self.f), len(self.t)])
+
+        # loop over index
+        noverlap = (npts_per_real // 2)
+        for i, eind in enumerate(np.arange(nens)):
+            sl = slice(i * npts_per_real, (i + 1) * npts_per_real)
+
+            Gxy[:, eind], f = mlab.csd(
+                x[sl], y[sl], Fs=Fs,
+                NFFT=Npts_per_real, noverlap=Npts_overlap,
+                detrend=self.detrend, window=self.window)
+
+        return f, Gxx
 
     def getPhaseAngle(self):
         pass
