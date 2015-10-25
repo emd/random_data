@@ -5,6 +5,7 @@
 
 # Standard library imports
 import numpy as np
+from matplotlib import mlab
 from scipy.signal import fftconvolve, convolve2d
 from matplotlib.colors import LogNorm
 from matplotlib.mlab import specgram
@@ -20,11 +21,49 @@ class SpectralDensity(object):
 
     Attributes:
     -----------
+    Gxy - array_like, (`L`, `M`)
+        The spectral density estimate. If a single signal `x` is provided
+        at object initialization, this corresponds to an autospectral density.
+        If two distinct signals `x` and `y` are provided at initialization,
+        the estimate corresponds to the cross-spectral density of `x` and `y`.
+        [Gxy] = [x] [y] / [Fs], where `x` (`y`) is the signal(s) for
+            which the spectral density has been computed and `Fs`
+            is the sampling rate of `x` (and `y`). Note that if
+            `Gxy` corresponds to an autospectral density estimate,
+            we substitute [y] -> [x] in the above units expression.
+
+    f - array_like, (`L`,)
+        The frequencies at which the spectral density has been estimated.
+        [f] = [Fs], where `Fs` is the signal sampling rate provided
+            at object initialization.
+
+    t - array_like, (`M`,)
+        The temporal midpoint of each ensemble.
+        [t] = 1 / [Fs], where `Fs` is the signal sampling rate provided
+            at object initialization.
+
+    random_error - float
+        The fractional random error in the spectral density estimate `Gxy`,
+        as determined from the number of realizations averaged over
+        per ensemble.
+
     kind - string
         The kind of spectral density: {'autospectral', 'cross-spectral'}
 
+    fraction_overlap = fraction_overlap
+        The fractional overlap between adjacent realizations
+        of a given ensemble used when computing the spectral density.
+
+    detrend - string
+        The function applied to each realization before taking the FFT.
+
+    window - callable or ndarray
+        The window applied to each realization before taking the FFT.
+
     '''
-    def __init__(self, x, y=None, Fs=1.0, t0=0, Tens=40960., Nreal_per_ens=10):
+    def __init__(self, x, y=None, Fs=1.0, t0=0,
+                 Tens=40960., Nreal_per_ens=10, fraction_overlap=0.5,
+                 detrend='linear', window=mlab.window_hanning):
         '''Create an instance of the `SpectralDensity` class.
 
         Input Parameters:
@@ -43,8 +82,7 @@ class SpectralDensity(object):
             The sampling rate of `x` (and `y`, if specified).
             If not specified, `Fs` is assigned a value of unity such that
             all frequencies are *normalized* to the sampling rate.
-            [Fs] = arbitrary units, but typically the inverse of
-            some unit of time.
+            [Fs] = arbitrary units
 
         t0 - float
             The initial time corresponding to `x[0]` (and `y[0]`).
@@ -63,39 +101,60 @@ class SpectralDensity(object):
             The frequency resolution `df` of the spectral density estimate
             is linearly related to the number of realizations.
 
+        fraction_overlap - float
+            The fractional overlap between adjacent realizations.
+            0 < `fraction_overlap` < 1, otherwise a ValueError is raised.
+
+        detrend - string
+            The function applied to each realization before taking FFT. 
+            May be [ 'default' | 'constant' | 'mean' | 'linear' | 'none']
+            or callable, as specified in :py:func: `csd <matplotlib.mlab.csd>`.
+
+        window - callable or ndarray
+            As specified in :py:func: `csd <matplotlib.mlab.csd>`.
+
         '''
+        # Determine if we are computing autospectral density or
+        # cross-spectral density. If computing cross-spectral density,
+        # ensure that both signals are the same length.
         if y is None:
-            # If `y` is None, compute the autospectral density
-            # as opposed to the cross-spectral density
             self.kind = 'autospectral'
         else:
             if len(x) != len(y):
                 raise ValueError('`x` and `y` must have the same length!')
 
-            # If `y` is specified but is also equal to `x`,
-            # we are still computing the autospectral density
             if y is x:
                 self.kind = 'autospectral'
             else:
                 self.kind = 'cross-spectral'
 
+        # Record important aspects of computation
+        self.fraction_overlap = fraction_overlap
+        self.detrend = detrend
+        self.window = window
+        self.random_error = 1 / np.sqrt(Nreal_per_ens)
+
+        # Determine number of sample points to use per realization and
+        # the number of overlapping points between adjacent realizations
         Npts_per_real = self._getNumPtsPerReal(Fs, Tens, Nreal_per_ens)
+        Npts_overlap = np.int(fraction_overlap * Npts_per_real)
 
+        # Generate frequency and time base of spectral density estimate
         self.f = self.getFrequencies(Npts_per_real, Fs)
+        self.t = self.getTimes(x, Fs, t0, Npts_per_real, Nreal_per_ens)
 
+        # Determine resolution in frequency and time, if applicable
         try:
             self.df = self.f[1] - self.f[0]
         except IndexError:
             self.df = np.nan
-
-        self.t = self.getTimes(x, Fs, t0, Npts_per_real, Nreal_per_ens)
-
         try:
             self.dt = self.t[1] - self.t[0]
         except IndexError:
             self.dt = np.nan
 
-        # f, Gxx = mlab_Sft(y, npts_per_real, nens)
+        self.Gxy = self.getSpectralDensity(
+            x, y, Fs, Npts_per_real, Nreal_per_ens, Npts_overlap)
 
     def _getNumPtsPerReal(self, Fs, Tens, Nreal_per_ens):
         '''Get number of points per realization. This directly
@@ -135,22 +194,64 @@ class SpectralDensity(object):
         # The returned time base corresponds to the midpoint of each ensemble
         return t0 + (Tens * np.arange(0.5, Nens, 1))
 
-    def getSpectralDensity(self, x, y, Fs, Npts_per_real, Nreal_per_ens,
-                           Npts_overlap):
+    def getSpectralDensity(self, x, y, Fs,
+                           Npts_per_real, Nreal_per_ens, Npts_overlap):
+        'Get spectral density of provided signals.'
+        # Initialize spectral density array
+        if self.kind == 'cross-spectral':
+            # Cross-spectral density is intrinsically complex-valued, so
+            # we must initialize the spectral density as a complex-valued
+            # array to avoid loss of information
+            Gxy = np.zeros([len(self.f), len(self.t)], dtype=np.complex128)
+        elif self.kind == 'autospectral':
+            # Autospectral density is intrinsically real-valued
+            # (assuming `x` is real-valued), so we don't need the
+            # overhead of a complex-valued array
+            Gxy = np.zeros([len(self.f), len(self.t)])
+        else:
+            raise ValueError('`kind` = %s is not supported.' % self.kind)
 
-        Gxy = np.zeros([len(self.f), len(self.t)])
+        # Number of points per ensemble
+        Npts_per_ens = Npts_per_real * Nreal_per_ens
 
-        # loop over index
-        noverlap = (npts_per_real // 2)
-        for i, eind in enumerate(np.arange(nens)):
-            sl = slice(i * npts_per_real, (i + 1) * npts_per_real)
+        # Loop over successive ensembles
+        for ens in np.arange(len(self.t)):
+            # Create a slice corresponding to current ensemble
+            ens_start = ens * Npts_per_ens
+            ens_stop = (ens + 1) * Npts_per_ens
+            sl = slice(ens_start, ens_stop)
 
-            Gxy[:, eind], f = mlab.csd(
-                x[sl], y[sl], Fs=Fs,
-                NFFT=Npts_per_real, noverlap=Npts_overlap,
-                detrend=self.detrend, window=self.window)
+            # While it would be nice to remove the conditional below
+            # and simply use `mlab.csd(...)` for both autospectral and
+            # cross-spectral density calculations, `mlab.csd(...)` returns
+            # a complex-valued array. If computing the autospectral density,
+            # this complex-valued array is is cast as a real value, and
+            # Python raises a warning about information loss. For
+            # real-valued `x`, the autospectral density is, by definition,
+            # also real-valued, and there is no true information loss.
+            #
+            # However, if users are not aware that this particular warning
+            # is moot, they may find it unsettling. Further, and perhaps
+            # more important, if the users becomes accustomed to this
+            # warning statement, they may ignore a similar warning that
+            # is legitimately raised at another point in the code.
+            #
+            # In contrast, `mlab.psd(...)` explicitly returns a real-valued
+            # array. Python realizes this is intentional and does not complain.
+            # For these reasons, autospectral and cross-spectral density
+            # calculations are treated "differently" below.
+            if self.kind == 'autospectral':
+                Gxy[:, ens] = mlab.psd(
+                    x[sl], Fs=Fs,
+                    NFFT=Npts_per_real, noverlap=Npts_overlap,
+                    detrend=self.detrend, window=self.window)[0]
+            else:
+                Gxy[:, ens] = mlab.csd(
+                    x[sl], y[sl], Fs=Fs,
+                    NFFT=Npts_per_real, noverlap=Npts_overlap,
+                    detrend=self.detrend, window=self.window)[0]
 
-        return f, Gxx
+        return Gxy
 
     def getPhaseAngle(self):
         pass

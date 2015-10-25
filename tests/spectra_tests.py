@@ -99,3 +99,17 @@ def test_SpectralDensity_getTimes():
     sd = SpectralDensity(x, Fs=Fs, Tens=Tens, Nreal_per_ens=Nreal_per_ens)
     Texp = Tens * np.arange(0.5, c)
     np.testing.assert_equal(sd.t, Texp)
+
+
+def test_SpectralDensity_white_noise():
+    # White noise of a given power
+    noise_power = np.sqrt(2)
+    x = np.sqrt(noise_power) * np.random.randn(1e6)
+
+    # Compute autospectral density of `x`
+    asd = SpectralDensity(x)
+
+    # Average over time, then integrate over frequency
+    noise_power_estimate = np.sum(np.mean(asd.Gxy, axis=-1)) * asd.df
+
+    tools.assert_almost_equal(noise_power, noise_power_estimate, places=1)
