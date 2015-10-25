@@ -223,9 +223,16 @@ class SpectralDensity(object):
         spectral density estimate.
 
         '''
-        # TODO: Ensure `Npts_per_real` is *not* a large prime number
-        # for which the FFT will run slowly...
-        return np.int(np.round(Tens * Fs / Nreal_per_ens))
+        # TODO: Generalize `_getClosestPowerOf2(...)` to allow for
+        # additional small factors (e.g. {2, 3, 5, ...})
+        Npts_per_real = np.int(np.round(Tens * Fs / Nreal_per_ens))
+        return self._getClosestPowerOf2(Npts_per_real)
+
+    def _getClosestPowerOf2(self, x):
+        'Get the number expressible as a power of 2 that is closest to `x`.'
+        exponent = np.log2(x)                   # exact
+        exponent = np.int(np.round(exponent))   # for nearest power of 2
+        return 2 ** exponent
 
     def getFrequencies(self, Npts_per_real, Fs):
         '''Get frequencies at which spectral density is estimated.

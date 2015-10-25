@@ -25,7 +25,7 @@ def test_SpectralDensity__getNumPtsPerReal():
 
     # Create `SpectralDensity` object
     Fs = 1.0
-    Tens=40960
+    Tens = 2 ** 15  # 32768
     Nreal_per_ens = 1
     sd = SpectralDensity(x, Fs=Fs, Tens=Tens, Nreal_per_ens=Nreal_per_ens)
 
@@ -35,15 +35,15 @@ def test_SpectralDensity__getNumPtsPerReal():
     Nexp = np.int(Tens)
     tools.assert_equal(sd._getNumPtsPerReal(Fs, Tens, Nreal_per_ens), Nexp)
 
-    # Increasing number of realizations by factor of 10 should decrease
-    # number of points in realization by a factor of 10
-    c = 10
+    # Increasing number of realizations by factor of 2 should decrease
+    # number of points in realization by a factor of 2
+    c = 2
     tools.assert_equal(sd._getNumPtsPerReal(Fs, Tens, c * Nreal_per_ens),
                        Nexp / c)
 
-    # ... and increasing sampling rate by factor of 10 should increase
-    # the number of points in a realization by factor of 10
-    c = 10
+    # ... and increasing sampling rate by factor of 2 should increase
+    # the number of points in a realization by factor of 2
+    c = 2
     tools.assert_equal(sd._getNumPtsPerReal(c * Fs, Tens, Nreal_per_ens),
                        c * Nexp)
 
