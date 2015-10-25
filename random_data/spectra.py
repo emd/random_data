@@ -128,16 +128,16 @@ class SpectralDensity(object):
             else:
                 self.kind = 'cross-spectral'
 
-        # Record important aspects of computation
-        self.fraction_overlap = fraction_overlap
-        self.detrend = detrend
-        self.window = window
-        self.random_error = 1 / np.sqrt(Nreal_per_ens)
-
         # Determine number of sample points to use per realization and
         # the number of overlapping points between adjacent realizations
         Npts_per_real = self._getNumPtsPerReal(Fs, Tens, Nreal_per_ens)
         Npts_overlap = np.int(fraction_overlap * Npts_per_real)
+
+        # Record important aspects of computation
+        self.fraction_overlap = np.float(Npts_overlap) / Npts_per_real
+        self.detrend = detrend
+        self.window = window
+        self.random_error = 1 / np.sqrt(Nreal_per_ens)
 
         # Generate frequency and time base of spectral density estimate
         self.f = self.getFrequencies(Npts_per_real, Fs)
