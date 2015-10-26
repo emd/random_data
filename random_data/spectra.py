@@ -334,6 +334,8 @@ class SpectralDensity(object):
         return
 
     def getCoherence(self):
+        'Get the magnitude squared coherence function, `gamma2xy`.'
+
         pass
 
     def plotSpectralDensity(self, tlim=None, flim=None, vlim=None,
