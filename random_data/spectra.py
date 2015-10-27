@@ -436,7 +436,7 @@ class SpectralDensity(object):
 
 class Coherence(object):
     'A class for magnitude squared coherence characterization.'
-    def __init__(self, Gxy, x, y, Fs=1.0):
+    def __init__(self, Gxy, x, y):
         '''Create an instance of the `Coherence` class.
 
         Input parameters:
@@ -451,22 +451,19 @@ class Coherence(object):
             [x] = arbitrary units
             ([y] = arbitrary units, potentially different than [x])
 
-        Fs - float
-            Sampling rate of signals `x` and `y`.
-
         '''
-        self.gamma2xy = self.getCoherence(Gxy, x, y, Fs)
+        self.gamma2xy = self.getCoherence(Gxy, x, y)
 
     def getCoherence(self, Gxy, x, y, Fs):
         Gxx = SpectralDensity(
-            x, Fs=Fs,
+            x, Fs=Gxy.Fs,
             Nreal_per_ens=Gxy.Nreal_per_ens,
             Npts_per_real=Gxy.Npts_per_real,
             Npts_overlap=Gxy.Npts_overlap,
             detrend=Gxy.detrend, window=Gxy.window)
 
         Gyy = SpectralDensity(
-            y, Fs=Fs,
+            y, Fs=Gxy.Fs,
             Nreal_per_ens=Gxy.Nreal_per_ens,
             Npts_per_real=Gxy.Npts_per_real,
             Npts_overlap=Gxy.Npts_overlap,
