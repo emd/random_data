@@ -124,6 +124,7 @@ class SpectralDensity(object):
     '''
     def __init__(self, x, y=None, Fs=1.0, t0=0.,
                  Tens=40960., Nreal_per_ens=10, fraction_overlap=0.5,
+                 Npts_per_real=None, Npts_overlap=None,
                  detrend='linear', window=mlab.window_hanning):
         '''Create an instance of the `SpectralDensity` class.
 
@@ -167,6 +168,21 @@ class SpectralDensity(object):
             The fractional overlap between adjacent realizations.
             0 =< `fraction_overlap` < 1, otherwise a ValueError is raised.
 
+        Npts_per_real - int
+            The number of sample points per realization. If None,
+            `Tens` is used to compute `Npts_per_real` that is compatible
+            with `Nreal_per_ens` and efficient FFT computation.
+            If not None, `Tens` is ignored. A ValueError is raised
+            if not a positive integer.
+
+        Npts_overlap - int
+            The number of overlapping sample points between adjacent
+            realizations. If None, `fraction_overlap` sets the
+            number of overlapping sample points. If not None,
+            `fraction_overlap` is ignored. A ValueError is raised
+            if not a positive integer or if greater than or equal to
+            the number of points per realization.
+
         detrend - string
             The function applied to each realization before taking FFT.
             May be [ 'default' | 'constant' | 'mean' | 'linear' | 'none']
@@ -180,9 +196,6 @@ class SpectralDensity(object):
         # Only real-valued signals are expected/supported at the moment
         if np.iscomplexobj(x) or np.iscomplexobj(y):
             raise ValueError('`x` and `y` must be real-valued signals!')
-
-        if Nreal_per_ens < 1 or not isinstance(Nreal_per_ens, int):
-            raise ValueError('`Nreal_per_ens` must be a positive integer!')
 
         # Determine if we are computing autospectral density or
         # cross-spectral density. If computing cross-spectral density,
@@ -198,15 +211,28 @@ class SpectralDensity(object):
             else:
                 self.kind = 'cross-spectral'
 
+        # Ensure specified number of realizations is valid
+        if Nreal_per_ens < 1 or not isinstance(Nreal_per_ens, int):
+            raise ValueError('`Nreal_per_ens` must be a positive integer!')
+
         # Determine number of sample points to use per realization
-        Npts_per_real = self._getNumPtsPerReal(
-            Fs, Tens, Nreal_per_ens, fraction_overlap)
+        if Npts_per_real is None:
+            Npts_per_real = self._getNumPtsPerReal(
+                Fs, Tens, Nreal_per_ens, fraction_overlap)
+        elif Npts_per_real < 1 or not isinstance(Npts_per_real, int):
+            raise ValueError('`Npts_per_real` must be a positive integer!')
 
         # Determine number of overlapping points between adjacent realizations
-        if fraction_overlap >= 0 and fraction_overlap < 1:
-            Npts_overlap = np.int(fraction_overlap * Npts_per_real)
+        if Npts_overlap is None:
+            if fraction_overlap >= 0 and fraction_overlap < 1:
+                Npts_overlap = np.int(fraction_overlap * Npts_per_real)
+            else:
+                raise ValueError('`fraction_overlap` must be between 0 and 1!')
         else:
-            raise ValueError('`fraction_overlap` must be between 0 and 1!')
+            if Npts_overlap < 1 or not isinstance(Npts_overlap, int):
+                raise ValueError('`Npts_overlap` must be a positive integer!')
+            elif Npts_overlap >= Npts_per_real:
+                raise ValueError('`Npts_overlap` must be < `Npts_per_real`!')
 
         # Record important aspects of computation
         self.Npts_per_real = Npts_per_real
@@ -412,6 +438,28 @@ def _closest_power_of_2(x):
     exponent = np.log2(x)                   # exact
     exponent = np.int(np.round(exponent))   # for nearest power of 2
     return 2 ** exponent
+
+
+class Coherence(object):
+    'A class for magnitude squared coherence characterization.'
+    def __init__(self, Gxy=None, Gxx=None, Gyy=None, x=None, y=None):
+        '''Create an instance of the `Coherence` class.
+
+        Input parameters:
+        -----------------
+        Gxy - array_like (`M`, `N`)
+            The cross-spectral density of signals `x` and `y`
+            [Gxy] = [x] [y] / [Fs], where `Fs` is the signal sampling rate
+
+        Gxx, Gyy - array_like (`M`, `N`)
+            The autospectral densities of signals `x` and `y`, respectively.
+            [Gxx] = [Gyy] = [Gxy]
+
+        '''
+        pass
+
+    def getCoherence(self):
+        pass
 
 
 def _plot_image(x, y, z,

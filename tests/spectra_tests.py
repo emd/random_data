@@ -20,6 +20,55 @@ def test_SpectralDensity_signal_input():
     tools.assert_equal(SpectralDensity(x).kind, 'autospectral')
 
 
+def test_SpectralDensity_Npts_input():
+    x = np.random.randn(50e3)
+
+    # `Nreal_per_ens` should be a positive integer
+    tools.assert_raises(ValueError, SpectralDensity, x, {'Nreal_per_ens': -1})
+    tools.assert_raises(ValueError, SpectralDensity, x, {'Nreal_per_ens': 1.})
+
+    # `Npts_per_real` should be a positive integer
+    tools.assert_raises(ValueError, SpectralDensity, x, {'Npts_per_real': -1})
+    tools.assert_raises(ValueError, SpectralDensity, x, {'Npts_per_real': 1.})
+
+    # ... but a valid specification of `Npts_per_real` should work
+    Npts_per_real = 10
+    tools.assert_equal(
+        SpectralDensity(x, Npts_per_real=Npts_per_real).Npts_per_real,
+        Npts_per_real)
+
+    # `Npts_overlap` should be a positive integer, less than `Npts_per_real`
+    tools.assert_raises(ValueError, SpectralDensity, x, {'Npts_overlap': -1})
+    tools.assert_raises(ValueError, SpectralDensity, x, {'Npts_overlap': 1.})
+    tools.assert_raises(ValueError, SpectralDensity,
+                        x, {'Npts_per_real': 100, 'Npts_overlap': 101})
+
+    # ... but a valid choice of `Npts_overlap` should work
+    Npts_per_real = 100
+    Npts_overlap = Npts_per_real // 2
+    tools.assert_equal(
+        SpectralDensity(
+            x, Npts_per_real=Npts_per_real,
+            Npts_overlap=Npts_overlap).Npts_overlap,
+        Npts_overlap)
+
+    # Similarly, 0 <= `fraction_overlap` < 1
+    tools.assert_raises(ValueError, SpectralDensity,
+                        x, {'fraction_overlap': -1})
+    tools.assert_raises(ValueError, SpectralDensity,
+                        x, {'fraction_overlap': 1})
+
+    # ... but a valid choice of `fraction_overlap` should work
+    Npts_per_real = 100
+    fraction_overlap = 0.5
+    Npts_overlap = np.int(fraction_overlap * Npts_per_real)
+    tools.assert_equal(
+        SpectralDensity(
+            x, Npts_per_real=Npts_per_real,
+            fraction_overlap=fraction_overlap).Npts_overlap,
+        Npts_overlap)
+
+
 def test_SpectralDensity__getNumPtsPerReal():
     x = np.random.randn(50e3)
 
