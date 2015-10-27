@@ -90,6 +90,19 @@ class SpectralDensity(object):
         The temporal midpoint of each ensemble.
         [t] = 1 / [Fs]
 
+    Nreal_per_ens - int
+        The number of realizations per ensemble used in the computation
+        of the spectral density estimate `Gxy`. The random error in
+        the spectral density estimate decreases as 1 / sqrt(`Nreal_per_ens`).
+
+    Npts_per_real - int
+        The number of sample points per realization used in the computation
+        of the spectral density estimate `Gxy`.
+
+    Npts_overlap - int
+        The number of overlapping points between adjacent realizations
+        in the computation of the spectral density estimate `Gxy`.
+
     random_error - float
         The fractional random error in the spectral density estimate `Gxy`,
         as determined from the number of realizations averaged over
@@ -97,10 +110,6 @@ class SpectralDensity(object):
 
     kind - string
         The kind of spectral density: {'autospectral', 'cross-spectral'}
-
-    fraction_overlap = fraction_overlap
-        The fractional overlap between adjacent realizations
-        of a given ensemble used when computing the spectral density.
 
     detrend - string
         The function applied to each realization before taking the FFT.
@@ -152,10 +161,11 @@ class SpectralDensity(object):
             spectral density estimate decreases as 1 / sqrt(Nreal_per_ens).
             The frequency resolution `df` of the spectral density estimate
             is linearly related to the number of realizations.
+            A ValueError is raised if not a positive integer.
 
         fraction_overlap - float
             The fractional overlap between adjacent realizations.
-            0 < `fraction_overlap` < 1, otherwise a ValueError is raised.
+            0 =< `fraction_overlap` < 1, otherwise a ValueError is raised.
 
         detrend - string
             The function applied to each realization before taking FFT.
@@ -171,6 +181,9 @@ class SpectralDensity(object):
         if np.iscomplexobj(x) or np.iscomplexobj(y):
             raise ValueError('`x` and `y` must be real-valued signals!')
 
+        if Nreal_per_ens < 1 or not isinstance(Nreal_per_ens, int):
+            raise ValueError('`Nreal_per_ens` must be a positive integer!')
+
         # Determine if we are computing autospectral density or
         # cross-spectral density. If computing cross-spectral density,
         # ensure that both signals are the same length.
@@ -185,24 +198,27 @@ class SpectralDensity(object):
             else:
                 self.kind = 'cross-spectral'
 
-        # Determine number of sample points to use per realization and
-        # the number of overlapping points between adjacent realizations
-        Npts_per_real = self._getNumPtsPerReal(Fs, Tens, Nreal_per_ens)
+        # Determine number of sample points to use per realization
+        Npts_per_real = self._getNumPtsPerReal(
+            Fs, Tens, Nreal_per_ens, fraction_overlap)
 
-        if fraction_overlap > 0 and fraction_overlap < 1:
+        # Determine number of overlapping points between adjacent realizations
+        if fraction_overlap >= 0 and fraction_overlap < 1:
             Npts_overlap = np.int(fraction_overlap * Npts_per_real)
         else:
             raise ValueError('`fraction_overlap` must be between 0 and 1!')
 
         # Record important aspects of computation
-        self.fraction_overlap = np.float(Npts_overlap) / Npts_per_real
+        self.Npts_per_real = Npts_per_real
+        self.Nreal_per_ens = Nreal_per_ens
+        self.Npts_overlap = Npts_overlap
         self.detrend = detrend
         self.window = window
         self.random_error = 1 / np.sqrt(Nreal_per_ens)
 
         # Generate frequency and time base of spectral density estimate
-        self.f = self.getFrequencies(Npts_per_real, Fs)
-        self.t = self.getTimes(x, Fs, t0, Npts_per_real, Nreal_per_ens)
+        self.f = self.getFrequencies(Fs)
+        self.t = self.getTimes(x, Fs, t0)
 
         # Determine resolution in frequency and time, if applicable
         try:
@@ -214,56 +230,89 @@ class SpectralDensity(object):
         except IndexError:
             self.dt = np.nan
 
-        self.Gxy = self.getSpectralDensity(
-            x, y, Fs, Npts_per_real, Nreal_per_ens, Npts_overlap)
+        self.Gxy = self.getSpectralDensity(x, y, Fs)
 
-    def _getNumPtsPerReal(self, Fs, Tens, Nreal_per_ens):
+    def _getNumPtsPerReal(self, Fs, Tens, Nreal_per_ens, fraction_overlap):
         '''Get number of points per realization. This directly
         determines the frequency resolution `df` of the resulting
         spectral density estimate.
 
+        As the number of points must be a whole number, there will
+        generally be round-off error such that the resulting ensemble
+        time window is slightly different than the specified `Tens`.
+        Further, to ensure efficient FFT computation, the number of
+        points per ensemble is required to be a power of two,
+        potentially leading to even larger differences between
+        the resulting ensemble time window and the spec'd `Tens`.
+
+        This function should be called *before* utilizing other
+        functions related to the FFT, such as `_getNumPtsPerEns(...)`.
+
         '''
-        # TODO: Generalize `_getClosestPowerOf2(...)` to allow for
+        # If a given ensemble of length `Tens` consists of `Nreal_per_ens`
+        # (potentially overlapping) realizations, each of length `Treal`,
+        # then
+        #
+        #  Tens = Treal * {1 + [(Nreal_per_ens - 1) * (1 - fraction_overlap)]}
+        #
+        # where `fraction_overlap` is the fractional overlap between
+        # adjacent realizations. `Treal` is easily solved for.
+        denominator = 1 + ((Nreal_per_ens - 1) * (1 - fraction_overlap))
+        Treal = np.float(Tens) / denominator  # avoid integer division!
+
+        Npts_per_real = np.int(np.round(Treal * Fs))
+
+        # TODO: Generalize `_closest_power_of_2(...)` to allow for
         # additional small factors (e.g. {2, 3, 5, ...})
-        Npts_per_real = np.int(np.round(Tens * Fs / Nreal_per_ens))
-        return self._getClosestPowerOf2(Npts_per_real)
+        return _closest_power_of_2(Npts_per_real)
 
-    def _getClosestPowerOf2(self, x):
-        'Get the number expressible as a power of 2 that is closest to `x`.'
-        exponent = np.log2(x)                   # exact
-        exponent = np.int(np.round(exponent))   # for nearest power of 2
-        return 2 ** exponent
+    def _getNumPtsPerEns(self):
+        'Get number of points per ensemble.'
+        # In a given ensemble, there are `Nreal_per_ens` (potentially
+        # overlapping) realizations. Each of these realizations
+        # contains `Npts_per_real` sample points. Thus, the first
+        # realization contributes `Npts_per_real` sample points.
+        Npts_per_ens = self.Npts_per_real
 
-    def getFrequencies(self, Npts_per_real, Fs):
+        # If there `Npts_overlap` overlapping sample points between
+        # adjacent realizations, the remaining (`Nreal_per_ens` - 1)
+        # realizations each contribute (`Npts_per_real` - `Npts_overlap`)
+        # distinct sample points.
+        distinct_points_per_real = self.Npts_per_real - self.Npts_overlap
+        Npts_per_ens += ((self.Nreal_per_ens - 1) * distinct_points_per_real)
+
+        return Npts_per_ens
+
+    def getFrequencies(self, Fs):
         '''Get frequencies at which spectral density is estimated.
         It is assumed that a one-sided spectral density is computed.
 
         '''
-        return np.fft.rfftfreq(Npts_per_real, d=(1. / Fs))
+        return np.fft.rfftfreq(self.Npts_per_real, d=(1. / Fs))
 
-    def getTimes(self, x, Fs, t0, Npts_per_real, Nreal_per_ens):
+    def getTimes(self, x, Fs, t0):
         '''Get time base for spectral density estimate that is consistent
         with the number of points per realization. The returned time base
         corresponds to the midpoint of each ensemble.
 
         '''
         # The ensemble forms the basic unit/discretization of time
-        # for the computed spectral density estimate, so let's determine
+        # for the computed spectral density estimate, so determine
         # the number of points in an ensemble and the corresponding
-        # time window that is *consistent* with `Npts_per_real` and
-        # `Nreal_per_ens`.
-        Npts_per_ensemble = Npts_per_real * Nreal_per_ens
-        Tens = Npts_per_ensemble / np.float(Fs)  # avoid integer division!
+        # time window. In general, this time window will slightly
+        # differ from that specified during object initialization;
+        # this is to ensure efficient FFT computation.
+        Npts_per_ens = self._getNumPtsPerEns()
+        Tens = Npts_per_ens / np.float(Fs)  # avoid integer division!
 
         # Determine the number of *whole* ensembles in the data record
         # (Disregard fractional ensemble at the end of the data, if present)
-        Nens = np.int(len(x) / Npts_per_ensemble)
+        Nens = np.int(len(x) / Npts_per_ens)
 
         # The returned time base corresponds to the midpoint of each ensemble
         return t0 + (Tens * np.arange(0.5, Nens, 1))
 
-    def getSpectralDensity(self, x, y, Fs,
-                           Npts_per_real, Nreal_per_ens, Npts_overlap):
+    def getSpectralDensity(self, x, y, Fs):
         'Get spectral density of provided signals.'
         # Initialize spectral density array
         if self.kind == 'cross-spectral':
@@ -280,7 +329,7 @@ class SpectralDensity(object):
             raise ValueError('`kind` = %s is not supported.' % self.kind)
 
         # Number of points per ensemble
-        Npts_per_ens = Npts_per_real * Nreal_per_ens
+        Npts_per_ens = self._getNumPtsPerEns()
 
         # Loop over successive ensembles
         for ens in np.arange(len(self.t)):
@@ -311,12 +360,12 @@ class SpectralDensity(object):
             if self.kind == 'autospectral':
                 Gxy[:, ens] = mlab.psd(
                     x[sl], Fs=Fs,
-                    NFFT=Npts_per_real, noverlap=Npts_overlap,
+                    NFFT=self.Npts_per_real, noverlap=self.Npts_overlap,
                     detrend=self.detrend, window=self.window)[0]
             else:
                 Gxy[:, ens] = mlab.csd(
                     x[sl], y[sl], Fs=Fs,
-                    NFFT=Npts_per_real, noverlap=Npts_overlap,
+                    NFFT=self.Npts_per_real, noverlap=self.Npts_overlap,
                     detrend=self.detrend, window=self.window)[0]
 
         return Gxy
@@ -356,6 +405,13 @@ class SpectralDensity(object):
             ax=ax, fig=fig, geometry=geometry)
 
         return ax
+
+
+def _closest_power_of_2(x):
+    'Get the number expressible as a power of 2 that is closest to `x`.'
+    exponent = np.log2(x)                   # exact
+    exponent = np.int(np.round(exponent))   # for nearest power of 2
+    return 2 ** exponent
 
 
 def _plot_image(x, y, z,

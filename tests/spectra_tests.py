@@ -1,6 +1,6 @@
 from nose import tools
 import numpy as np
-from random_data.spectra import SpectralDensity
+from random_data.spectra import SpectralDensity, _closest_power_of_2
 
 
 def test_SpectralDensity_signal_input():
@@ -27,30 +27,99 @@ def test_SpectralDensity__getNumPtsPerReal():
     Fs = 1.0
     Tens = 2 ** 15  # 32768
     Nreal_per_ens = 1
-    sd = SpectralDensity(x, Fs=Fs, Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+    fraction_overlap = 0
+    sd = SpectralDensity(
+        x, Fs=Fs, Tens=Tens, Nreal_per_ens=Nreal_per_ens,
+        fraction_overlap=fraction_overlap)
 
     # With `Fs` = 1, the number of points in an ensemble is *equal* to `Tens`.
     # Further, with only a single realization in the ensemble, the number of
-    # points in the ensemble should be equal to `Tens`.
+    # points in the realization should be equal to the number of points
+    # in the whole ensemble, i.e. `Tens`.
     Nexp = np.int(Tens)
-    tools.assert_equal(sd._getNumPtsPerReal(Fs, Tens, Nreal_per_ens), Nexp)
+    tools.assert_equal(
+        sd._getNumPtsPerReal(Fs, Tens, Nreal_per_ens, fraction_overlap), Nexp)
 
     # Increasing number of realizations by factor of 2 should decrease
     # number of points in realization by a factor of 2
     c = 2
-    tools.assert_equal(sd._getNumPtsPerReal(Fs, Tens, c * Nreal_per_ens),
-                       Nexp / c)
+    tools.assert_equal(
+        sd._getNumPtsPerReal(Fs, Tens, c * Nreal_per_ens, fraction_overlap),
+        Nexp / c)
 
     # ... and increasing sampling rate by factor of 2 should increase
     # the number of points in a realization by factor of 2
     c = 2
-    tools.assert_equal(sd._getNumPtsPerReal(c * Fs, Tens, Nreal_per_ens),
-                       c * Nexp)
+    tools.assert_equal(
+        sd._getNumPtsPerReal(c * Fs, Tens, Nreal_per_ens, fraction_overlap),
+        c * Nexp)
+
+    # ... and if we have 3 realizations per ensemble with 50% overlap
+    # between adjacent realizations, we expect the number of points
+    # per realization to decrease by 2
+    tools.assert_equal(
+        sd._getNumPtsPerReal(Fs, Tens, 3, 0.5),
+        Nexp // 2)
+
+
+def test_SpectralDensity__getNumPtsPerEns():
+    x = np.random.randn(50e3)
+
+    # Create `SpectralDensity` object
+    Fs = 1.0
+    Tens = 2 ** 15  # 32768
+    Npts_per_ens = np.int(Fs * Tens)
+
+    # Test (1): With *single* realization per ensemble and *no* overlap
+    sd = SpectralDensity(x, Fs=Fs, Tens=Tens,
+                         Nreal_per_ens=1, fraction_overlap=0)
+    tools.assert_equal(sd._getNumPtsPerEns(), Npts_per_ens)
+
+    # Test (2): With *multiple* realizations per ensemble and *no* overlap
+    #
+    # Note: Choose `Nreal_per_ens` = 2 below because return value of
+    # `_getNumPtsPerEns(...)` is influenced by `self.Npts_per_real`,
+    # which is itself determined by `_getNumPtsPerReal(...)`.
+    # The routine for determining the number of points per realization
+    # performs division by the factor
+    #
+    #    denominator = 1 + ((Nreal_per_ens - 1) * (1 - fraction_overlap))
+    #
+    # To avoid round-off from integer division effects,
+    # `denominator` should be a power of 2. For `fraction_overlap` = 0,
+    # this is readily accomplished with `Nreal_per_ens` = 2
+    sd = SpectralDensity(x, Fs=Fs, Tens=Tens,
+                         Nreal_per_ens=2, fraction_overlap=0)
+    tools.assert_equal(sd._getNumPtsPerEns(), Npts_per_ens)
+
+    # Test (3): With *one* realization per ensemble and *overlap*
+    sd = SpectralDensity(x, Fs=Fs, Tens=Tens,
+                         Nreal_per_ens=1, fraction_overlap=0.5)
+    tools.assert_equal(sd._getNumPtsPerEns(), Npts_per_ens)
+
+    # Test (4): With *multiple* realizations per ensemble and *overlap*
+    #
+    # Note: Choose `Nreal_per_ens` = 3 below because return value of
+    # `_getNumPtsPerEns(...)` is influenced by `self.Npts_per_real`,
+    # which is itself determined by `_getNumPtsPerReal(...)`.
+    # The routine for determining the number of points per realization
+    # performs division by the factor
+    #
+    #    denominator = 1 + ((Nreal_per_ens - 1) * (1 - fraction_overlap))
+    #
+    # To avoid round-off from integer division effects,
+    # `denominator` should be a power of 2. For `fraction_overlap` = 0.5,
+    # this is readily accomplished with `Nreal_per_ens` = 3
+    sd = SpectralDensity(x, Fs=Fs, Tens=Tens,
+                         Nreal_per_ens=3, fraction_overlap=0.5)
+    tools.assert_equal(sd._getNumPtsPerEns(), Npts_per_ens)
 
 
 def test_SpectralDensity_getFrequencies():
     x = np.random.randn(100)
 
+    # Test (1)
+    # --------
     # For `Fs` = 1 and one realization per ensemble, the number
     # of points per realization is simply `Tens`. The number of points
     # per realization directly determines the frequency resolution
@@ -63,18 +132,23 @@ def test_SpectralDensity_getFrequencies():
     fexp = np.arange((Tens // 2) + 1) / Tens
     np.testing.assert_equal(sd.f, fexp)
 
+    # Test (2)
+    # --------
     # If we have `c` realizations per ensemble, the frequency resolution
     # should decrease by a factor of `c`
     c = 2
-    Nreal_per_ens *= c
     sd = SpectralDensity(x, Fs=Fs, Tens=Tens,
-                         Nreal_per_ens=Nreal_per_ens)
+                         Nreal_per_ens=(c * Nreal_per_ens))
     np.testing.assert_equal(sd.f, fexp[::c])
 
-    # ... and if we increase `Fs` by `c`, the frequency resolution should
-    # stay the same, but the frequency range will increase by `c`
-    Fs *= c
-    sd = SpectralDensity(x, Fs=Fs, Tens=Tens,
+    # Test (3)
+    # --------
+    # ... and if we increase `Fs` by `c` an decrease `Tens` by `c`
+    # (we decrease `Tens` by `c` to ensure we have the same number
+    # of points per realization and ensemble as in (1)),
+    # the expected frequencies will increase by a factor `c`
+    # relative to those in (1)
+    sd = SpectralDensity(x, Fs=(c * Fs), Tens=(Tens / float(c)),
                          Nreal_per_ens=Nreal_per_ens)
     np.testing.assert_equal(sd.f, c * fexp)
 
@@ -138,3 +212,16 @@ def test_SpectralDensity_getPhaseAngle():
     ph0_est = np.mean(csd.theta_xy[f_ind, :], axis=-1)
 
     tools.assert_almost_equal(ph0, ph0_est, places=3)
+
+
+def test__closest_power_of_2():
+    x = 16
+
+    # exact
+    tools.assert_equal(x, _closest_power_of_2(x))
+
+    # should round up to `x`
+    tools.assert_equal(x, _closest_power_of_2(x - 1))
+
+    # should round down to `x`
+    tools.assert_equal(x, _closest_power_of_2(x + 1))
