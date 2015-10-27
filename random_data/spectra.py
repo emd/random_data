@@ -90,6 +90,10 @@ class SpectralDensity(object):
         The temporal midpoint of each ensemble.
         [t] = 1 / [Fs]
 
+    Fs - float
+        The signal sampling rate, as specified at object initialization.
+        [Fs] = arbitrary units
+
     Nreal_per_ens - int
         The number of realizations per ensemble used in the computation
         of the spectral density estimate `Gxy`. The random error in
@@ -235,6 +239,7 @@ class SpectralDensity(object):
                 raise ValueError('`Npts_overlap` must be < `Npts_per_real`!')
 
         # Record important aspects of computation
+        self.Fs = Fs
         self.Npts_per_real = Npts_per_real
         self.Nreal_per_ens = Nreal_per_ens
         self.Npts_overlap = Npts_overlap
