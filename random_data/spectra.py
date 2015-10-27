@@ -402,17 +402,12 @@ class SpectralDensity(object):
             # By definition, autospectral density is real-valued
             # for real-valued signal `x`
             self.theta_xy = 0
-            print '\nAutospectral density of real signal is also real.\n'
+            print '\nAutospectral density of real signal is also real.'
         else:
             # Unwrap phase along time dimension to avoid 2 * pi discontinuities
             self.theta_xy = np.unwrap(np.angle(self.Gxy), axis=-1)
 
         return
-
-    def getCoherence(self):
-        'Get the magnitude squared coherence function, `gamma2xy`.'
-
-        pass
 
     def plotSpectralDensity(self, tlim=None, flim=None, vlim=None,
                             cmap='Purples', fontsize=16,
@@ -434,33 +429,55 @@ class SpectralDensity(object):
         return ax
 
 
+class Coherence(object):
+    'A class for magnitude squared coherence characterization.'
+    def __init__(self, Gxy, x, y, Fs=1.0):
+        '''Create an instance of the `Coherence` class.
+
+        Input parameters:
+        -----------------
+        Gxy - :py:class:`SpectralDensity <random_data.spectra.SpectralDensity>`
+            The `SpectralDensity` object corresponding to the cross-spectral
+            density of signals `x` and `y`
+            [Gxy] = [x] [y] / [Fs], where `Fs` is the signal sampling rate
+
+        x, y - array_like, (`N`,)
+            The signals corresponding to the cross-spectral density `Gxy`.
+            [x] = arbitrary units
+            ([y] = arbitrary units, potentially different than [x])
+
+        Fs - float
+            Sampling rate of signals `x` and `y`.
+
+        '''
+        self.gamma2xy = self.getCoherence(Gxy, x, y, Fs)
+
+    def getCoherence(self, Gxy, x, y, Fs):
+        Gxx = SpectralDensity(
+            x, Fs=Fs,
+            Nreal_per_ens=Gxy.Nreal_per_ens,
+            Npts_per_real=Gxy.Npts_per_real,
+            Npts_overlap=Gxy.Npts_overlap,
+            detrend=Gxy.detrend, window=Gxy.window)
+
+        Gyy = SpectralDensity(
+            y, Fs=Fs,
+            Nreal_per_ens=Gxy.Nreal_per_ens,
+            Npts_per_real=Gxy.Npts_per_real,
+            Npts_overlap=Gxy.Npts_overlap,
+            detrend=Gxy.detrend, window=Gxy.window)
+
+        num = (np.abs(Gxy.Gxy) ** 2)
+        den = Gxx.Gxy * Gyy.Gxy
+
+        return num / den
+
+
 def _closest_power_of_2(x):
     'Get the number expressible as a power of 2 that is closest to `x`.'
     exponent = np.log2(x)                   # exact
     exponent = np.int(np.round(exponent))   # for nearest power of 2
     return 2 ** exponent
-
-
-class Coherence(object):
-    'A class for magnitude squared coherence characterization.'
-    def __init__(self, Gxy=None, Gxx=None, Gyy=None, x=None, y=None):
-        '''Create an instance of the `Coherence` class.
-
-        Input parameters:
-        -----------------
-        Gxy - array_like (`M`, `N`)
-            The cross-spectral density of signals `x` and `y`
-            [Gxy] = [x] [y] / [Fs], where `Fs` is the signal sampling rate
-
-        Gxx, Gyy - array_like (`M`, `N`)
-            The autospectral densities of signals `x` and `y`, respectively.
-            [Gxx] = [Gyy] = [Gxy]
-
-        '''
-        pass
-
-    def getCoherence(self):
-        pass
 
 
 def _plot_image(x, y, z,
