@@ -19,6 +19,14 @@ def test_SpectralDensity_signal_input():
     # If `y` is not specified, we are computing autospectral density
     tools.assert_equal(SpectralDensity(x).kind, 'autospectral')
 
+    # Complex signals should fail
+    xc = x.astype('complex128')
+    yc = y.astype('complex128')
+    tools.assert_raises(ValueError, SpectralDensity, xc)
+    tools.assert_raises(ValueError, SpectralDensity, xc, {'y': y})
+    tools.assert_raises(ValueError, SpectralDensity, x, {'y': yc})
+    tools.assert_raises(ValueError, SpectralDensity, xc, {'y': yc})
+
 
 def test_SpectralDensity_Npts_input():
     x = np.random.randn(50e3)
