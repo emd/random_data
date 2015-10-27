@@ -415,6 +415,7 @@ class SpectralDensity(object):
         return
 
     def plotSpectralDensity(self, tlim=None, flim=None, vlim=None,
+                            AC_coupled=True,
                             cmap='Purples', fontsize=16,
                             title=None, xlabel='$t$', ylabel='$f$',
                             ax=None, fig=None, geometry=111):
@@ -423,6 +424,10 @@ class SpectralDensity(object):
             cblabel = '$G_{xx}(f)$'
         else:
             cblabel = '$|G_{xy}(f)|$'
+
+        if flim is None and AC_coupled:
+            # Don't allow DC signal to influence color mapping
+            flim = [self.f[1], self.f[-1]]
 
         ax = _plot_image(
             self.t, self.f, np.abs(self.Gxy),
@@ -452,20 +457,30 @@ class Coherence(object):
             ([y] = arbitrary units, potentially different than [x])
 
         '''
+        # Computational parameters of interest
+        self.Nreal_per_ens = Gxy.Nreal_per_ens
+        self.Npts_per_real = Gxy.Npts_per_real
+        self.Npts_overlap = Gxy.Npts_overlap
+        self.detrend = Gxy.detrend
+        self.window = Gxy.window
+
+        # Units and axes
+        self.Fs = Gxy.Fs
         self.t = Gxy.t
         self.f = Gxy.f
+
         self.gamma2xy = self.getCoherence(Gxy, x, y)
 
-    def getCoherence(self, Gxy, x, y, Fs):
+    def getCoherence(self, Gxy, x, y):
         Gxx = SpectralDensity(
-            x, Fs=Gxy.Fs, t0=Gxy.t0,
+            x, Fs=Gxy.Fs, t0=Gxy.t[0],
             Nreal_per_ens=Gxy.Nreal_per_ens,
             Npts_per_real=Gxy.Npts_per_real,
             Npts_overlap=Gxy.Npts_overlap,
             detrend=Gxy.detrend, window=Gxy.window)
 
         Gyy = SpectralDensity(
-            y, Fs=Gxy.Fs, t0=Gxy.t0,
+            y, Fs=Gxy.Fs, t0=Gxy.t[0],
             Nreal_per_ens=Gxy.Nreal_per_ens,
             Npts_per_real=Gxy.Npts_per_real,
             Npts_overlap=Gxy.Npts_overlap,
