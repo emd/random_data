@@ -401,7 +401,8 @@ class SpectralDensity(object):
         if self.kind == 'autospectral':
             # By definition, autospectral density is real-valued
             # for real-valued signal `x`
-            self.theta_xy = np.zeros(self.Gxy.shape)
+            self.theta_xy = 0
+            print '\nAutospectral density of real signal is also real.\n'
         else:
             # Unwrap phase along time dimension to avoid 2 * pi discontinuities
             self.theta_xy = np.unwrap(np.angle(self.Gxy), axis=-1)
