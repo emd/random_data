@@ -452,18 +452,20 @@ class Coherence(object):
             ([y] = arbitrary units, potentially different than [x])
 
         '''
+        self.t = Gxy.t
+        self.f = Gxy.f
         self.gamma2xy = self.getCoherence(Gxy, x, y)
 
     def getCoherence(self, Gxy, x, y, Fs):
         Gxx = SpectralDensity(
-            x, Fs=Gxy.Fs,
+            x, Fs=Gxy.Fs, t0=Gxy.t0,
             Nreal_per_ens=Gxy.Nreal_per_ens,
             Npts_per_real=Gxy.Npts_per_real,
             Npts_overlap=Gxy.Npts_overlap,
             detrend=Gxy.detrend, window=Gxy.window)
 
         Gyy = SpectralDensity(
-            y, Fs=Gxy.Fs,
+            y, Fs=Gxy.Fs, t0=Gxy.t0,
             Nreal_per_ens=Gxy.Nreal_per_ens,
             Npts_per_real=Gxy.Npts_per_real,
             Npts_overlap=Gxy.Npts_overlap,
@@ -473,6 +475,22 @@ class Coherence(object):
         den = Gxx.Gxy * Gyy.Gxy
 
         return num / den
+
+    def plotCoherence(self, tlim=None, flim=None, vlim=None,
+                      cmap='Purples', fontsize=16,
+                      title=None, xlabel='$t$', ylabel='$f$',
+                      ax=None, fig=None, geometry=111):
+        'Plot magnitude squared coherence on linear scale.'
+        cblabel = '$\gamma_{xy}^2$'
+
+        ax = _plot_image(
+            self.t, self.f, self.gamma2xy,
+            xlim=tlim, ylim=flim, vlim=vlim,
+            norm=None, cmap=cmap, fontsize=fontsize,
+            title=title, xlabel=xlabel, ylabel=ylabel, cblabel=cblabel,
+            ax=ax, fig=fig, geometry=geometry)
+
+        return ax
 
 
 def _closest_power_of_2(x):
