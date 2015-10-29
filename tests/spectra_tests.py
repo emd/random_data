@@ -1,6 +1,6 @@
 from nose import tools
 import numpy as np
-from random_data.spectra import SpectralDensity, _closest_power_of_2
+from random_data.spectra import SpectralDensity, _closest_power_of_2, Coherence
 
 
 def test_SpectralDensity_signal_input():
@@ -269,6 +269,41 @@ def test_SpectralDensity_getPhaseAngle():
     ph0_est = np.mean(csd.theta_xy[f_ind, :], axis=-1)
 
     tools.assert_almost_equal(ph0, ph0_est, places=3)
+
+
+def test_Coherence():
+    # Sampling parameters
+    Fs = 32.
+    t0 = 0.
+    tf = 1000.
+    t = np.arange(t0, tf, 1. / Fs)
+
+    # Sinusoidal signal @ `f0`
+    f0 = 1
+    x = np.cos(2 * np.pi * f0 * t)
+
+    # `x`, phase shifted by `ph0`
+    ph0 = np.pi / 4
+    y = np.cos((2 * np.pi * f0 * t) + ph0)
+
+    # Let's also add some noise...
+    noise_power = 1e0
+    x += np.sqrt(noise_power) * np.random.randn(len(t))
+    y += np.sqrt(noise_power) * np.random.randn(len(t))
+
+    # Compute cross spectral density
+    Tens = 100.
+    csd = SpectralDensity(x, y, Fs=Fs, Tens=Tens, Nreal_per_ens=10)
+
+    # Compute coherence
+    coherence = Coherence(csd, x, y)
+
+    # Coherence should be real-valued!
+    tools.assert_true(np.isrealobj(coherence.gamma2xy))
+
+    # Should have 0 <= gamma2xy <= 1 for all f and all t
+    tools.assert_true(np.alltrue(np.greater_equal(coherence.gamma2xy, 0)))
+    tools.assert_true(np.alltrue(np.less_equal(coherence.gamma2xy, 1)))
 
 
 def test__closest_power_of_2():
