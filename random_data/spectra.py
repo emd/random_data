@@ -440,7 +440,69 @@ class SpectralDensity(object):
 
 
 class Coherence(object):
-    'A class for magnitude squared coherence characterization.'
+    '''A class for (magnitude-squared) coherence characterization.
+
+    The (magnitude-squared) coherence function (gamma_{xy})^2
+    of signals `x` and `y` is is defined as
+
+        (gamma_{xy})^2 = [ | G_{xy}(f) |^2 ] / [ G_{xx}(f) G_{yy}(f) ]
+
+    where `G_{xy}(f)` is the cross-spectral density of `x` and `y` and
+    `G_{xx}(f)` (`G_{yy}(f)`) is the autospectral density of `x` (`y`).
+
+    For real-valued `x` and `y`, `G_{xx}(f)` and `G_{yy}(f)` are
+    also real-valued. Thus, the magnitude-squared coherence function
+    is real-valued. Further, for all `f`,
+
+                        0 <= (gamma_{xy})^2 <= 1
+
+    Attributes:
+    -----------
+    gamma2xy - array_like, (`L`, `M`)
+        The magnitude-squared coherence function for signals `x` and `y`.
+        [gamma2xy] = unitless
+
+    f - array_like, (`L`,)
+        The frequencies at which the coherence function has been estimated.
+        The frequencies are determined by the cross-spectral density
+        object `Gxy` provided at initialization.
+        [f] = [Fs]
+
+    t - array_like, (`M`,)
+        The temporal midpoint of each ensemble. The times are determined
+        by the cross-spectral density object `Gxy` provided at initialization.
+        [t] = 1 / [Fs]
+
+    Fs - float
+        The signal sampling rate, as specified by the cross-spectral density
+        object `Gxy` provided at initialization.
+        [Fs] = arbitrary units
+
+    Nreal_per_ens - int
+        As described in documentation for
+            :py:class:`SpectralDensity <random_data.spectra.SpectralDensity>`
+
+    Npts_per_real - int
+        As described in documentation for
+            :py:class:`SpectralDensity <random_data.spectra.SpectralDensity>`
+
+    Npts_overlap - int
+        As described in documentation for
+            :py:class:`SpectralDensity <random_data.spectra.SpectralDensity>`
+
+    detrend - string
+        As described in documentation for
+            :py:class:`SpectralDensity <random_data.spectra.SpectralDensity>`
+
+    window - callable or ndarray
+        As described in documentation for
+            :py:class:`SpectralDensity <random_data.spectra.SpectralDensity>`
+
+    Methods:
+    --------
+    Type `help(Coherence)` in the IPython console for a listing.
+
+    '''
     def __init__(self, Gxy, x, y):
         '''Create an instance of the `Coherence` class.
 
@@ -449,7 +511,6 @@ class Coherence(object):
         Gxy - :py:class:`SpectralDensity <random_data.spectra.SpectralDensity>`
             The `SpectralDensity` object corresponding to the cross-spectral
             density of signals `x` and `y`
-            [Gxy] = [x] [y] / [Fs], where `Fs` is the signal sampling rate
 
         x, y - array_like, (`N`,)
             The signals corresponding to the cross-spectral density `Gxy`.
