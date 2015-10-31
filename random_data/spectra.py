@@ -401,16 +401,17 @@ class SpectralDensity(object):
 
         return Gxy
 
-    def getPhaseAngle(self):
+    def getPhaseAngle(self, unwrap=True):
         'Get phase angle `theta_xy` of spectral density `Gxy`.'
         if self.kind == 'autospectral':
             # By definition, autospectral density is real-valued
             # for real-valued signal `x`
             self.theta_xy = 0
             print '\nAutospectral density of real signal is also real.'
+        elif unwrap:
+            self.theta_xy = np.unwrap(np.angle(self.Gxy))
         else:
-            # Unwrap phase along time dimension to avoid 2 * pi discontinuities
-            self.theta_xy = np.unwrap(np.angle(self.Gxy), axis=-1)
+            self.theta_xy = np.angle(self.Gxy)
 
         return
 
@@ -434,6 +435,51 @@ class SpectralDensity(object):
             xlim=tlim, ylim=flim, vlim=vlim,
             norm='log', cmap=cmap, fontsize=fontsize,
             title=title, xlabel=xlabel, ylabel=ylabel, cblabel=cblabel,
+            ax=ax, fig=fig, geometry=geometry)
+
+        return ax
+
+    def plotPhaseAngle(self, coherence, threshold=0.5,
+                       theta_min=-np.pi, theta_max=np.pi, dtheta=(np.pi / 4),
+                       tlim=None, flim=None,
+                       cmap='RdBu', fontsize=16,
+                       title=None, xlabel='$t$', ylabel='$f$',
+                       ax=None, fig=None, geometry=111):
+
+        if not Coherence.__instancecheck__(coherence):
+            raise TypeError(
+                ('`type(coherence)` must be '
+                 ':py:class:`Coherence <random_data.spectra.Coherence>`'))
+
+        # Only consider phase angles from regions whose
+        # magnitude-square coherence is at least `threshold`
+        theta_xy_masked = np.ma.masked_where(
+            coherence.gamma2xy < threshold, self.theta_xy)
+
+        # Create colorbar ticks for particular angles:
+        #   {`theta_min`, `theta_min` + `dtheta`, ..., `theta_max`}
+        numcbticks = ((theta_max - theta_min) / dtheta) + 1
+        cbticks = np.linspace(theta_min, theta_max, numcbticks)
+
+        # Get "discrete" colormap, with a distinct color corresponding
+        # to each value in `cbticks`
+        cmap = plt.get_cmap(cmap, len(cbticks))
+
+        # The discrete color corresponding to the ith tick, `cbticks[i]`,
+        # should be mapped to angles theta satisfying
+        #
+        # `cbticks[i]` - (dtheta` / 2) < theta < `cbticks[i]` + (`dtheta` / 2)
+        #
+        # This is easily accomplished by setting the minimum and maximum
+        # values to represent in the image as follows:
+        vlim = [theta_min - (0.5 * dtheta), theta_max + (0.5 * dtheta)]
+
+        ax = _plot_image(
+            self.t, self.f, theta_xy_masked,
+            xlim=tlim, ylim=flim, vlim=vlim,
+            norm=None, cmap=cmap, fontsize=fontsize,
+            title=title, xlabel=xlabel, ylabel=ylabel,
+            cblabel='$\\theta_{xy}$', cbticks=cbticks,
             ax=ax, fig=fig, geometry=geometry)
 
         return ax
@@ -579,7 +625,8 @@ def _closest_power_of_2(x):
 def _plot_image(x, y, z,
                 xlim=None, ylim=None, vlim=None,
                 norm=None, cmap='Purples', fontsize=16,
-                title=None, xlabel=None, ylabel=None, cblabel=None,
+                title=None, xlabel=None, ylabel=None,
+                cblabel=None, cbticks=None,
                 ax=None, fig=None, geometry=111):
     '''Create an image of z(y, x).
 
@@ -685,8 +732,6 @@ def _plot_image(x, y, z,
 
     if norm == 'log':
         norm = LogNorm()
-    else:
-        norm = None
 
     # Create plot
     im = ax.imshow(np.flipud(z[yind, :][:, xind]),
@@ -700,7 +745,7 @@ def _plot_image(x, y, z,
     else:
         format = None
 
-    cb = plt.colorbar(im, format=format,
+    cb = plt.colorbar(im, format=format, ticks=cbticks,
                       ax=ax, orientation='horizontal')
 
     # Labeling
