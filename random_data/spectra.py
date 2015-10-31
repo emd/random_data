@@ -401,16 +401,16 @@ class SpectralDensity(object):
 
         return Gxy
 
-    def getPhaseAngle(self):
+    def getPhaseAngle(self, unwrap=True):
         'Get phase angle `theta_xy` of spectral density `Gxy`.'
         if self.kind == 'autospectral':
             # By definition, autospectral density is real-valued
             # for real-valued signal `x`
             self.theta_xy = 0
             print '\nAutospectral density of real signal is also real.'
+        elif unwrap:
+            self.theta_xy = np.unwrap(np.angle(self.Gxy))
         else:
-            # Don't unwrap. The phase determined via the cross spectrum is
-            # only unique modulo 2 * pi.
             self.theta_xy = np.angle(self.Gxy)
 
         return
