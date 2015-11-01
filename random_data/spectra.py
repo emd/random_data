@@ -233,8 +233,8 @@ class SpectralDensity(object):
             else:
                 raise ValueError('`fraction_overlap` must be between 0 and 1!')
         else:
-            if Npts_overlap < 1 or not isinstance(Npts_overlap, int):
-                raise ValueError('`Npts_overlap` must be a positive integer!')
+            if Npts_overlap < 0 or not isinstance(Npts_overlap, int):
+                raise ValueError('`Npts_overlap` must be an integer >= 0!')
             elif Npts_overlap >= Npts_per_real:
                 raise ValueError('`Npts_overlap` must be < `Npts_per_real`!')
 
