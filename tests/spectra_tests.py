@@ -1,6 +1,7 @@
 from nose import tools
 import numpy as np
-from random_data.spectra import SpectralDensity, _closest_power_of_2, Coherence
+from random_data.spectra import (SpectralDensity, _largest_power_of_2_leq,
+                                 Coherence)
 
 
 def test_SpectralDensity_signal_input():
@@ -306,14 +307,14 @@ def test_Coherence():
     tools.assert_true(np.alltrue(np.less_equal(coherence.gamma2xy, 1)))
 
 
-def test__closest_power_of_2():
+def test__largest_power_of_2_leq():
     x = 16
 
     # exact
-    tools.assert_equal(x, _closest_power_of_2(x))
-
-    # should round up to `x`
-    tools.assert_equal(x, _closest_power_of_2(x - 1))
+    tools.assert_equal(x, _largest_power_of_2_leq(x))
 
     # should round down to `x`
-    tools.assert_equal(x, _closest_power_of_2(x + 1))
+    tools.assert_equal(x, _largest_power_of_2_leq(x + 1))
+
+    # should round down to `x` / 2
+    tools.assert_equal(x / 2, _largest_power_of_2_leq(x - 1))

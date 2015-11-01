@@ -291,11 +291,7 @@ class SpectralDensity(object):
         denominator = 1 + ((Nreal_per_ens - 1) * (1 - fraction_overlap))
         Treal = np.float(Tens) / denominator  # avoid integer division!
 
-        Npts_per_real = np.int(np.round(Treal * Fs))
-
-        # TODO: Generalize `_closest_power_of_2(...)` to allow for
-        # additional small factors (e.g. {2, 3, 5, ...})
-        return _closest_power_of_2(Npts_per_real)
+        return _largest_power_of_2_leq(Treal * Fs)
 
     def _getNumPtsPerEns(self):
         'Get number of points per ensemble.'
@@ -615,10 +611,10 @@ class Coherence(object):
         return ax
 
 
-def _closest_power_of_2(x):
-    'Get the number expressible as a power of 2 that is closest to `x`.'
-    exponent = np.log2(x)                   # exact
-    exponent = np.int(np.round(exponent))   # for nearest power of 2
+def _largest_power_of_2_leq(x):
+    'Get the largest power of 2 that is less than or equal to `x`.'
+    exponent = np.log2(x)           # exact
+    exponent = np.int(exponent)     # next lowest power of 2
     return 2 ** exponent
 
 
