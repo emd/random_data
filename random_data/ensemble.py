@@ -47,6 +47,9 @@ class Ensemble(object):
     Npts_overlap - int
         The number of overlapping points between adjacent realizations.
 
+    Npts_per_ens - int
+        The number of sample points per ensemble.
+
     Fs - float
         The signal sampling rate, as specified at object initialization.
         [Fs] = arbitrary units
@@ -160,6 +163,9 @@ class Ensemble(object):
             else:
                 self.Npts_overlap = Npts_overlap
 
+        # Determine number of points per ensemble
+        self.Npts_per_ens = self.getNumPtsPerEns()
+
         # Generate times `t` corresponding to the midpoint of each ensemble,
         # and compute the frequencies `f` at which spectral estimates
         # can be made with the defined ensemble
@@ -240,12 +246,11 @@ class Ensemble(object):
         # time window. In general, this time window will slightly
         # differ from that specified during object initialization;
         # this is to ensure efficient FFT computation.
-        Npts_per_ens = self.getNumPtsPerEns()
-        Tens = Npts_per_ens / np.float(Fs)  # avoid integer division!
+        Tens = self.Npts_per_ens / np.float(Fs)  # avoid integer division!
 
         # Determine the number of *whole* ensembles in the data record
         # (Disregard fractional ensemble at the end of the data, if present)
-        Nens = np.int(len(x) / Npts_per_ens)
+        Nens = np.int(len(x) / self.Npts_per_ens)
 
         # The returned time base corresponds to the midpoint of each ensemble
         return t0 + (Tens * np.arange(0.5, Nens, 1))
