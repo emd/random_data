@@ -1,6 +1,13 @@
 from nose import tools
 import numpy as np
-from random_data.spectra import CrossSpectralDensity
+from random_data.spectra import AutoSpectralDensity, CrossSpectralDensity
+
+
+def test_AutoSpectralDensity_signal_input():
+    # Complex signal should fail
+    x = np.random.randn(50e3)
+    xc = x.astype('complex128')
+    tools.assert_raises(ValueError, AutoSpectralDensity, xc)
 
 
 def test_CrossSpectralDensity_signal_input():
@@ -17,18 +24,18 @@ def test_CrossSpectralDensity_signal_input():
     tools.assert_raises(ValueError, CrossSpectralDensity, xc, yc)
 
 
-# def test_SpectralDensity_white_noise():
-#     # White noise of a given power
-#     noise_power = np.sqrt(2)
-#     x = np.sqrt(noise_power) * np.random.randn(1e6)
-# 
-#     # Compute autospectral density of `x`
-#     asd = SpectralDensity(x)
-# 
-#     # Average over time, then integrate over frequency
-#     noise_power_estimate = np.sum(np.mean(asd.Gxy, axis=-1)) * asd.df
-# 
-#     tools.assert_almost_equal(noise_power, noise_power_estimate, places=1)
+def test_AutoSpectralDensity_white_noise():
+    # White noise of a given power
+    noise_power = np.sqrt(2)
+    x = np.sqrt(noise_power) * np.random.randn(1e6)
+
+    # Compute autospectral density of `x`
+    asd = AutoSpectralDensity(x)
+
+    # Average over time, then integrate over frequency
+    noise_power_estimate = np.sum(np.mean(asd.Gxx, axis=-1)) * asd.df
+
+    tools.assert_almost_equal(noise_power, noise_power_estimate, places=1)
 
 
 def test_CrossSpectralDensity_getPhaseAngle():

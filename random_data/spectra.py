@@ -17,6 +17,220 @@ from event_manager.for_matplotlib import FigureList
 from .ensemble import Ensemble
 
 
+class AutoSpectralDensity(object):
+    '''A class for autospectral density characterization.
+
+    For stationary signal `x`, the autospectral density `Sxx`
+    is defined as
+
+        Sxx(f) = lim_{T \\rightarrow \infty} (1 / T) E[ |X(f, T)| ^ 2 ]
+
+    where X(f, T) is the finite-time Fourier transform of `x` and
+    E[...] denotes the expectation value operator. The autopower
+    within a spectral band fmin < f < fmax is given as
+
+        Pxx(fmin < f < fmax) = \int_{fmin}^{fmax} Sxx(f) df
+
+    The total autopower is obtained when fmin = -f_Ny and fmax = f_Ny,
+    where f_Ny is the Nyquist frequency of the signals.
+
+    For real-valued signal `x`, X(-f, T) = X*(f, T). Thus,
+    only one side of the spectral density is uniquely determined.
+    This class assumes that `x` is a real-valued signal such that
+    a one-sided spectral density (f >= 0) is returned.
+    The one sided spectral density is denoted `Gxx`. As `Gxx`
+    is only defined for f >= 0, conservation of signal power requires
+
+                    Gxx(f) = 2 Sxx(f), f >= 0, and
+                    Gxx(f) = Sxx(f),   f == 0
+
+    If `x` is a stationary signal, the entire sample record
+    is referred to as an "ensemble". The spectral density is then
+    *estimated* by splitting the ensemble into a number of
+    (potentially overlapping) smaller segments, referred to as
+    "realizations". These realizations are detrended, windowed, and
+    FFT'd; the resulting FFTs are then averaged to obtain an
+    estimate of the spectral density. The ensemble averaging is
+    required for a statistically consistent definition of the
+    spectral density: that is, as T -> \infty, the estimated
+    spectral density only converges to the true spectral density
+    when the ensemble average is computed. In particular, the
+    random error in the estimate decreases as the number of
+    realizations increases.
+
+    This class allows for analysis of *nonstationary* signals.
+    `x` is first split into a number of ensembles, where
+    `x` is approximately stationary over the ensemble time.
+    The estimation of the spectral density during each ensemble
+    then proceeds as above.
+
+    Attributes:
+    -----------
+    Below, `x` refers to the signal for which the autospectral
+    density is computed, and `Fs` is the signal sampling rate.
+
+    Gxx - array_like, (`L`, `M`)
+        The one-sided (f >= 0) spectral density estimate.
+        [Gxx] = [x]^2 / [Fs]
+
+    f - array_like, (`L`,)
+        The frequencies at which the spectral density has been estimated.
+        [f] = [Fs]
+
+    t - array_like, (`M`,)
+        The temporal midpoint of each ensemble.
+        [t] = 1 / [Fs]
+
+    Fs - float
+        The signal sampling rate, as specified at object initialization.
+        [Fs] = arbitrary units
+
+    Nreal_per_ens - int
+        The number of realizations per ensemble used in the computation
+        of the spectral density estimate `Gxx`. The random error in
+        the spectral density estimate decreases ~ 1 / sqrt(`Nreal_per_ens`).
+
+    Npts_per_real - int
+        The number of sample points per realization used in the computation
+        of the spectral density estimate `Gxx`.
+
+    Npts_overlap - int
+        The number of overlapping points between adjacent realizations
+        in the computation of the spectral density estimate `Gxx`.
+
+    detrend - string
+        The function applied to each realization before taking the FFT.
+
+    window - callable or ndarray
+        The window applied to each realization before taking the FFT.
+
+    Methods:
+    --------
+    Type `help(SpectralDensity)` in the IPython console for a listing.
+
+    '''
+    def __init__(self, x, Fs=1.0, t0=0.,
+                 Tens=40960., Nreal_per_ens=10, fraction_overlap=0.5,
+                 Npts_per_real=None, Npts_overlap=None,
+                 detrend='linear', window=mlab.window_hanning):
+        '''Create an instance of the `SpectralDensity` class.
+
+        Input Parameters:
+        -----------------
+        x - array_like, (`N`,)
+            The signal for which the autospectral density will be computed.
+            [x] = arbitrary units
+
+        Fs - float
+            The sampling rate of `x`.
+            If not specified, `Fs` is assigned a value of unity such that
+            all frequencies are *normalized* to the sampling rate.
+            [Fs] = arbitrary units
+
+        t0 - float
+            The initial time corresponding to `x[0]`.
+            [t0] = 1 / [Fs]
+
+        Tens - float
+            The time window defining an ensemble. `Tens` determines the
+            time resolution of the spectral density calculations,
+            with larger `Tens` corresponding to reduced time resolution
+            and increased frequency resolution.
+            [Tens] = 1 / [Fs]
+
+        Nreal_per_ens - int
+            The number of realizations per ensemble. The random error in the
+            spectral density estimate decreases as ~ 1 / sqrt(Nreal_per_ens).
+            The frequency resolution `df` of the spectral density estimate
+            is linearly related to the number of realizations.
+            A ValueError is raised if not a positive integer.
+
+        fraction_overlap - float
+            The fractional overlap between adjacent realizations.
+            0 =< `fraction_overlap` < 1, otherwise a ValueError is raised.
+
+        Npts_per_real - int
+            The number of sample points per realization. If None,
+            `Tens` is used to compute `Npts_per_real` that is compatible
+            with `Nreal_per_ens` and efficient FFT computation.
+            If not None, `Tens` is ignored. A ValueError is raised
+            if not a positive integer.
+
+        Npts_overlap - int
+            The number of overlapping sample points between adjacent
+            realizations. If None, `fraction_overlap` sets the
+            number of overlapping sample points. If not None,
+            `fraction_overlap` is ignored. A ValueError is raised
+            if not a positive integer or if greater than or equal to
+            the number of points per realization.
+
+        detrend - string
+            The function applied to each realization before taking FFT.
+            May be [ 'default' | 'constant' | 'mean' | 'linear' | 'none']
+            or callable, as specified in :py:func: `csd <matplotlib.mlab.csd>`.
+
+        window - callable or ndarray
+            The window applied to each realization before taking FFT,
+            as specified in :py:func: `csd <matplotlib.mlab.csd>`.
+
+        '''
+        # Only real-valued signals are expected/supported at the moment
+        if np.iscomplexobj(x):
+            raise ValueError('`x` must be a real-valued signal!')
+
+        # Determine properties for ensemble averaging
+        ens = Ensemble(
+            x, Fs=Fs, t0=t0, Tens=Tens,
+            Nreal_per_ens=Nreal_per_ens, fraction_overlap=fraction_overlap,
+            Npts_per_real=Npts_per_real, Npts_overlap=Npts_overlap)
+
+        # Record important aspects of computation
+        self.Fs = ens.Fs
+
+        self.Npts_per_real = ens.Npts_per_real
+        self.Nreal_per_ens = ens.Nreal_per_ens
+        self.Npts_overlap = ens.Npts_overlap
+        self.Npts_per_ens = ens.Npts_per_ens
+
+        self.detrend = detrend
+        self.window = window
+
+        self.f = ens.f
+        self.df = ens.df
+
+        self.t = ens.t
+        self.dt = ens.dt
+
+        # Perform spectral calculations
+        self.Gxx = self.getSpectralDensity(x)
+
+    def getSpectralDensity(self, x):
+        'Get spectral density of provided signal.'
+        return _spectral_density(
+            x, x, self.Fs, len(self.f), len(self.t),
+            self.Npts_per_real, self.Npts_overlap, self.Npts_per_ens,
+            self.detrend, self.window)
+
+    def plotSpectralDensity(self, tlim=None, flim=None, vlim=None,
+                            AC_coupled=True,
+                            cmap='Purples', fontsize=16,
+                            title=None, xlabel='$t$', ylabel='$f$',
+                            ax=None, fig=None, geometry=111):
+        'Plot magnitude of spectral density on log scale.'
+        if flim is None and AC_coupled:
+            # Don't allow DC signal to influence color mapping
+            flim = [self.f[1], self.f[-1]]
+
+        ax = _plot_image(
+            self.t, self.f, np.abs(self.Gxy),
+            xlim=tlim, ylim=flim, vlim=vlim,
+            norm='log', cmap=cmap, fontsize=fontsize,
+            title=title, xlabel=xlabel, ylabel=ylabel, cblabel='$|G_{xx}(f)|$',
+            ax=ax, fig=fig, geometry=geometry)
+
+        return ax
+
+
 class CrossSpectralDensity(object):
     '''A class for cross-spectral density characterization.
 
