@@ -426,8 +426,8 @@ class CrossSpectralDensity(object):
 
         # Perform spectral calculations
         self.Gxy = self.getSpectralDensity(x, y)
-        self.theta_xy = self.getPhaseAngle()
         self.gamma2xy = self.getCoherence(x, y)
+        self.theta_xy = self.getPhaseAngle()
 
     def getSpectralDensity(self, x, y):
         'Get spectral density of provided signals.'
@@ -435,15 +435,6 @@ class CrossSpectralDensity(object):
             x, y, self.Fs, len(self.f), len(self.t),
             self.Npts_per_real, self.Npts_overlap, self.Npts_per_ens,
             self.detrend, self.window)
-
-    def getPhaseAngle(self, unwrap=True):
-        'Get phase angle `theta_xy` of spectral density `Gxy`.'
-        if unwrap:
-            self.theta_xy = np.unwrap(np.angle(self.Gxy), axis=-1)
-        else:
-            self.theta_xy = np.angle(self.Gxy)
-
-        return np.copy(self.theta_xy)
 
     def getCoherence(self, x, y):
         '''Get (magnitude-squared) coherence of signals `x` and `y`.
@@ -477,6 +468,15 @@ class CrossSpectralDensity(object):
         den = Gxx * Gyy
 
         return num / den
+
+    def getPhaseAngle(self, unwrap=True):
+        'Get phase angle `theta_xy` of spectral density `Gxy`.'
+        if unwrap:
+            self.theta_xy = np.unwrap(np.angle(self.Gxy), axis=-1)
+        else:
+            self.theta_xy = np.angle(self.Gxy)
+
+        return np.copy(self.theta_xy)
 
     def plotSpectralDensity(self, tlim=None, flim=None, vlim=None,
                             AC_coupled=True,
