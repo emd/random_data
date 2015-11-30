@@ -222,7 +222,7 @@ class AutoSpectralDensity(object):
             flim = [self.f[1], self.f[-1]]
 
         ax = _plot_image(
-            self.t, self.f, np.abs(self.Gxy),
+            self.t, self.f, np.abs(self.Gxx),
             xlim=tlim, ylim=flim, vlim=vlim,
             norm='log', cmap=cmap, fontsize=fontsize,
             title=title, xlabel=xlabel, ylabel=ylabel, cblabel='$|G_{xx}(f)|$',
