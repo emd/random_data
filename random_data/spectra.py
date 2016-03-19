@@ -213,7 +213,7 @@ class AutoSpectralDensity(object):
 
     def plotSpectralDensity(self, tlim=None, flim=None, vlim=None,
                             AC_coupled=True,
-                            cmap='Purples', fontsize=16,
+                            cmap='Purples', interpolation='none', fontsize=16,
                             title=None, xlabel='$t$', ylabel='$f$',
                             ax=None, fig=None, geometry=111):
         'Plot magnitude of spectral density on log scale.'
@@ -224,8 +224,9 @@ class AutoSpectralDensity(object):
         ax = _plot_image(
             self.t, self.f, np.abs(self.Gxx),
             xlim=tlim, ylim=flim, vlim=vlim,
-            norm='log', cmap=cmap, fontsize=fontsize,
+            norm='log', cmap=cmap, interpolation=interpolation,
             title=title, xlabel=xlabel, ylabel=ylabel, cblabel='$|G_{xx}(f)|$',
+            fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
         return ax
@@ -480,7 +481,7 @@ class CrossSpectralDensity(object):
 
     def plotSpectralDensity(self, tlim=None, flim=None, vlim=None,
                             AC_coupled=True,
-                            cmap='Purples', fontsize=16,
+                            cmap='Purples', interpolation='none', fontsize=16,
                             title=None, xlabel='$t$', ylabel='$f$',
                             ax=None, fig=None, geometry=111):
         'Plot magnitude of spectral density on log scale.'
@@ -491,23 +492,25 @@ class CrossSpectralDensity(object):
         ax = _plot_image(
             self.t, self.f, np.abs(self.Gxy),
             xlim=tlim, ylim=flim, vlim=vlim,
-            norm='log', cmap=cmap, fontsize=fontsize,
+            norm='log', cmap=cmap, interpolation=interpolation,
             title=title, xlabel=xlabel, ylabel=ylabel, cblabel='$|G_{xy}(f)|$',
+            fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
         return ax
 
     def plotCoherence(self, tlim=None, flim=None, vlim=None,
-                      cmap='Purples', fontsize=16,
+                      cmap='Purples', interpolation='none', fontsize=16,
                       title=None, xlabel='$t$', ylabel='$f$',
                       ax=None, fig=None, geometry=111):
         'Plot magnitude squared coherence on linear scale.'
         ax = _plot_image(
             self.t, self.f, self.gamma2xy,
             xlim=tlim, ylim=flim, vlim=vlim,
-            norm=None, cmap=cmap, fontsize=fontsize,
+            norm=None, cmap=cmap, interpolation=interpolation,
             title=title, xlabel=xlabel, ylabel=ylabel,
             cblabel='$\gamma_{xy}^2$',
+            fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
         return ax
@@ -515,7 +518,7 @@ class CrossSpectralDensity(object):
     def plotPhaseAngle(self, threshold=0.5,
                        theta_min=-np.pi, theta_max=np.pi, dtheta=(np.pi / 4),
                        tlim=None, flim=None,
-                       cmap='RdBu', fontsize=16,
+                       cmap='RdBu', interpolation='none', fontsize=16,
                        title=None, xlabel='$t$', ylabel='$f$',
                        ax=None, fig=None, geometry=111):
         'Plot phase angle if magnitude-squared coherence exceeds `threshold`.'
@@ -545,9 +548,10 @@ class CrossSpectralDensity(object):
         ax = _plot_image(
             self.t, self.f, theta_xy_masked,
             xlim=tlim, ylim=flim, vlim=vlim,
-            norm=None, cmap=cmap, fontsize=fontsize,
+            norm=None, cmap=cmap, interpolation=interpolation,
             title=title, xlabel=xlabel, ylabel=ylabel,
             cblabel='$\\theta_{xy}$', cbticks=cbticks,
+            fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
         return ax
@@ -592,8 +596,8 @@ def _spectral_density(x, y, Fs, Nf, Nens,
 
 def _plot_image(x, y, z,
                 xlim=None, ylim=None, vlim=None,
-                norm=None, cmap='Purples', fontsize=16,
-                title=None, xlabel=None, ylabel=None,
+                norm=None, cmap='Purples', interpolation='none',
+                title=None, xlabel=None, ylabel=None, fontsize=16,
                 cblabel=None, cbticks=None,
                 ax=None, fig=None, geometry=111):
     '''Create an image of z(y, x).
@@ -631,8 +635,22 @@ def _plot_image(x, y, z,
         Colormap used for image. Default matplotlib colormaps
         are found in :py:module:`cm <matplotlib.cm>`.
 
+    interpolation - string
+        Interpolation method to be used by :py:function `imshow.
+        <matplotlib.pyplot.imshow>`. Examples of each interpolation
+        scheme are displayed here:
+
+            http://matplotlib.org/examples/images_contours_and_fields/interpolation_methods.html
+
+        and the difference between 'none' and 'nearest' is demonstrated here:
+
+            http://matplotlib.org/examples/images_contours_and_fields/interpolation_none_vs_nearest.html
+
     title, xlabel, ylabel, cblabel - string
         Titles of respective objects in image.
+
+    fontsize - int
+        Size of font in titles, labels, etc.
 
     ax - :py:class:`AxesSubplot <matplotlib.axes._subplots.AxesSubplot>`
         instance corresponding to the axis (i.e. "subplot") where
@@ -705,7 +723,7 @@ def _plot_image(x, y, z,
     im = ax.imshow(np.flipud(z[yind, :][:, xind]),
                    extent=extent, aspect='auto',
                    vmin=vlim[0], vmax=vlim[1],
-                   norm=norm, cmap=cmap)
+                   norm=norm, cmap=cmap, interpolation=interpolation)
 
     # Colorbar
     if norm == 'log':
