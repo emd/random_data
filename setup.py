@@ -7,7 +7,7 @@ config = {
     'name': 'random_data',
     'version': '0.2',
     'packages': ['random_data'],
-    'install_requires': ['numpy', 'matplotlib', 'event_manager', 'nose'],
+    'install_requires': ['numpy', 'matplotlib', 'nose'],
     'author': 'Evan M. Davis',
     'author_email': 'emd@mit.edu',
     'url': '',
