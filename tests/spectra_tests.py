@@ -38,6 +38,40 @@ def test_AutoSpectralDensity_white_noise():
     tools.assert_almost_equal(noise_power, noise_power_estimate, places=1)
 
 
+def test_CrossSpectralDensity_vs_AutoSpectralDensity():
+    # "Detrending" can really fuck things up if applied incorrectly, so
+    # its generally best to just avoid it
+    detrend = None
+
+    # White noise of a given power
+    noise_power = np.sqrt(2)
+    x = np.sqrt(noise_power) * np.random.randn(1e6)
+
+    # Compute autospectral density of `x`
+    # asd = AutoSpectralDensity(x)
+    asd = AutoSpectralDensity(x, detrend=detrend)
+
+    # Ensure that autospectral density is real
+    tools.assert_is(asd.Gxx.dtype.type, np.float64)
+
+    # Now, the autospectral density of `x` is simply
+    # the cross-spectral density of `x` against itself.
+    # Thus, we should be able to compute the autospectral
+    # density using `random_data.spectra.CrossSpectralDensity`, and
+    # this should be in agreement with the autospectral density
+    # computed from `random_data.spectra.AutoSpectralDensity`
+    # (other than the fact that the cross-spectral density
+    # data type will be, by definition, complex rather than real)
+    csd = CrossSpectralDensity(x, x.copy(), detrend=detrend)
+
+    # Ensure that cross-spectral density is complex (by definition) but
+    # has null imaginary component
+    tools.assert_is(csd.Gxy.dtype.type, np.complex128)
+    np.testing.assert_equal(csd.Gxy.imag, 0)
+
+    np.testing.assert_equal(asd.Gxx, csd.Gxy)
+
+
 def test_CrossSpectralDensity_getCoherence():
     # Sampling parameters
     Fs = 32.
