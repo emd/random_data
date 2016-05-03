@@ -6,9 +6,7 @@
 # Standard library imports
 import numpy as np
 from matplotlib import mlab
-from scipy.signal import fftconvolve, convolve2d
 from matplotlib.colors import LogNorm
-from matplotlib.mlab import specgram
 import matplotlib.pyplot as plt
 from matplotlib.ticker import LogFormatter
 
@@ -560,8 +558,10 @@ def _spectral_density(x, y, Fs, Nf, Nens,
                       Npts_per_real, Npts_overlap, Npts_per_ens,
                       detrend, window):
     'Get spectral density of provided signals.'
+    same_data = x is y
+
     # Initialize spectral density array
-    if x is not y:
+    if not same_data:
         # Cross-spectral density is intrinsically complex-valued, so
         # we must initialize the spectral density as a complex-valued
         # array to avoid loss of information
@@ -579,7 +579,7 @@ def _spectral_density(x, y, Fs, Nf, Nens,
         ens_stop = (ens + 1) * Npts_per_ens
         sl = slice(ens_start, ens_stop)
 
-        if x is y:
+        if same_data:
             Gxy[:, ens] = mlab.psd(
                 x[sl], Fs=Fs,
                 NFFT=Npts_per_real, noverlap=Npts_overlap,
