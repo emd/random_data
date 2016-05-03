@@ -109,7 +109,7 @@ class AutoSpectralDensity(object):
     def __init__(self, x, Fs=1.0, t0=0.,
                  Tens=40960., Nreal_per_ens=10, fraction_overlap=0.5,
                  Npts_per_real=None, Npts_overlap=None,
-                 detrend='linear', window=mlab.window_hanning):
+                 detrend=None, window=mlab.window_hanning):
         '''Create an instance of the `SpectralDensity` class.
 
         Input Parameters:
@@ -165,6 +165,10 @@ class AutoSpectralDensity(object):
             The function applied to each realization before taking FFT.
             May be [ 'default' | 'constant' | 'mean' | 'linear' | 'none']
             or callable, as specified in :py:func: `csd <matplotlib.mlab.csd>`.
+
+            *Warning*: Naively detrending (even with something as simple as
+            `mean` or `linear` detrending) can introduce detrimental artifacts
+            into the computed spectrum, so *no* detrending is the default.
 
         window - callable or ndarray
             The window applied to each realization before taking FFT,
@@ -326,7 +330,7 @@ class CrossSpectralDensity(object):
     def __init__(self, x, y, Fs=1.0, t0=0.,
                  Tens=40960., Nreal_per_ens=10, fraction_overlap=0.5,
                  Npts_per_real=None, Npts_overlap=None,
-                 detrend='linear', window=mlab.window_hanning):
+                 detrend=None, window=mlab.window_hanning):
         '''Create an instance of the `SpectralDensity` class.
 
         Input Parameters:
@@ -386,6 +390,10 @@ class CrossSpectralDensity(object):
             The function applied to each realization before taking FFT.
             May be [ 'default' | 'constant' | 'mean' | 'linear' | 'none']
             or callable, as specified in :py:func: `csd <matplotlib.mlab.csd>`.
+
+            *Warning*: Naively detrending (even with something as simple as
+            `mean` or `linear` detrending) can introduce detrimental artifacts
+            into the computed spectrum, so *no* detrending is the default.
 
         window - callable or ndarray
             The window applied to each realization before taking FFT,
