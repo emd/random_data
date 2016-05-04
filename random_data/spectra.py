@@ -475,7 +475,7 @@ class CrossSpectralDensity(object):
 
         return num / den
 
-    def getPhaseAngle(self, unwrap=True):
+    def getPhaseAngle(self, unwrap=False):
         'Get phase angle `theta_xy` of spectral density `Gxy`.'
         if unwrap:
             self.theta_xy = np.unwrap(np.angle(self.Gxy), axis=-1)
