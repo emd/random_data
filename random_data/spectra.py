@@ -109,7 +109,8 @@ class AutoSpectralDensity(object):
     def __init__(self, x, Fs=1.0, t0=0.,
                  Tens=40960., Nreal_per_ens=10, fraction_overlap=0.5,
                  Npts_per_real=None, Npts_overlap=None,
-                 detrend=None, window=mlab.window_hanning):
+                 detrend=None, window=mlab.window_hanning,
+                 print_params=True):
         '''Create an instance of the `SpectralDensity` class.
 
         Input Parameters:
@@ -174,6 +175,9 @@ class AutoSpectralDensity(object):
             The window applied to each realization before taking FFT,
             as specified in :py:func: `csd <matplotlib.mlab.csd>`.
 
+        print_params - bool
+            If True, print relevant spectral parameters to screen.
+
         '''
         # Only real-valued signals are expected/supported at the moment
         if np.iscomplexobj(x):
@@ -202,8 +206,23 @@ class AutoSpectralDensity(object):
         self.t = ens.t
         self.dt = ens.dt
 
+        if print_params:
+            self.printSpectralParams()
+
         # Perform spectral calculations
         self.Gxx = self.getSpectralDensity(x)
+
+    def printSpectralParams(self):
+        print '\ndt: %.6g' % self.dt
+        print 'df: %.6g' % self.df
+        print 'Npts_per_real: %i' % self.Npts_per_real
+        print ('overlap: %.2f'
+               % (np.float(self.Npts_overlap) / self.Npts_per_real))
+        print 'Nreal_per_ens: %i' % self.Nreal_per_ens
+        print 'detrend: %s' % self.detrend
+        print 'window: %s' % self.window.func_name
+
+        return
 
     def getSpectralDensity(self, x):
         'Get spectral density of provided signal.'
@@ -330,7 +349,8 @@ class CrossSpectralDensity(object):
     def __init__(self, x, y, Fs=1.0, t0=0.,
                  Tens=40960., Nreal_per_ens=10, fraction_overlap=0.5,
                  Npts_per_real=None, Npts_overlap=None,
-                 detrend=None, window=mlab.window_hanning):
+                 detrend=None, window=mlab.window_hanning,
+                 print_params=True):
         '''Create an instance of the `SpectralDensity` class.
 
         Input Parameters:
@@ -399,6 +419,9 @@ class CrossSpectralDensity(object):
             The window applied to each realization before taking FFT,
             as specified in :py:func: `csd <matplotlib.mlab.csd>`.
 
+        print_params - bool
+            If True, print relevant spectral parameters to screen.
+
         '''
         # Only real-valued signals are expected/supported at the moment
         if np.iscomplexobj(x) or np.iscomplexobj(y):
@@ -430,10 +453,25 @@ class CrossSpectralDensity(object):
         self.t = ens.t
         self.dt = ens.dt
 
+        if print_params:
+            self.printSpectralParams()
+
         # Perform spectral calculations
         self.Gxy = self.getSpectralDensity(x, y)
         self.gamma2xy = self.getCoherence(x, y)
         self.theta_xy = self.getPhaseAngle()
+
+    def printSpectralParams(self):
+        print '\ndt: %.6g' % self.dt
+        print 'df: %.6g' % self.df
+        print 'Npts_per_real: %i' % self.Npts_per_real
+        print ('overlap: %.2f'
+               % (np.float(self.Npts_overlap) / self.Npts_per_real))
+        print 'Nreal_per_ens: %i' % self.Nreal_per_ens
+        print 'detrend: %s' % self.detrend
+        print 'window: %s' % self.window.func_name
+
+        return
 
     def getSpectralDensity(self, x, y):
         'Get spectral density of provided signals.'
