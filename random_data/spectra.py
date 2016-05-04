@@ -6,7 +6,7 @@
 # Standard library imports
 import numpy as np
 from matplotlib import mlab
-from matplotlib.colors import LogNorm
+from matplotlib.colors import LogNorm, Colormap
 import matplotlib.pyplot as plt
 from matplotlib.ticker import LogFormatter
 
@@ -238,7 +238,7 @@ class AutoSpectralDensity(object):
 
     def plotSpectralDensity(self, tlim=None, flim=None, vlim=None,
                             AC_coupled=True,
-                            cmap='Purples', interpolation='none', fontsize=16,
+                            cmap='viridis', interpolation='none', fontsize=16,
                             title=None, xlabel='$t$', ylabel='$f$',
                             ax=None, fig=None, geometry=111):
         'Plot magnitude of spectral density on log scale.'
@@ -536,7 +536,7 @@ class CrossSpectralDensity(object):
 
     def plotSpectralDensity(self, tlim=None, flim=None, vlim=None,
                             AC_coupled=True,
-                            cmap='Purples', interpolation='none', fontsize=16,
+                            cmap='viridis', interpolation='none', fontsize=16,
                             title=None, xlabel='$t$', ylabel='$f$',
                             ax=None, fig=None, geometry=111):
         'Plot magnitude of spectral density on log scale.'
@@ -555,7 +555,7 @@ class CrossSpectralDensity(object):
         return ax
 
     def plotCoherence(self, tlim=None, flim=None, vlim=None,
-                      cmap='Purples', interpolation='none', fontsize=16,
+                      cmap='viridis', interpolation='none', fontsize=16,
                       title=None, xlabel='$t$', ylabel='$f$',
                       ax=None, fig=None, geometry=111):
         'Plot magnitude squared coherence on linear scale.'
@@ -664,7 +664,7 @@ def _spectral_density(x, y, Fs, Nf, Nens,
 
 def _plot_image(x, y, z,
                 xlim=None, ylim=None, vlim=None,
-                norm=None, cmap='Purples', interpolation='none',
+                norm=None, cmap='viridis', interpolation='none',
                 title=None, xlabel=None, ylabel=None, fontsize=16,
                 cblabel=None, cbticks=None,
                 ax=None, fig=None, geometry=111):
@@ -786,6 +786,13 @@ def _plot_image(x, y, z,
 
     if norm == 'log':
         norm = LogNorm()
+
+    # Ensure that specified colormap is available
+    if not isinstance(cmap, Colormap) and (cmap not in plt.colormaps()):
+        cmap_backup = 'Purples'
+        print ("\nThe '%s' colormap is not available; falling back to '%s'\n"
+               % (cmap, cmap_backup))
+        cmap = cmap_backup
 
     # Create plot
     im = ax.imshow(np.flipud(z[yind, :][:, xind]),
