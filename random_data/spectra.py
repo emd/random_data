@@ -110,7 +110,7 @@ class AutoSpectralDensity(object):
                  Tens=40960., Nreal_per_ens=10, fraction_overlap=0.5,
                  Npts_per_real=None, Npts_overlap=None,
                  detrend=None, window=mlab.window_hanning,
-                 print_params=True):
+                 print_params=True, print_status=True):
         '''Create an instance of the `SpectralDensity` class.
 
         Input Parameters:
@@ -178,6 +178,10 @@ class AutoSpectralDensity(object):
         print_params - bool
             If True, print relevant spectral parameters to screen.
 
+        print_status - bool
+            If True, print percentage of ensembles whose spectra
+            have been computed.
+
         '''
         # Only real-valued signals are expected/supported at the moment
         if np.iscomplexobj(x):
@@ -210,7 +214,7 @@ class AutoSpectralDensity(object):
             self.printSpectralParams()
 
         # Perform spectral calculations
-        self.Gxx = self.getSpectralDensity(x)
+        self.Gxx = self.getSpectralDensity(x, print_status=print_status)
 
     def printSpectralParams(self):
         print '\ndt: %.6g' % self.dt
@@ -224,12 +228,13 @@ class AutoSpectralDensity(object):
 
         return
 
-    def getSpectralDensity(self, x):
+    def getSpectralDensity(self, x, print_status=False):
         'Get spectral density of provided signal.'
         return _spectral_density(
             x, x, self.Fs, len(self.f), len(self.t),
             self.Npts_per_real, self.Npts_overlap, self.Npts_per_ens,
-            self.detrend, self.window)
+            self.detrend, self.window,
+            print_status=print_status, status_label='Gxx')
 
     def plotSpectralDensity(self, tlim=None, flim=None, vlim=None,
                             AC_coupled=True,
@@ -350,7 +355,7 @@ class CrossSpectralDensity(object):
                  Tens=40960., Nreal_per_ens=10, fraction_overlap=0.5,
                  Npts_per_real=None, Npts_overlap=None,
                  detrend=None, window=mlab.window_hanning,
-                 print_params=True):
+                 print_params=True, print_status=True):
         '''Create an instance of the `SpectralDensity` class.
 
         Input Parameters:
@@ -422,6 +427,10 @@ class CrossSpectralDensity(object):
         print_params - bool
             If True, print relevant spectral parameters to screen.
 
+        print_status - bool
+            If True, print percentage of ensembles whose spectra
+            have been computed.
+
         '''
         # Only real-valued signals are expected/supported at the moment
         if np.iscomplexobj(x) or np.iscomplexobj(y):
@@ -457,8 +466,8 @@ class CrossSpectralDensity(object):
             self.printSpectralParams()
 
         # Perform spectral calculations
-        self.Gxy = self.getSpectralDensity(x, y)
-        self.gamma2xy = self.getCoherence(x, y)
+        self.Gxy = self.getSpectralDensity(x, y, print_status=print_status)
+        self.gamma2xy = self.getCoherence(x, y, print_status=print_status)
         self.theta_xy = self.getPhaseAngle()
 
     def printSpectralParams(self):
@@ -473,14 +482,15 @@ class CrossSpectralDensity(object):
 
         return
 
-    def getSpectralDensity(self, x, y):
+    def getSpectralDensity(self, x, y, print_status=False):
         'Get spectral density of provided signals.'
         return _spectral_density(
             x, y, self.Fs, len(self.f), len(self.t),
             self.Npts_per_real, self.Npts_overlap, self.Npts_per_ens,
-            self.detrend, self.window)
+            self.detrend, self.window,
+            print_status=print_status, status_label='Gxy')
 
-    def getCoherence(self, x, y):
+    def getCoherence(self, x, y, print_status=False):
         '''Get (magnitude-squared) coherence of signals `x` and `y`.
 
         The magnitude-squared coherence function (gamma_{xy})^2
@@ -501,12 +511,14 @@ class CrossSpectralDensity(object):
         Gxx = _spectral_density(
             x, x, self.Fs, len(self.f), len(self.t),
             self.Npts_per_real, self.Npts_overlap, self.Npts_per_ens,
-            self.detrend, self.window)
+            self.detrend, self.window,
+            print_status=print_status, status_label='Gxx')
 
         Gyy = _spectral_density(
             y, y, self.Fs, len(self.f), len(self.t),
             self.Npts_per_real, self.Npts_overlap, self.Npts_per_ens,
-            self.detrend, self.window)
+            self.detrend, self.window,
+            print_status=print_status, status_label='Gyy')
 
         num = (np.abs(self.Gxy) ** 2)
         den = Gxx * Gyy
@@ -602,7 +614,8 @@ class CrossSpectralDensity(object):
 
 def _spectral_density(x, y, Fs, Nf, Nens,
                       Npts_per_real, Npts_overlap, Npts_per_ens,
-                      detrend, window):
+                      detrend, window,
+                      print_status=False, status_label=''):
     'Get spectral density of provided signals.'
     same_data = x is y
 
@@ -617,6 +630,9 @@ def _spectral_density(x, y, Fs, Nf, Nens,
         # (assuming `x` is real-valued), so we don't need the
         # overhead of a complex-valued array
         Gxy = np.zeros([Nf, Nens])
+
+    if print_status:
+        print ''
 
     # Loop over successive ensembles
     for ens in np.arange(Nens):
@@ -635,6 +651,13 @@ def _spectral_density(x, y, Fs, Nf, Nens,
                 x[sl], y[sl], Fs=Fs,
                 NFFT=Npts_per_real, noverlap=Npts_overlap,
                 detrend=detrend, window=window)[0]
+
+        if print_status:
+            print ('%s percent complete: %.1f \r'
+                   % (status_label, (100 * np.float(ens + 1) / Nens))),
+
+    if print_status:
+        print ''
 
     return Gxy
 
