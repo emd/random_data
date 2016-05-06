@@ -1,6 +1,8 @@
 from nose import tools
+import sys
 import numpy as np
-from random_data.spectra import AutoSpectralDensity, CrossSpectralDensity
+from random_data.spectra import (
+    AutoSpectralDensity, CrossSpectralDensity, wrap)
 
 
 def test_AutoSpectralDensity_signal_input():
@@ -8,6 +10,8 @@ def test_AutoSpectralDensity_signal_input():
     x = np.random.randn(50e3)
     xc = x.astype('complex128')
     tools.assert_raises(ValueError, AutoSpectralDensity, xc)
+
+    return
 
 
 def test_CrossSpectralDensity_signal_input():
@@ -23,6 +27,8 @@ def test_CrossSpectralDensity_signal_input():
     tools.assert_raises(ValueError, CrossSpectralDensity, x, yc)
     tools.assert_raises(ValueError, CrossSpectralDensity, xc, yc)
 
+    return
+
 
 def test_AutoSpectralDensity_white_noise():
     # White noise of a given power
@@ -36,6 +42,8 @@ def test_AutoSpectralDensity_white_noise():
     noise_power_estimate = np.sum(np.mean(asd.Gxx, axis=-1)) * asd.df
 
     tools.assert_almost_equal(noise_power, noise_power_estimate, places=1)
+
+    return
 
 
 def test_CrossSpectralDensity_vs_AutoSpectralDensity():
@@ -71,6 +79,8 @@ def test_CrossSpectralDensity_vs_AutoSpectralDensity():
 
     np.testing.assert_equal(asd.Gxx, csd.Gxy)
 
+    return
+
 
 def test_CrossSpectralDensity_getCoherence():
     # Sampling parameters
@@ -103,6 +113,8 @@ def test_CrossSpectralDensity_getCoherence():
     tools.assert_true(np.alltrue(np.greater_equal(csd.gamma2xy, 0)))
     tools.assert_true(np.alltrue(np.less_equal(csd.gamma2xy, 1)))
 
+    return
+
 
 def test_CrossSpectralDensity_getPhaseAngle():
     # Sampling parameters
@@ -127,3 +139,46 @@ def test_CrossSpectralDensity_getPhaseAngle():
     ph0_est = np.mean(csd.theta_xy[f_ind, :], axis=-1)
 
     tools.assert_almost_equal(ph0, ph0_est, places=3)
+
+    return
+
+
+def test_wrap():
+    # Test (1):
+    # ---------
+    # Use standard limits such that "wrapped" angles lie between [-pi, pi)
+    theta_min = -np.pi
+    theta_max = np.pi
+
+    # Angles between [-2 * pi , 2 * pi] in 0.5 * pi increments
+    theta = np.pi * np.array([
+        -2.0, -1.5, -1.0, -0.5, 0.0,
+        0.5, 1.0, 1.5, 2.0])
+
+    # ... which should be wrapped onto these values
+    theta_expected = np.pi * np.array([
+        0.0, 0.5, -1.0, -0.5, 0.0,
+        0.5, -1.0, -0.5, 0.0])
+
+    np.testing.assert_allclose(
+        theta_expected,
+        wrap(theta, theta_min, theta_max),
+        atol=(10 * sys.float_info.epsilon))
+
+    # Test (2):
+    # ---------
+    # Rotate wrapped region by pi / 4
+    theta_min += np.pi / 4
+    theta_max += np.pi / 4
+
+    # New expected values after wrapping
+    theta_expected = np.pi * np.array([
+        0.0, 0.5, 1.0, -0.5, 0.0,
+        0.5, 1.0, -0.5, 0.0])
+
+    np.testing.assert_allclose(
+        theta_expected,
+        wrap(theta, theta_min, theta_max),
+        atol=(10 * sys.float_info.epsilon))
+
+    return

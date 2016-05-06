@@ -579,7 +579,18 @@ class CrossSpectralDensity(object):
                        cmap='RdBu', interpolation='none', fontsize=16,
                        title=None, xlabel='$t$', ylabel='$f$',
                        ax=None, fig=None, geometry=111):
-        'Plot phase angle if magnitude-squared coherence exceeds `threshold`.'
+        '''Plot phase angle `theta` if magnitude-squared coherence is
+        greater than or equal to `threshold` *and* satisfies
+
+                        theta_min <= theta < theta_max
+
+        The plotted phase angles will be displayed with resolution `dtheta`,
+        that is
+                        theta_i = theta_min + (i * dtheta)
+
+        with 0 <= i < N, and N = (theta_max - theta_min) / dtheta.
+
+        '''
         # Only consider phase angles from regions whose
         # magnitude-square coherence is at least `threshold`
         theta_xy_masked = np.ma.masked_where(
@@ -826,3 +837,13 @@ def _plot_image(x, y, z,
         cb.set_label(cblabel, fontsize=fontsize)
 
     return ax
+
+
+def wrap(theta, theta_min, theta_max):
+    '''Wrap array `theta` between `theta_min` and `theta_max`.
+    This is the inverse operation to :py:function: `unwrap <numpy.unwrap>`.
+
+    '''
+    full_cycle = theta_max - theta_min
+
+    return ((theta - theta_min) % full_cycle) + theta_min
