@@ -584,38 +584,50 @@ class CrossSpectralDensity(object):
 
                         theta_min <= theta < theta_max
 
-        The plotted phase angles will be displayed with resolution `dtheta`,
-        that is
+        The plotted phase angles will be displayed with resolution `dtheta`;
+        that is, plotted phase angles will fall within bins of width `dtheta`
+        centered on
+
                         theta_i = theta_min + (i * dtheta)
 
         with 0 <= i < N, and N = (theta_max - theta_min) / dtheta.
 
         '''
-        # Only consider phase angles from regions whose
-        # magnitude-square coherence is at least `threshold`
-        theta_xy_masked = np.ma.masked_where(
-            self.gamma2xy < threshold, self.theta_xy)
-
-        # Create colorbar ticks for particular angles:
-        #   {`theta_min`, `theta_min` + `dtheta`, ..., `theta_max`}
-        numcbticks = ((theta_max - theta_min) / dtheta) + 1
-        cbticks = np.linspace(theta_min, theta_max, numcbticks)
+        # The plotted phase angles will fall within bins of width `dtheta`
+        # centered on
+        #
+        #           theta_i = theta_min + (i * dtheta)
+        #
+        # where 0 <= i < N and N = (theta_max - theta_min) / dtheta.
+        # Each bin centerpoint will have its own colorbar tick in `cbticks`.
+        cbticks = np.arange(theta_min, theta_max, dtheta)
 
         # Get "discrete" colormap, with a distinct color corresponding
         # to each value in `cbticks`
         cmap = plt.get_cmap(cmap, len(cbticks))
 
-        # The discrete color corresponding to the ith tick, `cbticks[i]`,
-        # should be mapped to angles theta satisfying
+        # However, the bins also have width `dtheta` such that
+        # the colorbar boundaries should correspond to
         #
-        # `cbticks[i]` - (dtheta` / 2) < theta < `cbticks[i]` + (`dtheta` / 2)
+        #        lower bound (0):      theta_min - (0.5 * dtheta)
+        #        (1):                  theta_min + (0.5 * dtheta)
+        #        (2):                  theta_min + (1.5 * dtheta)
+        #        ...
+        #        upper bound (N + 1):  theta_max - (0.5 * dtheta)
         #
         # This is easily accomplished by setting the minimum and maximum
         # values to represent in the image as follows:
-        vlim = [theta_min - (0.5 * dtheta), theta_max + (0.5 * dtheta)]
+        vlim = [theta_min - (0.5 * dtheta), theta_max - (0.5 * dtheta)]
+
+        # Now, "wrap" the phase angles onto the specified domain
+        theta_xy = wrap(self.theta_xy, vlim[0], vlim[1])
+
+        # Finally, only consider phase angles from regions whose
+        # magnitude-square coherence is greater than or equal to `threshold`
+        theta_xy = np.ma.masked_where(self.gamma2xy < threshold, theta_xy)
 
         ax = _plot_image(
-            self.t, self.f, theta_xy_masked,
+            self.t, self.f, theta_xy,
             xlim=tlim, ylim=flim, vlim=vlim,
             norm=None, cmap=cmap, interpolation=interpolation,
             title=title, xlabel=xlabel, ylabel=ylabel,
@@ -847,3 +859,62 @@ def wrap(theta, theta_min, theta_max):
     full_cycle = theta_max - theta_min
 
     return ((theta - theta_min) % full_cycle) + theta_min
+
+
+def _test_phase_angle(Tens=5e-3, Nreal_per_ens=10):
+    '''This routine plots the phase angle of several test cases
+    to ensure that the phase angle is correctly represented
+    by the methods in `CrossSpectralDensity`. Each test case
+    lies near the lower or upper boundary of a phase angle bin,
+    and good behavior at the bin's extrema implies good behavior
+    throughout the rest of the bin's interior. Note that several
+    figures are generated!
+
+    '''
+    # Create some uncorrelated noise
+    from .signals import RandomSignal
+    sig1 = RandomSignal(4e6, 0.1, fc=100e3, pole=2)
+    sig2 = RandomSignal(4e6, 0.1, fc=100e3, pole=2)
+
+    # Coherent signal amplitude and frequency
+    A0 = 1e-5
+    f0 = 500e3
+
+    # Check that plotted phase angle is correct for typical toroidal spacings
+    delta = 0.25
+    theta = np.pi * np.arange(-1, 1, delta)
+    dtheta = delta * np.pi
+
+    # Check lower boundary for each phase angle
+    for i, th0 in enumerate(theta):
+        # Ideal lower boundary of phase angle is at `theta` - (0.5 * `delta`),
+        # but we select 0.45 to give a bit of head room due to noise etc.
+        th = th0 - (0.45 * delta)
+        y1 = sig1.x + (A0 * np.cos(2 * np.pi * f0 * sig1.t))
+        y2 = sig2.x + (A0 * np.cos((2 * np.pi * f0 * sig2.t) + th))
+
+        csd = CrossSpectralDensity(
+            y1, y2, Fs=sig1.Fs, t0=sig1.t[0],
+            Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+
+        csd.plotPhaseAngle(
+            dtheta=dtheta, flim=[450e3, 550e3],
+            title='Lower bound, theta = %.3f' % th0)
+
+    # Check upper boundary for each phase angle
+    for i, th0 in enumerate(theta):
+        # Ideal upper boundary of phase angle is at `theta` + (0.5 * `delta`),
+        # but we select 0.45 to give a bit of head room due to noise etc.
+        th = th0 + (0.45 * delta)
+        y1 = sig1.x + (A0 * np.cos(2 * np.pi * f0 * sig1.t))
+        y2 = sig2.x + (A0 * np.cos((2 * np.pi * f0 * sig2.t) + th))
+
+        csd = CrossSpectralDensity(
+            y1, y2, Fs=sig1.Fs, t0=sig1.t[0],
+            Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+
+        csd.plotPhaseAngle(
+            dtheta=dtheta, flim=[450e3, 550e3],
+            title='Upper bound, theta = %.3f' % th0)
+
+    return
