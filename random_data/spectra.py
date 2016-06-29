@@ -876,9 +876,14 @@ def _test_phase_angle(Tens=5e-3, Nreal_per_ens=10):
     sig1 = RandomSignal(4e6, 0.1, fc=100e3, pole=2)
     sig2 = RandomSignal(4e6, 0.1, fc=100e3, pole=2)
 
-    # Coherent signal amplitude and frequency
-    A0 = 1e-5
-    f0 = 500e3
+    # Coherent signal amplitude
+    A0 = 1e-3
+
+    # Signal will have a linearly *ramping* frequency
+    f0 = 50e3
+    f1 = 75e3
+    m = (f1 - f0) / (2 * (sig1.t[-1] - sig1.t[0]))
+    f = f0 + (m * sig1.t)
 
     # Check that plotted phase angle is correct for typical toroidal spacings
     delta = 0.25
@@ -890,15 +895,15 @@ def _test_phase_angle(Tens=5e-3, Nreal_per_ens=10):
         # Ideal lower boundary of phase angle is at `theta` - (0.5 * `delta`),
         # but we select 0.45 to give a bit of head room due to noise etc.
         th = th0 - (0.45 * delta)
-        y1 = sig1.x + (A0 * np.cos(2 * np.pi * f0 * sig1.t))
-        y2 = sig2.x + (A0 * np.cos((2 * np.pi * f0 * sig2.t) + th))
+        y1 = sig1.x + (A0 * np.cos(2 * np.pi * f * sig1.t))
+        y2 = sig2.x + (A0 * np.cos((2 * np.pi * f * sig2.t) + th))
 
         csd = CrossSpectralDensity(
             y1, y2, Fs=sig1.Fs, t0=sig1.t[0],
             Tens=Tens, Nreal_per_ens=Nreal_per_ens)
 
         csd.plotPhaseAngle(
-            dtheta=dtheta, flim=[450e3, 550e3],
+            dtheta=dtheta, flim=[10e3, 100e3],
             title='Lower bound, theta = %.3f' % th0)
 
     # Check upper boundary for each phase angle
@@ -906,15 +911,15 @@ def _test_phase_angle(Tens=5e-3, Nreal_per_ens=10):
         # Ideal upper boundary of phase angle is at `theta` + (0.5 * `delta`),
         # but we select 0.45 to give a bit of head room due to noise etc.
         th = th0 + (0.45 * delta)
-        y1 = sig1.x + (A0 * np.cos(2 * np.pi * f0 * sig1.t))
-        y2 = sig2.x + (A0 * np.cos((2 * np.pi * f0 * sig2.t) + th))
+        y1 = sig1.x + (A0 * np.cos(2 * np.pi * f * sig1.t))
+        y2 = sig2.x + (A0 * np.cos((2 * np.pi * f * sig2.t) + th))
 
         csd = CrossSpectralDensity(
             y1, y2, Fs=sig1.Fs, t0=sig1.t[0],
             Tens=Tens, Nreal_per_ens=Nreal_per_ens)
 
         csd.plotPhaseAngle(
-            dtheta=dtheta, flim=[450e3, 550e3],
+            dtheta=dtheta, flim=[10e3, 100e3],
             title='Upper bound, theta = %.3f' % th0)
 
     return
