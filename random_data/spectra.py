@@ -573,14 +573,16 @@ class CrossSpectralDensity(object):
 
         return ax
 
-    def plotPhaseAngle(self, threshold=0.5,
+    def plotPhaseAngle(self, gamma2xy_threshold=0.5, Gxy_threshold=0.,
                        theta_min=-np.pi, theta_max=np.pi, dtheta=(np.pi / 4),
                        tlim=None, flim=None,
                        cmap='RdBu', interpolation='none', fontsize=16,
                        title=None, xlabel='$t$', ylabel='$f$',
                        ax=None, fig=None, geometry=111):
         '''Plot phase angle `theta` if magnitude-squared coherence is
-        greater than or equal to `threshold` *and* satisfies
+        greater than or equal to `gamma2xy_threshold`, cross-spectral
+        density amplitude is greater than or equal to `Gxy_threshold`,
+        and `theta` satisfies
 
                         theta_min <= theta < theta_max
 
@@ -624,7 +626,11 @@ class CrossSpectralDensity(object):
 
         # Finally, only consider phase angles from regions whose
         # magnitude-square coherence is greater than or equal to `threshold`
-        theta_xy = np.ma.masked_where(self.gamma2xy < threshold, theta_xy)
+        theta_xy = np.ma.masked_where(
+            np.logical_or(
+                self.gamma2xy < gamma2xy_threshold,
+                np.abs(self.Gxy) < Gxy_threshold),
+            theta_xy)
 
         ax = _plot_image(
             self.t, self.f, theta_xy,
@@ -861,7 +867,9 @@ def wrap(theta, theta_min, theta_max):
     return ((theta - theta_min) % full_cycle) + theta_min
 
 
-def _test_phase_angle(Tens=5e-3, Nreal_per_ens=10):
+def _test_phase_angle(
+        gamma2xy_threshold=0.5, Gxy_threshold=0.,
+        Tens=5e-3, Nreal_per_ens=10, flim=[10e3, 100e3]):
     '''This routine plots the phase angle of several test cases
     to ensure that the phase angle is correctly represented
     by the methods in `CrossSpectralDensity`. Each test case
@@ -902,8 +910,16 @@ def _test_phase_angle(Tens=5e-3, Nreal_per_ens=10):
             y1, y2, Fs=sig1.Fs, t0=sig1.t[0],
             Tens=Tens, Nreal_per_ens=Nreal_per_ens)
 
+        # Plot cross-spectral spectral density amplitude *once*
+        # so that it is easy to specify relevant alternative values
+        # for `Gxy_threshold`
+        if i == 0:
+            csd.plotSpectralDensity(flim=flim)
+
         csd.plotPhaseAngle(
-            dtheta=dtheta, flim=[10e3, 100e3],
+            gamma2xy_threshold=gamma2xy_threshold,
+            Gxy_threshold=Gxy_threshold,
+            dtheta=dtheta, flim=flim,
             title='Lower bound, theta = %.3f' % th0)
 
     # Check upper boundary for each phase angle
@@ -919,7 +935,9 @@ def _test_phase_angle(Tens=5e-3, Nreal_per_ens=10):
             Tens=Tens, Nreal_per_ens=Nreal_per_ens)
 
         csd.plotPhaseAngle(
-            dtheta=dtheta, flim=[10e3, 100e3],
+            gamma2xy_threshold=gamma2xy_threshold,
+            Gxy_threshold=Gxy_threshold,
+            dtheta=dtheta, flim=flim,
             title='Upper bound, theta = %.3f' % th0)
 
     return
