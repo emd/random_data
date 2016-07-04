@@ -2,7 +2,8 @@ from nose import tools
 import sys
 import numpy as np
 from random_data.spectra import (
-    AutoSpectralDensity, CrossSpectralDensity, wrap)
+    AutoSpectralDensity, CrossSpectralDensity,
+    wrap, _next_largest_divisor_for_integer_quotient)
 
 
 def test_AutoSpectralDensity_signal_input():
@@ -180,5 +181,38 @@ def test_wrap():
         theta_expected,
         wrap(theta, theta_min, theta_max),
         atol=(10 * sys.float_info.epsilon))
+
+    return
+
+
+def test__next_largest_divisor_for_integer_quotient():
+    # Specified `divisor` yields an integer when dividing into `dividend`
+    dividend = 10
+    divisor = 2
+    tools.assert_equal(
+        divisor,
+        _next_largest_divisor_for_integer_quotient(dividend, divisor))
+
+    # Specified `divisor` does *not* yield  an integer when dividing
+    # into `dividend`
+    dividend = 10
+    divisor = 4
+    tools.assert_equal(
+        5,
+        _next_largest_divisor_for_integer_quotient(dividend, divisor))
+
+    # 45 degree toroidal spacing of DIII-D's interferometers
+    dividend = 2 * np.pi
+    divisor = np.pi / 4
+    tools.assert_equal(
+        divisor,
+        _next_largest_divisor_for_integer_quotient(dividend, divisor))
+
+    # 33 degree toroidal spacing of DIII-D's "typical" magnetic probes
+    dividend = 2 * np.pi
+    divisor = 33 * (np.pi / 180)
+    tools.assert_equal(
+        36 * (np.pi / 180),
+        _next_largest_divisor_for_integer_quotient(dividend, divisor))
 
     return

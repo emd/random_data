@@ -586,15 +586,24 @@ class CrossSpectralDensity(object):
 
                         theta_min <= theta < theta_max
 
-        The plotted phase angles will be displayed with resolution `dtheta`;
+        If `dtheta` divides (2 * pi) into an *integer* number of bins,
+        the plotted phase angles will be displayed with resolution `dtheta`;
         that is, plotted phase angles will fall within bins of width `dtheta`
         centered on
 
                         theta_i = theta_min + (i * dtheta)
 
         with 0 <= i < N, and N = (theta_max - theta_min) / dtheta.
+        If `dtheta` does *not* divide (2 * pi) into an integer number
+        of bins, `dtheta` will be redefined as the next largest
+        value that does divide (2 * pi) into an integer number of bins;
+        the above discussion about the bin width and centering for the
+        plotted phase angles then applies with this re-defined `dtheta`.
 
         '''
+        # Ensure that `dtheta` divides (2 * pi) into an integer number of bins
+        dtheta = _next_largest_divisor_for_integer_quotient(2 * np.pi, dtheta)
+
         # The plotted phase angles will fall within bins of width `dtheta`
         # centered on
         #
@@ -867,8 +876,18 @@ def wrap(theta, theta_min, theta_max):
     return ((theta - theta_min) % full_cycle) + theta_min
 
 
+def _next_largest_divisor_for_integer_quotient(dividend, divisor):
+    '''Return `divisor` or next largest value that yields an
+    integer quotient when dividing into `dividend`.
+
+    '''
+    integer_quotient = np.int(np.float(dividend) / divisor)
+    return dividend / integer_quotient
+
+
 def _test_phase_angle(
         gamma2xy_threshold=0.5, Gxy_threshold=0.,
+        theta_min=-np.pi, theta_max=np.pi, dtheta=(np.pi / 4),
         Tens=5e-3, Nreal_per_ens=10, flim=[10e3, 100e3]):
     '''This routine plots the phase angle of several test cases
     to ensure that the phase angle is correctly represented
@@ -893,16 +912,15 @@ def _test_phase_angle(
     m = (f1 - f0) / (2 * (sig1.t[-1] - sig1.t[0]))
     f = f0 + (m * sig1.t)
 
-    # Check that plotted phase angle is correct for typical toroidal spacings
-    delta = 0.25
-    theta = np.pi * np.arange(-1, 1, delta)
-    dtheta = delta * np.pi
+    # Check that plotted phase angle is correct for specified phase angles
+    dtheta = _next_largest_divisor_for_integer_quotient(2 * np.pi, dtheta)
+    theta = np.arange(theta_min, theta_max, dtheta)
 
     # Check lower boundary for each phase angle
     for i, th0 in enumerate(theta):
-        # Ideal lower boundary of phase angle is at `theta` - (0.5 * `delta`),
+        # Ideal lower boundary of phase angle is at `theta` - (0.5 * `dtheta`),
         # but we select 0.45 to give a bit of head room due to noise etc.
-        th = th0 - (0.45 * delta)
+        th = th0 - (0.45 * dtheta)
         y1 = sig1.x + (A0 * np.cos(2 * np.pi * f * sig1.t))
         y2 = sig2.x + (A0 * np.cos((2 * np.pi * f * sig2.t) + th))
 
@@ -924,9 +942,9 @@ def _test_phase_angle(
 
     # Check upper boundary for each phase angle
     for i, th0 in enumerate(theta):
-        # Ideal upper boundary of phase angle is at `theta` + (0.5 * `delta`),
+        # Ideal upper boundary of phase angle is at `theta` + (0.5 * `dtheta`),
         # but we select 0.45 to give a bit of head room due to noise etc.
-        th = th0 + (0.45 * delta)
+        th = th0 + (0.45 * dtheta)
         y1 = sig1.x + (A0 * np.cos(2 * np.pi * f * sig1.t))
         y2 = sig2.x + (A0 * np.cos((2 * np.pi * f * sig2.t) + th))
 
