@@ -578,6 +578,7 @@ class CrossSpectralDensity(object):
                        tlim=None, flim=None,
                        cmap='RdBu', interpolation='none', fontsize=16,
                        title=None, xlabel='$t$', ylabel='$f$',
+                       mode_number=False,
                        ax=None, fig=None, geometry=111):
         '''Plot phase angle `theta` if magnitude-squared coherence is
         greater than or equal to `gamma2xy_threshold`, cross-spectral
@@ -599,6 +600,10 @@ class CrossSpectralDensity(object):
         value that does divide (2 * pi) into an integer number of bins;
         the above discussion about the bin width and centering for the
         plotted phase angles then applies with this re-defined `dtheta`.
+
+        If `mode_number` is True, the plotted phase angles will be
+        normalized to `dtheta`, producing a plot of mode number `n`
+        rather than phase angle.
 
         '''
         # Ensure that `dtheta` divides (2 * pi) into an integer number of bins
@@ -628,10 +633,21 @@ class CrossSpectralDensity(object):
         #
         # This is easily accomplished by setting the minimum and maximum
         # values to represent in the image as follows:
-        vlim = [theta_min - (0.5 * dtheta), theta_max - (0.5 * dtheta)]
+        vlim = np.array([
+            theta_min - (0.5 * dtheta),
+            theta_max - (0.5 * dtheta)])
 
         # Now, "wrap" the phase angles onto the specified domain
         theta_xy = wrap(self.theta_xy, vlim[0], vlim[1])
+
+        # Normalize phase angle to `dtheta` to obtain plot of mode number `n`
+        if mode_number:
+            theta_xy /= dtheta
+            vlim /= dtheta
+            cbticks = (cbticks / dtheta).astype('int')
+            cblabel = '$n$'
+        else:
+            cblabel='$\\theta_{xy}$'
 
         # Finally, only consider phase angles from regions whose
         # magnitude-square coherence is greater than or equal to `threshold`
@@ -646,7 +662,7 @@ class CrossSpectralDensity(object):
             xlim=tlim, ylim=flim, vlim=vlim,
             norm=None, cmap=cmap, interpolation=interpolation,
             title=title, xlabel=xlabel, ylabel=ylabel,
-            cblabel='$\\theta_{xy}$', cbticks=cbticks,
+            cblabel=cblabel, cbticks=cbticks,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
@@ -888,6 +904,7 @@ def _next_largest_divisor_for_integer_quotient(dividend, divisor):
 def _test_phase_angle(
         gamma2xy_threshold=0.5, Gxy_threshold=0.,
         theta_min=-np.pi, theta_max=np.pi, dtheta=(np.pi / 4),
+        mode_number=False,
         Tens=5e-3, Nreal_per_ens=10, flim=[10e3, 100e3]):
     '''This routine plots the phase angle of several test cases
     to ensure that the phase angle is correctly represented
@@ -934,11 +951,17 @@ def _test_phase_angle(
         if i == 0:
             csd.plotSpectralDensity(flim=flim)
 
+        if mode_number:
+            title='Lower bound, n = %i' % np.round(th0 / dtheta)
+        else:
+            title='Lower bound, theta = %.3f' % th0
+
         csd.plotPhaseAngle(
             gamma2xy_threshold=gamma2xy_threshold,
             Gxy_threshold=Gxy_threshold,
             dtheta=dtheta, flim=flim,
-            title='Lower bound, theta = %.3f' % th0)
+            title=title,
+            mode_number=mode_number)
 
     # Check upper boundary for each phase angle
     for i, th0 in enumerate(theta):
@@ -952,10 +975,16 @@ def _test_phase_angle(
             y1, y2, Fs=sig1.Fs, t0=sig1.t[0],
             Tens=Tens, Nreal_per_ens=Nreal_per_ens)
 
+        if mode_number:
+            title='Upper bound, n = %i' % np.round(th0 / dtheta)
+        else:
+            title='Upper bound, theta = %.3f' % th0
+
         csd.plotPhaseAngle(
             gamma2xy_threshold=gamma2xy_threshold,
             Gxy_threshold=Gxy_threshold,
             dtheta=dtheta, flim=flim,
-            title='Upper bound, theta = %.3f' % th0)
+            title=title,
+            mode_number=mode_number)
 
     return
