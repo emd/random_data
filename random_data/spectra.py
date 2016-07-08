@@ -574,7 +574,7 @@ class CrossSpectralDensity(object):
         return ax
 
     def plotPhaseAngle(self, gamma2xy_threshold=0.5, Gxy_threshold=0.,
-                       theta_min=-np.pi, theta_max=np.pi, dtheta=(np.pi / 4),
+                       theta_min=-np.pi, dtheta=(np.pi / 4),
                        tlim=None, flim=None,
                        cmap='RdBu', interpolation='none', fontsize=16,
                        title=None, xlabel='$t$', ylabel='$f$',
@@ -585,16 +585,17 @@ class CrossSpectralDensity(object):
         density amplitude is greater than or equal to `Gxy_threshold`,
         and `theta` satisfies
 
-                        theta_min <= theta < theta_max
+                theta_min <= theta < [theta_min + (2 * pi)]
 
         If `dtheta` divides (2 * pi) into an *integer* number of bins,
         the plotted phase angles will be displayed with resolution `dtheta`;
         that is, plotted phase angles will fall within bins of width `dtheta`
         centered on
 
-                        theta_i = theta_min + (i * dtheta)
+                    theta_i = theta_min + (i * dtheta)
 
-        with 0 <= i < N, and N = (theta_max - theta_min) / dtheta.
+        with 0 <= i < N, and N = (2 * pi) / dtheta.
+
         If `dtheta` does *not* divide (2 * pi) into an integer number
         of bins, `dtheta` will be redefined as the next largest
         value that does divide (2 * pi) into an integer number of bins;
@@ -606,6 +607,8 @@ class CrossSpectralDensity(object):
         rather than phase angle.
 
         '''
+        theta_max = theta_min + (2 * np.pi)
+
         # Ensure that `dtheta` divides (2 * pi) into an integer number of bins
         dtheta = _next_largest_divisor_for_integer_quotient(2 * np.pi, dtheta)
 
@@ -614,7 +617,7 @@ class CrossSpectralDensity(object):
         #
         #           theta_i = theta_min + (i * dtheta)
         #
-        # where 0 <= i < N and N = (theta_max - theta_min) / dtheta.
+        # where 0 <= i < N and N = (2 * pi) / dtheta.
         # Each bin centerpoint will have its own colorbar tick in `cbticks`.
         cbticks = np.arange(theta_min, theta_max, dtheta)
 
@@ -903,7 +906,7 @@ def _next_largest_divisor_for_integer_quotient(dividend, divisor):
 
 def _test_phase_angle(
         gamma2xy_threshold=0.5, Gxy_threshold=0.,
-        theta_min=-np.pi, theta_max=np.pi, dtheta=(np.pi / 4),
+        theta_min=-np.pi, dtheta=(np.pi / 4),
         mode_number=False,
         Tens=5e-3, Nreal_per_ens=10, flim=[10e3, 100e3]):
     '''This routine plots the phase angle of several test cases
@@ -930,6 +933,7 @@ def _test_phase_angle(
     f = f0 + (m * sig1.t)
 
     # Check that plotted phase angle is correct for specified phase angles
+    theta_max = theta_min + (2 * np.pi)
     dtheta = _next_largest_divisor_for_integer_quotient(2 * np.pi, dtheta)
     theta = np.arange(theta_min, theta_max, dtheta)
 
@@ -943,7 +947,8 @@ def _test_phase_angle(
 
         csd = CrossSpectralDensity(
             y1, y2, Fs=sig1.Fs, t0=sig1.t[0],
-            Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+            Tens=Tens, Nreal_per_ens=Nreal_per_ens,
+            print_params=False, print_status=False)
 
         # Plot cross-spectral spectral density amplitude *once*
         # so that it is easy to specify relevant alternative values
@@ -959,7 +964,7 @@ def _test_phase_angle(
         csd.plotPhaseAngle(
             gamma2xy_threshold=gamma2xy_threshold,
             Gxy_threshold=Gxy_threshold,
-            dtheta=dtheta, flim=flim,
+            theta_min=theta_min, dtheta=dtheta, flim=flim,
             title=title,
             mode_number=mode_number)
 
@@ -973,7 +978,8 @@ def _test_phase_angle(
 
         csd = CrossSpectralDensity(
             y1, y2, Fs=sig1.Fs, t0=sig1.t[0],
-            Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+            Tens=Tens, Nreal_per_ens=Nreal_per_ens,
+            print_params=False, print_status=False)
 
         if mode_number:
             title='Upper bound, n = %i' % np.round(th0 / dtheta)
@@ -983,7 +989,7 @@ def _test_phase_angle(
         csd.plotPhaseAngle(
             gamma2xy_threshold=gamma2xy_threshold,
             Gxy_threshold=Gxy_threshold,
-            dtheta=dtheta, flim=flim,
+            theta_min=theta_min, dtheta=dtheta, flim=flim,
             title=title,
             mode_number=mode_number)
 
