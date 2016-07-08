@@ -907,8 +907,10 @@ def _next_largest_divisor_for_integer_quotient(dividend, divisor):
 def _test_phase_angle(
         gamma2xy_threshold=0.5, Gxy_threshold=0.,
         theta_min=-np.pi, dtheta=(np.pi / 4),
+        flim=[10e3, 100e3],
+        cmap='RdBu',
         mode_number=False,
-        Tens=5e-3, Nreal_per_ens=10, flim=[10e3, 100e3]):
+        Tens=5e-3, Nreal_per_ens=10):
     '''This routine plots the phase angle of several test cases
     to ensure that the phase angle is correctly represented
     by the methods in `CrossSpectralDensity`. Each test case
@@ -964,7 +966,9 @@ def _test_phase_angle(
         csd.plotPhaseAngle(
             gamma2xy_threshold=gamma2xy_threshold,
             Gxy_threshold=Gxy_threshold,
-            theta_min=theta_min, dtheta=dtheta, flim=flim,
+            theta_min=theta_min, dtheta=dtheta,
+            flim=flim,
+            cmap=cmap,
             title=title,
             mode_number=mode_number)
 
@@ -989,7 +993,9 @@ def _test_phase_angle(
         csd.plotPhaseAngle(
             gamma2xy_threshold=gamma2xy_threshold,
             Gxy_threshold=Gxy_threshold,
-            theta_min=theta_min, dtheta=dtheta, flim=flim,
+            theta_min=theta_min, dtheta=dtheta,
+            flim=flim,
+            cmap=cmap,
             title=title,
             mode_number=mode_number)
 
