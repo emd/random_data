@@ -573,34 +573,38 @@ class CrossSpectralDensity(object):
 
         return ax
 
-    def plotPhaseAngle(self, threshold=0.5,
-                       theta_min=-np.pi, theta_max=np.pi, dtheta=(np.pi / 4),
+    def plotPhaseAngle(self, gamma2xy_threshold=0.5, Gxy_threshold=0.,
+                       theta_min=-np.pi, dtheta=(np.pi / 4),
                        tlim=None, flim=None,
                        cmap='RdBu', interpolation='none', fontsize=16,
                        title=None, xlabel='$t$', ylabel='$f$',
+                       mode_number=False,
                        ax=None, fig=None, geometry=111):
         '''Plot phase angle `theta` if magnitude-squared coherence is
-        greater than or equal to `threshold` *and* satisfies
+        greater than or equal to `gamma2xy_threshold`, cross-spectral
+        density amplitude is greater than or equal to `Gxy_threshold`,
+        and `theta` satisfies
 
-                        theta_min <= theta < theta_max
+                theta_min <= theta < [theta_min + (2 * pi)]
 
-        The plotted phase angles will be displayed with resolution `dtheta`;
-        that is, plotted phase angles will fall within bins of width `dtheta`
-        centered on
+        If `dtheta` divides (2 * pi) into an *integer* number of bins,
+        the plotted phase angles will be displayed with resolution `dtheta`;
+        that is, plotted phase angles will fall within bins of width `dtheta`.
+        Note that the phase angle equivalent to zero will always occupy
+        one of the bin center points.
 
-                        theta_i = theta_min + (i * dtheta)
+        If `dtheta` does *not* divide (2 * pi) into an integer number
+        of bins, `dtheta` will be redefined as the closest value
+        that does divide (2 * pi) into an integer number of bins;
+        the above discussion about the bin width and centering for the
+        plotted phase angles then applies with this re-defined `dtheta`.
 
-        with 0 <= i < N, and N = (theta_max - theta_min) / dtheta.
+        If `mode_number` is True, the plotted phase angles will be
+        normalized to `dtheta`, producing a plot of mode number `n`
+        rather than phase angle.
 
         '''
-        # The plotted phase angles will fall within bins of width `dtheta`
-        # centered on
-        #
-        #           theta_i = theta_min + (i * dtheta)
-        #
-        # where 0 <= i < N and N = (theta_max - theta_min) / dtheta.
-        # Each bin centerpoint will have its own colorbar tick in `cbticks`.
-        cbticks = np.arange(theta_min, theta_max, dtheta)
+        cbticks, dtheta = phase_angle_bins(dtheta, theta_min)
 
         # Get "discrete" colormap, with a distinct color corresponding
         # to each value in `cbticks`
@@ -609,29 +613,45 @@ class CrossSpectralDensity(object):
         # However, the bins also have width `dtheta` such that
         # the colorbar boundaries should correspond to
         #
-        #        lower bound (0):      theta_min - (0.5 * dtheta)
-        #        (1):                  theta_min + (0.5 * dtheta)
-        #        (2):                  theta_min + (1.5 * dtheta)
+        #        lower bound (0):      cbticks[0] - (0.5 * dtheta)
+        #        (1):                  cbticks[0] + (0.5 * dtheta)
+        #        (2):                  cbticks[0] + (1.5 * dtheta)
         #        ...
-        #        upper bound (N + 1):  theta_max - (0.5 * dtheta)
+        #        upper bound (N + 1):  cbticks[-1] + (0.5 * dtheta)
         #
         # This is easily accomplished by setting the minimum and maximum
         # values to represent in the image as follows:
-        vlim = [theta_min - (0.5 * dtheta), theta_max - (0.5 * dtheta)]
+        vlim = np.array([
+            cbticks[0] - (0.5 * dtheta),
+            cbticks[-1] + (0.5 * dtheta)])
 
         # Now, "wrap" the phase angles onto the specified domain
         theta_xy = wrap(self.theta_xy, vlim[0], vlim[1])
 
+        # Normalize phase angle to `dtheta` to obtain plot of mode number `n`
+        if mode_number:
+            theta_xy /= dtheta
+            vlim /= dtheta
+            cbticks = (cbticks / dtheta).astype('int')
+            cblabel = '$n$'
+        else:
+            cblabel = '$\\theta_{xy}$'
+
         # Finally, only consider phase angles from regions whose
-        # magnitude-square coherence is greater than or equal to `threshold`
-        theta_xy = np.ma.masked_where(self.gamma2xy < threshold, theta_xy)
+        # (a) magnitude-squared coherence and (b) cross-spectral-density
+        # amplitude are greater-than-or-equal-to the specified thresholds
+        theta_xy = np.ma.masked_where(
+            np.logical_or(
+                self.gamma2xy < gamma2xy_threshold,
+                np.abs(self.Gxy) < Gxy_threshold),
+            theta_xy)
 
         ax = _plot_image(
             self.t, self.f, theta_xy,
             xlim=tlim, ylim=flim, vlim=vlim,
             norm=None, cmap=cmap, interpolation=interpolation,
             title=title, xlabel=xlabel, ylabel=ylabel,
-            cblabel='$\\theta_{xy}$', cbticks=cbticks,
+            cblabel=cblabel, cbticks=cbticks,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
@@ -861,7 +881,95 @@ def wrap(theta, theta_min, theta_max):
     return ((theta - theta_min) % full_cycle) + theta_min
 
 
-def _test_phase_angle(Tens=5e-3, Nreal_per_ens=10):
+def phase_angle_bins(dtheta0, theta_min):
+    '''Get center points for phase angle bins of (approximate) width `dtheta0`.
+
+    Parameters:
+    -----------
+    dtheta0 - float
+        The desired width of the phase angle bins in radians.
+        Our image processing algorithms are most easily implemented
+        if the bin widths divide (2 * pi) into an *integer* number
+        of bins. For this reason, the realized bin width `dtheta`
+        may differ slightly from the requested bin width `dtheta0`
+        (specifics discussed below under "Returns").
+        [dtheta0] = rad
+
+    theta_min -float
+        The returned bin center points will lie between `theta_min` and
+        `theta_min` + (2 * pi), subject to the constraint that
+        the phase angle equivalent to zero (i.e. m * (2 * pi),
+        m any integer) lies at the center point of one of the bins.
+        [theta_min] = rad
+
+    Returns:
+    --------
+    (bins, dtheta) - tuple, where
+
+    bins - array_like, (`N`,)
+        The center points of the phase angle bins.
+
+    dtheta -float
+        The realized phase-angle-bin width. If the requested bin width
+        `dtheta0` does *not* divide (2 * pi) into an integer number
+        of bins, the realized bin width `dtheta` is the bin width
+        closest to `dtheta0` that *does* divide (2 * pi) into
+        an integer number of bins.
+
+    '''
+    # Map `theta_min` onto [-pi, pi), recording the `offset`
+    # that must be added to the resulting bins to return
+    # to the original angular coordinate system
+    theta_min0 = theta_min
+    theta_min = wrap(theta_min, -np.pi, np.pi)
+    offset = theta_min0 - theta_min
+
+    # The phase angle bins will span the full (2 * pi) angular range
+    theta_max = theta_min + (2 * np.pi)
+
+    # Number of bins in full (2 * pi), rounded to the nearest integer value
+    N = np.int(np.round(2 * np.pi / dtheta0))
+
+    # Redefine the angular separation of the bins such that
+    # the bins *exactly* divide (2 * pi) into `N` bins
+    dtheta = (2 * np.pi) / N
+
+    # Construct the bins such that the phase angle zero
+    # always occupies a bin center point
+    bins_pos = np.arange(0, theta_max, dtheta)  # bins for theta >= 0
+
+    # Bins for theta < 0 depend on whether number of bins is even or odd
+    # (Hint: draw diagrams for phase angle bins mapped onto [-pi, pi)
+    # for `N` even and odd to better understand the algorithm below)
+    if N % 2 == 0:
+        bins_neg = np.arange(-dtheta, (theta_min - dtheta), -dtheta)[::-1]
+    else:
+        bins_neg = np.arange(-dtheta, theta_min, -dtheta)[::-1]
+
+    bins = np.concatenate((bins_neg, bins_pos))
+
+    # Account for `offset`, converting bins to original angular range
+    bins += offset
+
+    return bins, dtheta
+
+
+def _next_largest_divisor_for_integer_quotient(dividend, divisor):
+    '''Return `divisor` or next largest value that yields an
+    integer quotient when dividing into `dividend`.
+
+    '''
+    integer_quotient = np.int(np.float(dividend) / divisor)
+    return dividend / integer_quotient
+
+
+def _test_phase_angle(
+        gamma2xy_threshold=0.5, Gxy_threshold=0.,
+        theta_min=-np.pi, dtheta=(np.pi / 4),
+        flim=[10e3, 100e3],
+        cmap='RdBu',
+        mode_number=False,
+        Tens=5e-3, Nreal_per_ens=10):
     '''This routine plots the phase angle of several test cases
     to ensure that the phase angle is correctly represented
     by the methods in `CrossSpectralDensity`. Each test case
@@ -885,41 +993,67 @@ def _test_phase_angle(Tens=5e-3, Nreal_per_ens=10):
     m = (f1 - f0) / (2 * (sig1.t[-1] - sig1.t[0]))
     f = f0 + (m * sig1.t)
 
-    # Check that plotted phase angle is correct for typical toroidal spacings
-    delta = 0.25
-    theta = np.pi * np.arange(-1, 1, delta)
-    dtheta = delta * np.pi
+    # Check that plotted phase angle is correct for specified phase angles
+    bins, dtheta = phase_angle_bins(dtheta, theta_min)
 
     # Check lower boundary for each phase angle
-    for i, th0 in enumerate(theta):
-        # Ideal lower boundary of phase angle is at `theta` - (0.5 * `delta`),
+    for i, th0 in enumerate(bins):
+        # Ideal lower boundary of phase angle is at `theta` - (0.5 * `dtheta`),
         # but we select 0.45 to give a bit of head room due to noise etc.
-        th = th0 - (0.45 * delta)
+        th = th0 - (0.45 * dtheta)
         y1 = sig1.x + (A0 * np.cos(2 * np.pi * f * sig1.t))
         y2 = sig2.x + (A0 * np.cos((2 * np.pi * f * sig2.t) + th))
 
         csd = CrossSpectralDensity(
             y1, y2, Fs=sig1.Fs, t0=sig1.t[0],
-            Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+            Tens=Tens, Nreal_per_ens=Nreal_per_ens,
+            print_params=False, print_status=False)
+
+        # Plot cross-spectral spectral density amplitude *once*
+        # so that it is easy to specify relevant alternative values
+        # for `Gxy_threshold`
+        if i == 0:
+            csd.plotSpectralDensity(flim=flim)
+
+        if mode_number:
+            title = 'Lower bound, n = %i' % np.round(th0 / dtheta)
+        else:
+            title = 'Lower bound, theta = %.3f' % th0
 
         csd.plotPhaseAngle(
-            dtheta=dtheta, flim=[10e3, 100e3],
-            title='Lower bound, theta = %.3f' % th0)
+            gamma2xy_threshold=gamma2xy_threshold,
+            Gxy_threshold=Gxy_threshold,
+            theta_min=theta_min, dtheta=dtheta,
+            flim=flim,
+            cmap=cmap,
+            title=title,
+            mode_number=mode_number)
 
     # Check upper boundary for each phase angle
-    for i, th0 in enumerate(theta):
-        # Ideal upper boundary of phase angle is at `theta` + (0.5 * `delta`),
+    for i, th0 in enumerate(bins):
+        # Ideal upper boundary of phase angle is at `theta` + (0.5 * `dtheta`),
         # but we select 0.45 to give a bit of head room due to noise etc.
-        th = th0 + (0.45 * delta)
+        th = th0 + (0.45 * dtheta)
         y1 = sig1.x + (A0 * np.cos(2 * np.pi * f * sig1.t))
         y2 = sig2.x + (A0 * np.cos((2 * np.pi * f * sig2.t) + th))
 
         csd = CrossSpectralDensity(
             y1, y2, Fs=sig1.Fs, t0=sig1.t[0],
-            Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+            Tens=Tens, Nreal_per_ens=Nreal_per_ens,
+            print_params=False, print_status=False)
+
+        if mode_number:
+            title = 'Upper bound, n = %i' % np.round(th0 / dtheta)
+        else:
+            title = 'Upper bound, theta = %.3f' % th0
 
         csd.plotPhaseAngle(
-            dtheta=dtheta, flim=[10e3, 100e3],
-            title='Upper bound, theta = %.3f' % th0)
+            gamma2xy_threshold=gamma2xy_threshold,
+            Gxy_threshold=Gxy_threshold,
+            theta_min=theta_min, dtheta=dtheta,
+            flim=flim,
+            cmap=cmap,
+            title=title,
+            mode_number=mode_number)
 
     return

@@ -2,7 +2,8 @@ from nose import tools
 import sys
 import numpy as np
 from random_data.spectra import (
-    AutoSpectralDensity, CrossSpectralDensity, wrap)
+    AutoSpectralDensity, CrossSpectralDensity,
+    wrap, phase_angle_bins, _next_largest_divisor_for_integer_quotient)
 
 
 def test_AutoSpectralDensity_signal_input():
@@ -180,5 +181,161 @@ def test_wrap():
         theta_expected,
         wrap(theta, theta_min, theta_max),
         atol=(10 * sys.float_info.epsilon))
+
+    return
+
+
+def test__next_largest_divisor_for_integer_quotient():
+    # Specified `divisor` yields an integer when dividing into `dividend`
+    dividend = 10
+    divisor = 2
+    tools.assert_equal(
+        divisor,
+        _next_largest_divisor_for_integer_quotient(dividend, divisor))
+
+    # Specified `divisor` does *not* yield  an integer when dividing
+    # into `dividend`
+    dividend = 10
+    divisor = 4
+    tools.assert_equal(
+        5,
+        _next_largest_divisor_for_integer_quotient(dividend, divisor))
+
+    # 45 degree toroidal spacing of DIII-D's interferometers
+    dividend = 2 * np.pi
+    divisor = np.pi / 4
+    tools.assert_equal(
+        divisor,
+        _next_largest_divisor_for_integer_quotient(dividend, divisor))
+
+    # 33 degree toroidal spacing of DIII-D's "typical" magnetic probes
+    dividend = 2 * np.pi
+    divisor = 33 * (np.pi / 180)
+    tools.assert_equal(
+        36 * (np.pi / 180),
+        _next_largest_divisor_for_integer_quotient(dividend, divisor))
+
+    return
+
+
+def test_phase_angle_bins():
+    # Use typical `theta_min` of -pi and 0; also, test with "wild" offset
+    theta_min_test_vals = np.array([-np.pi, 0, -10 * np.pi])
+
+    # (1) Test with *even* number of bins when
+    #     `dtheta0` divides (2 * pi) into integer number of bins:
+    # ===========================================================
+    dtheta0 = np.pi / 2
+
+    for theta_min in theta_min_test_vals:
+        theta_max = theta_min + (2 * np.pi)
+        bins_expected = np.arange(theta_min, theta_max, dtheta0)
+
+        bins, dtheta = phase_angle_bins(dtheta0, theta_min)
+
+        # Use "almost equal" to avoid errors w/ round-off errors
+        np.testing.assert_array_almost_equal(bins, bins_expected)
+        tools.assert_equal(dtheta, dtheta0)
+
+    # (2) Test with *even* number of bins when
+    #     `dtheta0` does *not* divide (2 * pi) into integer number of bins:
+    # =====================================================================
+    dtheta_expected = np.pi / 2
+    dtheta0 = 0.99 * dtheta_expected
+
+    for theta_min in theta_min_test_vals:
+        theta_max = theta_min + (2 * np.pi)
+        bins_expected = np.arange(theta_min, theta_max, dtheta_expected)
+
+        bins, dtheta = phase_angle_bins(dtheta0, theta_min)
+
+        # Use "almost equal" to avoid errors w/ round-off errors
+        np.testing.assert_array_almost_equal(bins, bins_expected)
+        tools.assert_equal(dtheta, dtheta_expected)
+
+    # (3) Test with *odd* number of bins when
+    #     `dtheta0` divides (2 * pi) into integer number of bins
+    #     (note that the odd case requires a bit more care...):
+    # ==========================================================
+    dtheta0 = (2 * np.pi) / 5
+
+    # (3a) [-pi, pi):
+    # ---------------
+    theta_min = -np.pi
+    theta_max = theta_min + (2 * np.pi)
+    bins_expected = dtheta0 * np.arange(-2, 3)
+
+    bins, dtheta = phase_angle_bins(dtheta0, theta_min)
+
+    # Use "almost equal" to avoid errors w/ round-off errors
+    np.testing.assert_array_almost_equal(bins, bins_expected)
+    tools.assert_equal(dtheta, dtheta0)
+
+    # (3b) [0, 2 * pi):
+    # -----------------
+    theta_min = 0
+    theta_max = theta_min + (2 * np.pi)
+    bins_expected = dtheta0 * np.arange(0, 5)
+
+    bins, dtheta = phase_angle_bins(dtheta0, theta_min)
+
+    # Use "almost equal" to avoid errors w/ round-off errors
+    np.testing.assert_array_almost_equal(bins, bins_expected)
+    tools.assert_equal(dtheta, dtheta0)
+
+    # (3c) [-10 * pi, -8 * pi):
+    # -------------------------
+    theta_min = -10 * np.pi  # equivalent to 0 radians
+    theta_max = theta_min + (2 * np.pi)
+    bins_expected = theta_min + (dtheta0 * np.arange(0, 5))
+
+    bins, dtheta = phase_angle_bins(dtheta0, theta_min)
+
+    # Use "almost equal" to avoid errors w/ round-off errors
+    np.testing.assert_array_almost_equal(bins, bins_expected)
+    tools.assert_equal(dtheta, dtheta0)
+
+    # (4) Test with *odd* number of bins when
+    #     `dtheta0` does *not* divide (2 * pi) into integer number of bins
+    #     (note that the odd case requires a bit more care...):
+    # =====================================================================
+    dtheta_expected = (2 * np.pi) / 5
+    dtheta0 = 0.99 * dtheta_expected
+
+    # (3a) [-pi, pi):
+    # ---------------
+    theta_min = -np.pi
+    theta_max = theta_min + (2 * np.pi)
+    bins_expected = dtheta_expected * np.arange(-2, 3)
+
+    bins, dtheta = phase_angle_bins(dtheta0, theta_min)
+
+    # Use "almost equal" to avoid errors w/ round-off errors
+    np.testing.assert_array_almost_equal(bins, bins_expected)
+    tools.assert_equal(dtheta, dtheta_expected)
+
+    # (3b) [0, 2 * pi):
+    # -----------------
+    theta_min = 0
+    theta_max = theta_min + (2 * np.pi)
+    bins_expected = dtheta_expected * np.arange(0, 5)
+
+    bins, dtheta = phase_angle_bins(dtheta0, theta_min)
+
+    # Use "almost equal" to avoid errors w/ round-off errors
+    np.testing.assert_array_almost_equal(bins, bins_expected)
+    tools.assert_equal(dtheta, dtheta_expected)
+
+    # (3c) [-10 * pi, -8 * pi):
+    # -------------------------
+    theta_min = -10 * np.pi  # equivalent to 0 radians
+    theta_max = theta_min + (2 * np.pi)
+    bins_expected = theta_min + (dtheta_expected * np.arange(0, 5))
+
+    bins, dtheta = phase_angle_bins(dtheta0, theta_min)
+
+    # Use "almost equal" to avoid errors w/ round-off errors
+    np.testing.assert_array_almost_equal(bins, bins_expected)
+    tools.assert_equal(dtheta, dtheta_expected)
 
     return
