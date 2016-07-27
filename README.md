@@ -13,21 +13,21 @@ of the methodologies implemented in this module.
 The `matplotlib.mlab` submodule offers several useful routines
 for spectral density estimation, *but*
 
-    - `psd` and `csd`, which use Welch's average periodogram method
-      to estimate the autospectral density and cross-spectral density,
-      respectively, are not time-resolved, and
+- `psd` and `csd`, which use Welch's average periodogram method
+  to estimate the autospectral density and cross-spectral density,
+  respectively, are *not* time-resolved, and
 
-    - `specgram`, which creates a time-resolved estimate of the
-      autospectral density (i.e. a "spectrogram"), does not
-      average spectral estimates over several realizations, so
-      the resulting spectrogram suffers from large amounts
-      of random error
+- `specgram`, which creates a time-resolved estimate of the
+  autospectral density (i.e. a "spectrogram"), does not
+  average spectral estimates over several realizations, so
+  the resulting spectrogram suffers from large amounts
+  of random error
 
 In contrast, `random_data` produces time-resolved spectral density estimates
 that have been averaged over several realizations, effectively merging
 the functionality of `psd`/`csd` and `specgram`. This is largely accomplished
 via class definitions built around `matplotlib`'s `psd` and `csd` functions.
-Additionally, `random_data`s spectral density classes have robust methods
+Additionally, `random_data`'s spectral density classes have robust methods
 for visualizing the magnitude, coherence, and phase angle
 of spectral density estimates.
 
