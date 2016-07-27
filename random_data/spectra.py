@@ -6,14 +6,11 @@
 # Standard library imports
 import numpy as np
 from matplotlib import mlab
-from scipy.signal import fftconvolve, convolve2d
-from matplotlib.colors import LogNorm
-from matplotlib.mlab import specgram
+from matplotlib.colors import LogNorm, Colormap
 import matplotlib.pyplot as plt
 from matplotlib.ticker import LogFormatter
 
 # Related 3rd-party imports
-from event_manager.for_matplotlib import FigureList
 from .ensemble import Ensemble
 
 
@@ -112,7 +109,8 @@ class AutoSpectralDensity(object):
     def __init__(self, x, Fs=1.0, t0=0.,
                  Tens=40960., Nreal_per_ens=10, fraction_overlap=0.5,
                  Npts_per_real=None, Npts_overlap=None,
-                 detrend='linear', window=mlab.window_hanning):
+                 detrend=None, window=mlab.window_hanning,
+                 print_params=True, print_status=True):
         '''Create an instance of the `SpectralDensity` class.
 
         Input Parameters:
@@ -169,9 +167,20 @@ class AutoSpectralDensity(object):
             May be [ 'default' | 'constant' | 'mean' | 'linear' | 'none']
             or callable, as specified in :py:func: `csd <matplotlib.mlab.csd>`.
 
+            *Warning*: Naively detrending (even with something as simple as
+            `mean` or `linear` detrending) can introduce detrimental artifacts
+            into the computed spectrum, so *no* detrending is the default.
+
         window - callable or ndarray
             The window applied to each realization before taking FFT,
             as specified in :py:func: `csd <matplotlib.mlab.csd>`.
+
+        print_params - bool
+            If True, print relevant spectral parameters to screen.
+
+        print_status - bool
+            If True, print percentage of ensembles whose spectra
+            have been computed.
 
         '''
         # Only real-valued signals are expected/supported at the moment
@@ -201,19 +210,35 @@ class AutoSpectralDensity(object):
         self.t = ens.t
         self.dt = ens.dt
 
-        # Perform spectral calculations
-        self.Gxx = self.getSpectralDensity(x)
+        if print_params:
+            self.printSpectralParams()
 
-    def getSpectralDensity(self, x):
+        # Perform spectral calculations
+        self.Gxx = self.getSpectralDensity(x, print_status=print_status)
+
+    def printSpectralParams(self):
+        print '\ndt: %.6g' % self.dt
+        print 'df: %.6g' % self.df
+        print 'Npts_per_real: %i' % self.Npts_per_real
+        print ('overlap: %.2f'
+               % (np.float(self.Npts_overlap) / self.Npts_per_real))
+        print 'Nreal_per_ens: %i' % self.Nreal_per_ens
+        print 'detrend: %s' % self.detrend
+        print 'window: %s' % self.window.func_name
+
+        return
+
+    def getSpectralDensity(self, x, print_status=False):
         'Get spectral density of provided signal.'
         return _spectral_density(
             x, x, self.Fs, len(self.f), len(self.t),
             self.Npts_per_real, self.Npts_overlap, self.Npts_per_ens,
-            self.detrend, self.window)
+            self.detrend, self.window,
+            print_status=print_status, status_label='Gxx')
 
     def plotSpectralDensity(self, tlim=None, flim=None, vlim=None,
                             AC_coupled=True,
-                            cmap='Purples', interpolation='none', fontsize=16,
+                            cmap='viridis', interpolation='none', fontsize=16,
                             title=None, xlabel='$t$', ylabel='$f$',
                             ax=None, fig=None, geometry=111):
         'Plot magnitude of spectral density on log scale.'
@@ -329,7 +354,8 @@ class CrossSpectralDensity(object):
     def __init__(self, x, y, Fs=1.0, t0=0.,
                  Tens=40960., Nreal_per_ens=10, fraction_overlap=0.5,
                  Npts_per_real=None, Npts_overlap=None,
-                 detrend='linear', window=mlab.window_hanning):
+                 detrend=None, window=mlab.window_hanning,
+                 print_params=True, print_status=True):
         '''Create an instance of the `SpectralDensity` class.
 
         Input Parameters:
@@ -390,9 +416,20 @@ class CrossSpectralDensity(object):
             May be [ 'default' | 'constant' | 'mean' | 'linear' | 'none']
             or callable, as specified in :py:func: `csd <matplotlib.mlab.csd>`.
 
+            *Warning*: Naively detrending (even with something as simple as
+            `mean` or `linear` detrending) can introduce detrimental artifacts
+            into the computed spectrum, so *no* detrending is the default.
+
         window - callable or ndarray
             The window applied to each realization before taking FFT,
             as specified in :py:func: `csd <matplotlib.mlab.csd>`.
+
+        print_params - bool
+            If True, print relevant spectral parameters to screen.
+
+        print_status - bool
+            If True, print percentage of ensembles whose spectra
+            have been computed.
 
         '''
         # Only real-valued signals are expected/supported at the moment
@@ -425,19 +462,35 @@ class CrossSpectralDensity(object):
         self.t = ens.t
         self.dt = ens.dt
 
+        if print_params:
+            self.printSpectralParams()
+
         # Perform spectral calculations
-        self.Gxy = self.getSpectralDensity(x, y)
-        self.gamma2xy = self.getCoherence(x, y)
+        self.Gxy = self.getSpectralDensity(x, y, print_status=print_status)
+        self.gamma2xy = self.getCoherence(x, y, print_status=print_status)
         self.theta_xy = self.getPhaseAngle()
 
-    def getSpectralDensity(self, x, y):
+    def printSpectralParams(self):
+        print '\ndt: %.6g' % self.dt
+        print 'df: %.6g' % self.df
+        print 'Npts_per_real: %i' % self.Npts_per_real
+        print ('overlap: %.2f'
+               % (np.float(self.Npts_overlap) / self.Npts_per_real))
+        print 'Nreal_per_ens: %i' % self.Nreal_per_ens
+        print 'detrend: %s' % self.detrend
+        print 'window: %s' % self.window.func_name
+
+        return
+
+    def getSpectralDensity(self, x, y, print_status=False):
         'Get spectral density of provided signals.'
         return _spectral_density(
             x, y, self.Fs, len(self.f), len(self.t),
             self.Npts_per_real, self.Npts_overlap, self.Npts_per_ens,
-            self.detrend, self.window)
+            self.detrend, self.window,
+            print_status=print_status, status_label='Gxy')
 
-    def getCoherence(self, x, y):
+    def getCoherence(self, x, y, print_status=False):
         '''Get (magnitude-squared) coherence of signals `x` and `y`.
 
         The magnitude-squared coherence function (gamma_{xy})^2
@@ -458,20 +511,25 @@ class CrossSpectralDensity(object):
         Gxx = _spectral_density(
             x, x, self.Fs, len(self.f), len(self.t),
             self.Npts_per_real, self.Npts_overlap, self.Npts_per_ens,
-            self.detrend, self.window)
+            self.detrend, self.window,
+            print_status=print_status, status_label='Gxx')
 
         Gyy = _spectral_density(
             y, y, self.Fs, len(self.f), len(self.t),
             self.Npts_per_real, self.Npts_overlap, self.Npts_per_ens,
-            self.detrend, self.window)
+            self.detrend, self.window,
+            print_status=print_status, status_label='Gyy')
 
         num = (np.abs(self.Gxy) ** 2)
         den = Gxx * Gyy
 
         return num / den
 
-    def getPhaseAngle(self, unwrap=True):
-        'Get phase angle `theta_xy` of spectral density `Gxy`.'
+    def getPhaseAngle(self, unwrap=False):
+        '''Get phase angle `theta_xy` (in radians) of spectral density `Gxy`.
+        If `unwrap` is False, the returned angle will be between [-pi, pi].
+
+        '''
         if unwrap:
             self.theta_xy = np.unwrap(np.angle(self.Gxy), axis=-1)
         else:
@@ -481,7 +539,7 @@ class CrossSpectralDensity(object):
 
     def plotSpectralDensity(self, tlim=None, flim=None, vlim=None,
                             AC_coupled=True,
-                            cmap='Purples', interpolation='none', fontsize=16,
+                            cmap='viridis', interpolation='none', fontsize=16,
                             title=None, xlabel='$t$', ylabel='$f$',
                             ax=None, fig=None, geometry=111):
         'Plot magnitude of spectral density on log scale.'
@@ -500,7 +558,7 @@ class CrossSpectralDensity(object):
         return ax
 
     def plotCoherence(self, tlim=None, flim=None, vlim=None,
-                      cmap='Purples', interpolation='none', fontsize=16,
+                      cmap='viridis', interpolation='none', fontsize=16,
                       title=None, xlabel='$t$', ylabel='$f$',
                       ax=None, fig=None, geometry=111):
         'Plot magnitude squared coherence on linear scale.'
@@ -515,42 +573,85 @@ class CrossSpectralDensity(object):
 
         return ax
 
-    def plotPhaseAngle(self, threshold=0.5,
-                       theta_min=-np.pi, theta_max=np.pi, dtheta=(np.pi / 4),
+    def plotPhaseAngle(self, gamma2xy_threshold=0.5, Gxy_threshold=0.,
+                       theta_min=-np.pi, dtheta=(np.pi / 4),
                        tlim=None, flim=None,
                        cmap='RdBu', interpolation='none', fontsize=16,
                        title=None, xlabel='$t$', ylabel='$f$',
+                       mode_number=False,
                        ax=None, fig=None, geometry=111):
-        'Plot phase angle if magnitude-squared coherence exceeds `threshold`.'
-        # Only consider phase angles from regions whose
-        # magnitude-square coherence is at least `threshold`
-        theta_xy_masked = np.ma.masked_where(
-            self.gamma2xy < threshold, self.theta_xy)
+        '''Plot phase angle `theta` if magnitude-squared coherence is
+        greater than or equal to `gamma2xy_threshold`, cross-spectral
+        density amplitude is greater than or equal to `Gxy_threshold`,
+        and `theta` satisfies
 
-        # Create colorbar ticks for particular angles:
-        #   {`theta_min`, `theta_min` + `dtheta`, ..., `theta_max`}
-        numcbticks = ((theta_max - theta_min) / dtheta) + 1
-        cbticks = np.linspace(theta_min, theta_max, numcbticks)
+                theta_min <= theta < [theta_min + (2 * pi)]
+
+        If `dtheta` divides (2 * pi) into an *integer* number of bins,
+        the plotted phase angles will be displayed with resolution `dtheta`;
+        that is, plotted phase angles will fall within bins of width `dtheta`.
+        Note that the phase angle equivalent to zero will always occupy
+        one of the bin center points.
+
+        If `dtheta` does *not* divide (2 * pi) into an integer number
+        of bins, `dtheta` will be redefined as the closest value
+        that does divide (2 * pi) into an integer number of bins;
+        the above discussion about the bin width and centering for the
+        plotted phase angles then applies with this re-defined `dtheta`.
+
+        If `mode_number` is True, the plotted phase angles will be
+        normalized to `dtheta`, producing a plot of mode number `n`
+        rather than phase angle.
+
+        '''
+        cbticks, dtheta = phase_angle_bins(dtheta, theta_min)
 
         # Get "discrete" colormap, with a distinct color corresponding
         # to each value in `cbticks`
         cmap = plt.get_cmap(cmap, len(cbticks))
 
-        # The discrete color corresponding to the ith tick, `cbticks[i]`,
-        # should be mapped to angles theta satisfying
+        # However, the bins also have width `dtheta` such that
+        # the colorbar boundaries should correspond to
         #
-        # `cbticks[i]` - (dtheta` / 2) < theta < `cbticks[i]` + (`dtheta` / 2)
+        #        lower bound (0):      cbticks[0] - (0.5 * dtheta)
+        #        (1):                  cbticks[0] + (0.5 * dtheta)
+        #        (2):                  cbticks[0] + (1.5 * dtheta)
+        #        ...
+        #        upper bound (N + 1):  cbticks[-1] + (0.5 * dtheta)
         #
         # This is easily accomplished by setting the minimum and maximum
         # values to represent in the image as follows:
-        vlim = [theta_min - (0.5 * dtheta), theta_max + (0.5 * dtheta)]
+        vlim = np.array([
+            cbticks[0] - (0.5 * dtheta),
+            cbticks[-1] + (0.5 * dtheta)])
+
+        # Now, "wrap" the phase angles onto the specified domain
+        theta_xy = wrap(self.theta_xy, vlim[0], vlim[1])
+
+        # Normalize phase angle to `dtheta` to obtain plot of mode number `n`
+        if mode_number:
+            theta_xy /= dtheta
+            vlim /= dtheta
+            cbticks = (cbticks / dtheta).astype('int')
+            cblabel = '$n$'
+        else:
+            cblabel = '$\\theta_{xy}$'
+
+        # Finally, only consider phase angles from regions whose
+        # (a) magnitude-squared coherence and (b) cross-spectral-density
+        # amplitude are greater-than-or-equal-to the specified thresholds
+        theta_xy = np.ma.masked_where(
+            np.logical_or(
+                self.gamma2xy < gamma2xy_threshold,
+                np.abs(self.Gxy) < Gxy_threshold),
+            theta_xy)
 
         ax = _plot_image(
-            self.t, self.f, theta_xy_masked,
+            self.t, self.f, theta_xy,
             xlim=tlim, ylim=flim, vlim=vlim,
             norm=None, cmap=cmap, interpolation=interpolation,
             title=title, xlabel=xlabel, ylabel=ylabel,
-            cblabel='$\\theta_{xy}$', cbticks=cbticks,
+            cblabel=cblabel, cbticks=cbticks,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
@@ -559,10 +660,13 @@ class CrossSpectralDensity(object):
 
 def _spectral_density(x, y, Fs, Nf, Nens,
                       Npts_per_real, Npts_overlap, Npts_per_ens,
-                      detrend, window):
+                      detrend, window,
+                      print_status=False, status_label=''):
     'Get spectral density of provided signals.'
+    same_data = x is y
+
     # Initialize spectral density array
-    if x is not y:
+    if not same_data:
         # Cross-spectral density is intrinsically complex-valued, so
         # we must initialize the spectral density as a complex-valued
         # array to avoid loss of information
@@ -573,6 +677,9 @@ def _spectral_density(x, y, Fs, Nf, Nens,
         # overhead of a complex-valued array
         Gxy = np.zeros([Nf, Nens])
 
+    if print_status:
+        print ''
+
     # Loop over successive ensembles
     for ens in np.arange(Nens):
         # Create a slice corresponding to current ensemble
@@ -580,7 +687,7 @@ def _spectral_density(x, y, Fs, Nf, Nens,
         ens_stop = (ens + 1) * Npts_per_ens
         sl = slice(ens_start, ens_stop)
 
-        if x is y:
+        if same_data:
             Gxy[:, ens] = mlab.psd(
                 x[sl], Fs=Fs,
                 NFFT=Npts_per_real, noverlap=Npts_overlap,
@@ -591,12 +698,19 @@ def _spectral_density(x, y, Fs, Nf, Nens,
                 NFFT=Npts_per_real, noverlap=Npts_overlap,
                 detrend=detrend, window=window)[0]
 
+        if print_status:
+            print ('%s percent complete: %.1f \r'
+                   % (status_label, (100 * np.float(ens + 1) / Nens))),
+
+    if print_status:
+        print ''
+
     return Gxy
 
 
 def _plot_image(x, y, z,
                 xlim=None, ylim=None, vlim=None,
-                norm=None, cmap='Purples', interpolation='none',
+                norm=None, cmap='viridis', interpolation='none',
                 title=None, xlabel=None, ylabel=None, fontsize=16,
                 cblabel=None, cbticks=None,
                 ax=None, fig=None, geometry=111):
@@ -719,6 +833,13 @@ def _plot_image(x, y, z,
     if norm == 'log':
         norm = LogNorm()
 
+    # Ensure that specified colormap is available
+    if not isinstance(cmap, Colormap) and (cmap not in plt.colormaps()):
+        cmap_backup = 'Purples'
+        print ("\nThe '%s' colormap is not available; falling back to '%s'\n"
+               % (cmap, cmap_backup))
+        cmap = cmap_backup
+
     # Create plot
     im = ax.imshow(np.flipud(z[yind, :][:, xind]),
                    extent=extent, aspect='auto',
@@ -750,398 +871,189 @@ def _plot_image(x, y, z,
     return ax
 
 
-class Spectrogram(object):
-    '''Spectrogram class.
-
-    Attributes:
-    -----------
-    Gxx - array, (`M`, `N`)
-        Estimates of one-sided power spectral density as a function of
-        frequency bin `f` and time bin `t`.
-        [Gxx] = (`xunits`)^2 / `funits`
-
-    f - array, (`M`,)
-        Frequency bin midpoints.
-        [f] = `funits`
-
-    t - array, (`N`,)
-        Time bin midpoints.
-        [t] = 1 / `Fsunits`
-
-    df - float
-        Spacing between frequency bins.
-        [df] = `funits`
-
-    dt - float
-        Spacing between time bins.
-        [dt] = 1 / `Fsunits`
+def wrap(theta, theta_min, theta_max):
+    '''Wrap array `theta` between `theta_min` and `theta_max`.
+    This is the inverse operation to :py:function: `unwrap <numpy.unwrap>`.
 
     '''
-    def __init__(self, x, Fs, Twindow,
-                 t0=0., overlap_frac=0.5, detrend='linear',
-                 kernel_df=None, kernel_dt=None,
-                 xunits=None, Fsunits=None, funits=None, verbose=True):
-        '''Create an instance of the Spectrogram class.
+    full_cycle = theta_max - theta_min
 
-        Input Parameters:
-        -----------------
-        x - array, (`L`,)
-            Time series from which spectrogram is generated.
-            The signal is discrete, i.e. x = x(t_n) = x(n / Fs) = x_n
-            for integer `n` and sampling frequency `Fs`.
-            [x] = Arbitrary
-
-        Fs - float
-            Sampling frequency.
-            [Fs] = 1 / [time]
-
-        Twindow - float
-            Window length over which spectral estimates of `x` are computed.
-            [Twindow] = 1 / [Fs]
-
-        t0 - float
-            Time corresponding to first data point in signal `x`.
-            [t0] = 1 / [Fs]
-
-        overlap_frac - float
-            Fraction of overlap between spectrogram windows
-            0 <= overlap_frac < 1.
-            [overlap_frac] = unitless
-
-        detrend - string
-            [ 'default' | 'constant' | 'mean' | 'linear' | 'none'] or callable
-
-        kernel_df - float
-            Size of convolution window in frequency dimension.
-            If `None` is specified, the kernel window size in the
-            frequency dimension is set to unity, and no convolution
-            in the frequency dimension occurs.
-            [kernel_df] = `funits`
-
-        kernel_dt - float
-            Size of convolution window in frequency dimension.
-            If `None` is specified, the kernel window size in the
-            time dimension is set to unity, and no convolution
-            in the time dimension occurs.
-            [kernel_dt] = 1 / [Fs_units] 
-
-        xunits - string
-            Units of time series `x`. Default value of `None` prevents
-            incorrect method usage.
-
-        Fsunits -string
-            Units of sampling frequency `Fs`. Default value of `None` prevents
-            incorrect method usage.
-
-        funits - string
-            Units of spectrogram frequency bins. Default value of `None`
-            prevents incorrect method usage.
-
-        verbose - bool
-            If True, print spectral calculation parameters to screen.
-
-        '''
-        # Check that supported units are being used prior to
-        # performing any calculations
-        if xunits is not None:
-            self.xunits = xunits
-        else:
-            raise ValueError('Units of signal required!')
-
-        if Fsunits == 'Hz':
-            # Avoid integer division problems by converting to a float
-            self._Fs = float(Fs)
-            self._Fsunits = Fsunits
-        else:
-            raise ValueError('Only sampling frequencies in Hz supported!')
-
-        if funits == 'kHz':
-            self.funits = funits
-            Hz_per_kHz = 1e3
-        else:
-            raise ValueError('Only kHz spectrogram frequency bins supported!')
-
-        # TODO: get Pint to convert this to unitless number!!!
-        #
-        # The FFT is most efficiently computed when `NFFT` is a power of 2.
-        # Here, we take `NFFT` to be the power of 2 that yields a window size
-        # *closest* in value to the specified window size `Twindow`.
-        exponent = np.log2(self._Fs * Twindow)      # exact
-        exponent = np.int(np.round(exponent))       # for nearest power of 2
-        self._NFFT = 2 ** exponent
-
-        if verbose:
-            print '\nWindow length = ' + str(self._NFFT / self._Fs) + ' s'
-            print '# pts. / window = ' + str(self._NFFT)
-
-        # A nonzero overlap decreases spectrogram "graininess"
-        # and increases the number of spectrogram time bins.
-        # However, increased overlap also leads to increased
-        # correlation between time bins.
-        self._noverlap = int(overlap_frac * self._NFFT)
-
-        if verbose:
-            print 'Window overlap = ' + str(int(overlap_frac * 100)) + '%'
-
-        self._detrend = detrend
-
-        if verbose:
-            print 'Detrending = ' + self._detrend
-
-        # Compute spectrogram, where `Gxx` is the one-sided PSD
-        Gxx, f, t = specgram(x, Fs=self._Fs, NFFT=self._NFFT,
-                             noverlap=self._noverlap, detrend=self._detrend)
-
-        self.Gxx = Gxx * Hz_per_kHz
-        self.f = f / Hz_per_kHz
-        self.t = t + t0
-        self.df = self.f[1] - self.f[0]
-        self.dt = self.t[1] - self.t[0]
-
-        if (kernel_df is not None) or (kernel_dt is not None):
-            self.Gxx = self._convolve(
-                kernel_df=kernel_df, kernel_dt=kernel_dt, verbose=verbose)
-
-    def _convolve(self, kernel_df=None, kernel_dt=None, verbose=True):
-        '''Convolve spectrogram with specified kernel.
-
-        Currently, only a boxcar kernel is implemented. Convolution with
-        this kernel is equivalent to averaging over the kernel window.
-        Additional kernels may be implemented in the future
-        (e.g. an edge detection kernel for coherent modes, etc.).
-
-        Parameters:
-        -----------
-        kernel_df - float
-            Size of convolution window in frequency dimension.
-            If `None` is specified, the kernel window size in the
-            frequency dimension is set to unity, and no convolution
-            in the frequency dimension occurs.
-            [kernel_df] = [self.f]
-
-        kernel_dt - float
-            Size of convolution window in frequency dimension.
-            If `None` is specified, the kernel window size in the
-            time dimension is set to unity, and no convolution
-            in the time dimension occurs.
-            [kernel_dt] = [self.t]
-
-        verbose - bool
-            If True, print convolution window parameters to screen.
-
-        '''
-        # Determine size of kernel, with min size of *one* in each dimension
-        if kernel_df is not None:
-            Nf = max([int(round(kernel_df / self.df)), 1])
-        else:
-            Nf = 1
-
-        if kernel_dt is not None:
-            Nt = max([int(round(kernel_dt / self.dt)), 1])
-        else:
-            Nt = 1
-
-        if verbose:
-            if Nf > 1:
-                print 'Kernel df = ' + str(Nf * self.df) + ' kHz'
-            else:
-                print 'No convolution in frequency.'
-
-            if Nt > 1:
-                print 'Kernel dt = ' + str(Nt * self.dt) + ' s'
-            else:
-                print 'No convolution in time.'
-
-        # Create boxcar kernel for averaging over kernel window.
-        # Note that the integral of kernel should be *unity*
-        # in order to preserve spectral power.
-        kernel = np.ones([Nf, Nt]) / float(Nf * Nt)
-
-        # When convolving a matrix of shape (w1, w2) with a
-        # kernel of shape (k1, k2), convolution is *fastest*
-        # via an FFT if
-        #
-        #           k1 * k2 >= 4 log_2 (w1 * w2)
-        #
-        # Otherwise, a straightforward convolution is faster.
-        # Relevant background information here:
-        #
-        #       http://programmers.stackexchange.com/a/172839
-        if kernel.size >= (4 * np.log2(self.Gxx.size)):
-            Gxx_convolved = fftconvolve(self.Gxx, kernel, mode='same')
-        else:
-            Gxx_convolved = convolve2d(self.Gxx, kernel, mode='same')
-
-        return Gxx_convolved
-
-    def plotSpec(self, fmin=None, fmax=None,
-                 vmin=None, vmax=None, cmap='Purples',
-                 ax=None, fig=None, geometry=111, title=None):
-        '''Plot spectrogram.
-
-        Parameters:
-        -----------
-        fmin (fmax) - float
-            The minimum (maximum) frequency displayed in spectrogram plot.
-            If `None`, use the minimum (maximum) frequency in `self.f`.
-            [fmin] = [fmax] = [self.f]
-
-        vmin (vmax) - float
-            `self.Gxx` <= `vmin` will be mapped to the minimum color
-            specified by colormap `cmap`. Similarly, `self.Gxx` >= `vmax`
-            will be mapped to the maximum color specified by colormap `cmap`.
-            Specification of None for `vmin` (`vmax`) defaults to mapping
-            the minimum (maximum) value in `self.Gxx` to the minimum
-            (maximum) color specified by colormap `cmap`.
-            [vmin] = [vmax] = [self.Gxx]
-
-        ax - :py:class:`AxesSubplot <matplotlib.axes._subplots.AxesSubplot>`
-            instance corresponding to the axis (i.e. "subplot") where
-            the spectrogram will be drawn. `ax` will (obviously) be
-            modified by this method. If an axis instance is not provided,
-            an axis will automatically be created.
-
-        fig - :py:class:`Figure <matplotlib.figure.Figure>` instance
-            If an axis instance is *not* provided, one can provide
-            a figure instance (and an axis `geometry`, describing the
-            location of the axis instance in the figure) to control
-            which window is plotted in. If a figure instance is not
-            provided (and axis instance is also not provided),
-            a figure instance will be created with the next available
-            window number.
-
-        geometry - int, or tuple
-            If an axis instance is *not* provided, `geometry` determines
-            the location of the axis instance in the provided or created
-            figure. The standard matplotlib subplot geometry indexing is
-            used (see `<matplotlib.pyplot.subplot>` for more information).
-
-        title - string
-            The title of the spectrogram to be placed over the subplot
-            specified by `axis`.
-
-        cmap - string
-            Colormap used for spectrogram. Default matplotlib colormaps
-            are found in :py:module:`cm <matplotlib.cm>`.
-
-        Returns:
-        --------
-        ax - :py:class:`AxesSubplot <matplotlib.axes._subplots.AxesSubplot>`
-            instance corresponding to the axis (i.e. "subplot") where
-            the spectrogram will be drawn. This is either identical to
-            the axis instance used during the call or, if an axis instance
-            was not provided, the axis instance created during the call.
-
-        '''
-        # If an axis instance is not provided, create one
-        if ax is None:
-            # If, in addition, a figure instance is not provided,
-            # create a figure with the next lowest consecutive window number
-            if fig is None:
-                fig = plt.figure(FigureList().getNext())
-            # Create axis with desired subplot geometry
-            ax = fig.add_subplot(geometry)
-
-        # Check that supported units are being used prior to
-        # performing any calculations
-        if self.funits is 'kHz':
-            yaxisunits = 'kHz'
-        else:
-            raise ValueError('Only kHz spectrogram frequency bins supported!')
-
-        if self._Fsunits is 'Hz':
-            xaxisunits = 's'
-        else:
-            raise ValueError('Only sampling frequencies in Hz supported!')
-
-        # Determine (x, y) extent of plot; time on x-axis, frequency on y-axis
-        tmin = self.t[0]
-        tmax = self.t[-1]
-
-        if fmin is None:
-            fmin = self.f[0]
-        if fmax is None:
-            fmax = self.f[-1]
-
-        extent = tmin, tmax, fmin, fmax
-
-        # Find frequencies `f` satisfying fmin <= f <= fmax
-        find = np.where(np.logical_and(self.f >= fmin, self.f <= fmax))[0]
-
-        # Create plot
-        im = ax.imshow(np.flipud(self.Gxx[find, :]), norm=LogNorm(),
-                       vmin=vmin, vmax=vmax, cmap=cmap,
-                       extent=extent, aspect='auto')
-
-        # Labeling
-        ax.set_xlabel('$t \, [\mathrm{' + xaxisunits + '}]$', fontsize=16)
-        ax.set_ylabel('$f \, [\mathrm{' + yaxisunits + '}]$', fontsize=16)
-        if title is not None:
-            ax.set_title(title, fontsize=16)
-
-        # Colorbar
-        cb = plt.colorbar(im, format=LogFormatter(labelOnlyBase=True),
-                          ax=ax, orientation='horizontal')
-        cb.set_label('$|G_{xx}(f)|^2 \, [\mathrm{' + self.xunits +
-                     '}^2 / \mathrm{' + yaxisunits + '}]$',
-                     fontsize=16)
-
-        return ax
+    return ((theta - theta_min) % full_cycle) + theta_min
 
 
-def compare_spectrograms(S1, S2, title1=None, title2=None,
-                         fmin=None, fmax=None, fig=None, cmap='Purples'):
-    '''Plot spectrograms `S1` and `S2` side-by-side.
+def phase_angle_bins(dtheta0, theta_min):
+    '''Get center points for phase angle bins of (approximate) width `dtheta0`.
 
     Parameters:
     -----------
-    S1 (S2) - :py:class:`Spectrogram <random_data.spectra.Spectrogram>`
-        Spectrogram instance corresponding to signal 1 (2).
+    dtheta0 - float
+        The desired width of the phase angle bins in radians.
+        Our image processing algorithms are most easily implemented
+        if the bin widths divide (2 * pi) into an *integer* number
+        of bins. For this reason, the realized bin width `dtheta`
+        may differ slightly from the requested bin width `dtheta0`
+        (specifics discussed below under "Returns").
+        [dtheta0] = rad
 
-    title1 (title2) - string
-        The title to be placed over `S1` (`S2`).
-
-    fmin (fmax) - float
-        The minimum (maximum) frequency displayed in spectrogram plot.
-        If `None`, use the minimum (maximum) frequency in `self.f`.
-        [fmin] = [fmax] = [S1.f] = [S2.f]
-
-    fig - :py:class:`Figure <matplotlib.figure.Figure>` instance
-        in which the spectrograms `S1` and `S2` will be plotted.
-        If a figure instance is not provided, a figure instance
-        will be created with the next available window number.
-
-    cmap - string
-        Colormap used for spectrogram. Default matplotlib colormaps
-        are found in :py:module:`cm <matplotlib.cm>`.
+    theta_min -float
+        The returned bin center points will lie between `theta_min` and
+        `theta_min` + (2 * pi), subject to the constraint that
+        the phase angle equivalent to zero (i.e. m * (2 * pi),
+        m any integer) lies at the center point of one of the bins.
+        [theta_min] = rad
 
     Returns:
     --------
-    fig - :py:class:`Figure <matplotlib.figure.Figure>` instance
-        in which the spectrograms `S1` and `S2` are plotted.
-        If a figure instance was provided during the function call,
-        the returned figure instance will be identical to `fig`.
-        If a figure instance was not provided during the function call,
-        the returned figure instance will correspond to the instance
-        automatically created during the function call.
+    (bins, dtheta) - tuple, where
 
-        This is useful as one can (for example) then get the subplot axes
-        via
+    bins - array_like, (`N`,)
+        The center points of the phase angle bins.
 
-                    axes = fig.get_axes()
-
-        and subsequently manipulate the subplots.
+    dtheta -float
+        The realized phase-angle-bin width. If the requested bin width
+        `dtheta0` does *not* divide (2 * pi) into an integer number
+        of bins, the realized bin width `dtheta` is the bin width
+        closest to `dtheta0` that *does* divide (2 * pi) into
+        an integer number of bins.
 
     '''
-    # If a figure instance is not provided, create a figure
-    # with the next lowest consecutive window number
-    if fig is None:
-        fig = plt.figure(FigureList().getNext())
+    # Map `theta_min` onto [-pi, pi), recording the `offset`
+    # that must be added to the resulting bins to return
+    # to the original angular coordinate system
+    theta_min0 = theta_min
+    theta_min = wrap(theta_min, -np.pi, np.pi)
+    offset = theta_min0 - theta_min
 
-    ax1 = fig.add_subplot(121)
-    ax2 = fig.add_subplot(122)
+    # The phase angle bins will span the full (2 * pi) angular range
+    theta_max = theta_min + (2 * np.pi)
 
-    S1.plotSpec(fmin=fmin, fmax=fmax, ax=ax1, title=title1, cmap=cmap)
-    S2.plotSpec(fmin=fmin, fmax=fmax, ax=ax2, title=title2, cmap=cmap)
+    # Number of bins in full (2 * pi), rounded to the nearest integer value
+    N = np.int(np.round(2 * np.pi / dtheta0))
 
-    return fig
+    # Redefine the angular separation of the bins such that
+    # the bins *exactly* divide (2 * pi) into `N` bins
+    dtheta = (2 * np.pi) / N
+
+    # Construct the bins such that the phase angle zero
+    # always occupies a bin center point
+    bins_pos = np.arange(0, theta_max, dtheta)  # bins for theta >= 0
+
+    # Bins for theta < 0 depend on whether number of bins is even or odd
+    # (Hint: draw diagrams for phase angle bins mapped onto [-pi, pi)
+    # for `N` even and odd to better understand the algorithm below)
+    if N % 2 == 0:
+        bins_neg = np.arange(-dtheta, (theta_min - dtheta), -dtheta)[::-1]
+    else:
+        bins_neg = np.arange(-dtheta, theta_min, -dtheta)[::-1]
+
+    bins = np.concatenate((bins_neg, bins_pos))
+
+    # Account for `offset`, converting bins to original angular range
+    bins += offset
+
+    return bins, dtheta
+
+
+def _next_largest_divisor_for_integer_quotient(dividend, divisor):
+    '''Return `divisor` or next largest value that yields an
+    integer quotient when dividing into `dividend`.
+
+    '''
+    integer_quotient = np.int(np.float(dividend) / divisor)
+    return dividend / integer_quotient
+
+
+def _test_phase_angle(
+        gamma2xy_threshold=0.5, Gxy_threshold=0.,
+        theta_min=-np.pi, dtheta=(np.pi / 4),
+        flim=[10e3, 100e3],
+        cmap='RdBu',
+        mode_number=False,
+        Tens=5e-3, Nreal_per_ens=10):
+    '''This routine plots the phase angle of several test cases
+    to ensure that the phase angle is correctly represented
+    by the methods in `CrossSpectralDensity`. Each test case
+    lies near the lower or upper boundary of a phase angle bin,
+    and good behavior at the bin's extrema implies good behavior
+    throughout the rest of the bin's interior. Note that several
+    figures are generated!
+
+    '''
+    # Create some uncorrelated noise
+    from .signals import RandomSignal
+    sig1 = RandomSignal(4e6, 0.1, fc=100e3, pole=2)
+    sig2 = RandomSignal(4e6, 0.1, fc=100e3, pole=2)
+
+    # Coherent signal amplitude
+    A0 = 1e-3
+
+    # Signal will have a linearly *ramping* frequency
+    f0 = 50e3
+    f1 = 75e3
+    m = (f1 - f0) / (2 * (sig1.t[-1] - sig1.t[0]))
+    f = f0 + (m * sig1.t)
+
+    # Check that plotted phase angle is correct for specified phase angles
+    bins, dtheta = phase_angle_bins(dtheta, theta_min)
+
+    # Check lower boundary for each phase angle
+    for i, th0 in enumerate(bins):
+        # Ideal lower boundary of phase angle is at `theta` - (0.5 * `dtheta`),
+        # but we select 0.45 to give a bit of head room due to noise etc.
+        th = th0 - (0.45 * dtheta)
+        y1 = sig1.x + (A0 * np.cos(2 * np.pi * f * sig1.t))
+        y2 = sig2.x + (A0 * np.cos((2 * np.pi * f * sig2.t) + th))
+
+        csd = CrossSpectralDensity(
+            y1, y2, Fs=sig1.Fs, t0=sig1.t[0],
+            Tens=Tens, Nreal_per_ens=Nreal_per_ens,
+            print_params=False, print_status=False)
+
+        # Plot cross-spectral spectral density amplitude *once*
+        # so that it is easy to specify relevant alternative values
+        # for `Gxy_threshold`
+        if i == 0:
+            csd.plotSpectralDensity(flim=flim)
+
+        if mode_number:
+            title = 'Lower bound, n = %i' % np.round(th0 / dtheta)
+        else:
+            title = 'Lower bound, theta = %.3f' % th0
+
+        csd.plotPhaseAngle(
+            gamma2xy_threshold=gamma2xy_threshold,
+            Gxy_threshold=Gxy_threshold,
+            theta_min=theta_min, dtheta=dtheta,
+            flim=flim,
+            cmap=cmap,
+            title=title,
+            mode_number=mode_number)
+
+    # Check upper boundary for each phase angle
+    for i, th0 in enumerate(bins):
+        # Ideal upper boundary of phase angle is at `theta` + (0.5 * `dtheta`),
+        # but we select 0.45 to give a bit of head room due to noise etc.
+        th = th0 + (0.45 * dtheta)
+        y1 = sig1.x + (A0 * np.cos(2 * np.pi * f * sig1.t))
+        y2 = sig2.x + (A0 * np.cos((2 * np.pi * f * sig2.t) + th))
+
+        csd = CrossSpectralDensity(
+            y1, y2, Fs=sig1.Fs, t0=sig1.t[0],
+            Tens=Tens, Nreal_per_ens=Nreal_per_ens,
+            print_params=False, print_status=False)
+
+        if mode_number:
+            title = 'Upper bound, n = %i' % np.round(th0 / dtheta)
+        else:
+            title = 'Upper bound, theta = %.3f' % th0
+
+        csd.plotPhaseAngle(
+            gamma2xy_threshold=gamma2xy_threshold,
+            Gxy_threshold=Gxy_threshold,
+            theta_min=theta_min, dtheta=dtheta,
+            flim=flim,
+            cmap=cmap,
+            title=title,
+            mode_number=mode_number)
+
+    return
