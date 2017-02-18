@@ -8,7 +8,7 @@ from random_data.spectra import (
 
 def test_AutoSpectralDensity_signal_input():
     # Complex signal should fail
-    x = np.random.randn(50e3)
+    x = np.random.randn(np.int(50e3))
     xc = x.astype('complex128')
     tools.assert_raises(ValueError, AutoSpectralDensity, xc)
 
@@ -17,8 +17,8 @@ def test_AutoSpectralDensity_signal_input():
 
 def test_CrossSpectralDensity_signal_input():
     # Different length signals should fail
-    x = np.random.randn(50e3)
-    y = np.random.randn(50e3 + 1)
+    x = np.random.randn(np.int(50e3))
+    y = np.random.randn(np.int(50e3) + 1)
     tools.assert_raises(ValueError, CrossSpectralDensity, x, y)
 
     # Complex signals should fail
@@ -34,7 +34,7 @@ def test_CrossSpectralDensity_signal_input():
 def test_AutoSpectralDensity_white_noise():
     # White noise of a given power
     noise_power = np.sqrt(2)
-    x = np.sqrt(noise_power) * np.random.randn(1e6)
+    x = np.sqrt(noise_power) * np.random.randn(np.int(1e6))
 
     # Compute autospectral density of `x`
     asd = AutoSpectralDensity(x)
@@ -54,7 +54,7 @@ def test_CrossSpectralDensity_vs_AutoSpectralDensity():
 
     # White noise of a given power
     noise_power = np.sqrt(2)
-    x = np.sqrt(noise_power) * np.random.randn(1e6)
+    x = np.sqrt(noise_power) * np.random.randn(np.int(1e6))
 
     # Compute autospectral density of `x`
     # asd = AutoSpectralDensity(x)

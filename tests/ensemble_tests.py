@@ -17,7 +17,7 @@ def test__largest_power_of_2_leq():
 
 
 def test_Ensemble_ValueError():
-    x = np.random.randn(50e3)
+    x = np.random.randn(np.int(50e3))
 
     # `Nreal_per_ens` should be a positive integer
     tools.assert_raises(
@@ -68,7 +68,7 @@ def test_Ensemble_ValueError():
 
 
 def test_Ensemble_getNumPtsPerReal():
-    x = np.random.randn(50e3)
+    x = np.random.randn(np.int(50e3))
 
     # Create `Ensemble` object
     Fs = 1.0
@@ -110,7 +110,7 @@ def test_Ensemble_getNumPtsPerReal():
 
 
 def test_Ensemble_getNumPtsPerEns():
-    x = np.random.randn(50e3)
+    x = np.random.randn(np.int(50e3))
 
     # Create `Ensemble` object
     Fs = 1.0

@@ -5,7 +5,7 @@ except ImportError:
 
 config = {
     'name': 'random_data',
-    'version': '0.3',
+    'version': '0.31',
     'packages': ['random_data'],
     'install_requires': ['numpy', 'matplotlib', 'nose'],
     'author': 'Evan M. Davis',
