@@ -15,7 +15,7 @@ from .errors import cross_phase_std_dev
 
 class Array(object):
     def __init__(self, signals, locations,
-            gamma2xy_max=0.95, print_status=True, **csd_kwargs):
+                 gamma2xy_max=0.95, print_status=True, **csd_kwargs):
         '''Create an instance of the `Array` class.
 
         Input parameters:
@@ -86,25 +86,45 @@ class Array(object):
         # Initialize
         self.xloc = np.zeros(Ncorr)
         self.yloc = np.zeros(Ncorr)
+        xind = np.zeros(Ncorr, dtype=int)
+        yind = np.zeros(Ncorr, dtype=int)
         self.csd = [None] * Ncorr
 
-        # Loop through each *unique* correlation pair
+        # Determine each *unique* correlation pair
         cind = 0  # correlation index
-        for xind in np.arange(N - 1):
-            for yind in np.arange(xind + 1, N):
-                # Note location for signal "x" and signal "y"
-                self.xloc[cind] = locations[xind]
-                self.yloc[cind] = locations[yind]
+        for x in np.arange(N - 1):
+            for y in np.arange(x + 1, N):
+                # Note physical locations of each correlation pair
+                self.xloc[cind] = locations[x]
+                self.yloc[cind] = locations[y]
 
-                if csd_kwargs['print_status']:
-                    print '\nx-loc: %.3f' % self.xloc[cind]
-                    print 'y-loc: %.3f' % self.yloc[cind]
-
-                # Compute cross-spectral density
-                self.csd[cind] = CrossSpectralDensity(
-                    signals[xind, :], signals[yind, :], **csd_kwargs)
+                # Note index of each correlation pair
+                xind[cind] = x
+                yind[cind] = y
 
                 cind += 1
+
+        # Sort correlation pairs based upon their spatial separation
+        self.separation = self.yloc - self.xloc
+        sind = np.argsort(self.separation)
+        self.separation = self.separation[sind]
+        self.xloc = self.xloc[sind]
+        self.yloc = self.yloc[sind]
+        xind = xind[sind]
+        yind = yind[sind]
+
+        # Compute cross-spectral density of each correlation pair
+        for cind in np.arange(len(self.csd)):
+            if csd_kwargs['print_status']:
+                print '\nx-loc: %.3f' % self.xloc[cind]
+                print 'y-loc: %.3f' % self.yloc[cind]
+                print 'separation (y - x): %.3f' % self.separation[cind]
+
+            # Compute cross-spectral density
+            self.csd[cind] = CrossSpectralDensity(
+                signals[xind[cind], :],
+                signals[yind[cind], :],
+                **csd_kwargs)
 
         return
 
@@ -121,11 +141,6 @@ class Array(object):
         # Initialize
         self.mode_number = np.zeros(self.csd[0].Gxy.shape)
         self.R2 = np.zeros(self.csd[0].Gxy.shape)
-
-        # Compute spatial separation for each probe pair and sort
-        delta = self.yloc - self.xloc
-        dind = np.argsort(delta)
-        delta = delta[dind]
 
         # Compute unweighted coefficient matrix, `A0`: array_like, (`N`, 1),
         # where `N` is number of measurements, and the second dimension
@@ -146,7 +161,7 @@ class Array(object):
         #       http://stackoverflow.com/a/28157066/5469497
         #
         # as this results in poor numerical properties).
-        A0 = (np.atleast_2d(delta)).T
+        A0 = (np.atleast_2d(self.separation)).T
 
         if print_status:
             print ''
@@ -155,18 +170,13 @@ class Array(object):
         # looping through time and frequency
         for tind in np.arange(len(self.csd[0].t)):
             for find in np.arange(len(self.csd[0].f)):
-                # Get cross-phase angles, sort by `dind` so as to align
-                # with spatial separations `delta`, and unwrap to get
-                # a nice line
+                # Get cross-phase angles and unwrap to prevent phase jumps
                 theta_xy = self.getSlice('theta_xy', tind=tind, find=find)
-                theta_xy = theta_xy[dind]
                 theta_xy = np.unwrap(theta_xy)
 
-                # Get magnitude-squared coherence, enforce ceiling, and
-                # sort by `dind` to align with spatial separations `delta`
+                # Get magnitude-squared coherence and enforce ceiling
                 gamma2xy = self.getSlice('gamma2xy', tind=tind, find=find)
                 gamma2xy = np.minimum(gamma2xy, self.gamma2xy_max)
-                gamma2xy = gamma2xy[dind]
 
                 # Get standard deviation `sigma` of phase-angle estimates
                 sigma = cross_phase_std_dev(
@@ -323,24 +333,18 @@ class Array(object):
             frequency nearest to `f`.
 
         '''
-        delta = self.yloc - self.xloc
-        dind = np.argsort(delta)
-        delta = delta[dind]
-
         sl = self.getSlice(attr, **getSlice_kwargs)
-        sl = sl[dind]
 
         # Error bars only currently implemented for cross-phase
         if error_bars and (attr is 'theta_xy'):
             gamma2xy = self.getSlice('gamma2xy', **getSlice_kwargs)
             gamma2xy = np.minimum(gamma2xy, self.gamma2xy_max)
-            gamma2xy = gamma2xy[dind]
             yerr = cross_phase_std_dev(gamma2xy, self.csd[0].Nreal_per_ens)
         else:
             yerr = None
 
         plt.figure()
-        plt.errorbar(delta, sl, yerr=yerr, fmt='o')
+        plt.errorbar(self.separation, sl, yerr=yerr, fmt='o')
 
         return
 

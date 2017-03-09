@@ -9,7 +9,8 @@ def test_getSpectralDensities():
     Fs = 200e3
     t0 = 0
     t = np.arange(0, 1e-3, 1. / Fs)
-    locations = np.arange(3)
+    # locations = np.arange(3)
+    locations = np.array([0, 1, 3])
 
     # Signal properties
     f0 = 50e3
@@ -36,10 +37,12 @@ def test_getSpectralDensities():
               Tens=Tens, Nreal_per_ens=Nreal_per_ens)
 
     # Ensure cross-spectral densities in array object `A`
-    # are indeed the cross-spectral densities they are supposed to be
-    np.testing.assert_equal(csd12.Gxy, A.csd[0].Gxy)
-    np.testing.assert_equal(csd13.Gxy, A.csd[1].Gxy)
-    np.testing.assert_equal(csd23.Gxy, A.csd[2].Gxy)
+    # are indeed the cross-spectral densities they are supposed to be.
+    # Note that the cross-spectral density objects are sorted in `A`
+    # by increasing spatial separation between measurement locations.
+    np.testing.assert_equal(csd12.Gxy, A.csd[0].Gxy)  # smallest separation
+    np.testing.assert_equal(csd23.Gxy, A.csd[1].Gxy)  # middle separation
+    np.testing.assert_equal(csd13.Gxy, A.csd[2].Gxy)  # largest separation
 
     return
 
