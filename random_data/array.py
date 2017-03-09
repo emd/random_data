@@ -88,3 +88,70 @@ class Array(object):
                     signals[xind, :], signals[yind, :], **csd_kwargs)
 
         return
+
+    def fitPhaseAngles(self):
+        '''Fit cross-phase angle vs. measurement location using
+        weighted, linear least-squares.
+
+        '''
+        # Initialize
+        self.mode_number = np.zeros(self.csd[0].shape)
+        self.theta0 = np.zeros(self.csd[0].shape)
+        self.R2 = np.zeros(self.csd[0].shape)
+        self.kappa = np.zeros(self.csd[0].shape)
+
+        # Compute unweighted coefficient matrix
+        # `A_unweighted`: array_like, (`N`, 2), where
+        # `N` is the number of measurements
+        delta_loc = self.yloc - self.xloc
+        A_unweighted = (np.vstack([delta_loc, np.ones(len(delta_loc))])).T
+
+        # Loop through time
+        for tind in np.arange(len(self.csd[0].t)):
+            pass
+
+            # Get phase angles to fit
+            # Get weights
+            # Weight phase angles and coefficient matrix
+            # Solve linear least-squares problem, Ax = b
+
+        return
+
+    def getTimeSlice(self, attr, tind):
+        '''Get time slice of cross-spectral-density attribute `attr`.
+
+        Parameters:
+        -----------
+        attr - string
+            Any time-varying spectral attribute of
+
+                :py:class:`CrossSpectralDensity
+                    <random_data.spectra.CrossSpectralDensity>`,
+
+            such as {'Gxy', 'gamma2xy', 'theta_xy'}.
+
+        tind - int
+            Index of requested time slice.
+
+        Returns:
+        --------
+        slice - array_like, (`N`, `L`)
+            Time slice of requested attribute, where `N` is the
+            number of measurements and `L` is the number of
+            frequency bins in the cross-spectral-density object.
+
+        '''
+        valid_attr = ['Gxy', 'gamma2xy', 'theta_xy']
+
+        if attr not in set(valid_attr):
+            raise ValueError("Valid attributes are %s" % valid_attr)
+
+        # Initialize
+        dtype = (getattr(self.csd[0], attr)).dtype
+        sl = np.zeros((len(self.csd), len(self.csd[0].f)), dtype=dtype)
+
+        # Loop through each cross-spectral density object
+        for cind in np.arange(len(self.csd)):
+            sl[cind, :] = getattr(self.csd[cind], attr)[:, tind]
+
+        return sl
