@@ -6,6 +6,7 @@ where an "array" is defined as three or more measurements.
 
 # Standard library imports
 import numpy as np
+import matplotlib.pyplot as plt
 
 # Related 3rd-party imports
 from .spectra import CrossSpectralDensity, _plot_image
@@ -66,11 +67,12 @@ class Array(object):
         csd_kwargs['print_params'] = print_status
         csd_kwargs['print_status'] = print_status
 
+        self.gamma2xy_max = gamma2xy_max
+
         self.getSpectralDensities(
             signals, locations, **csd_kwargs)
 
-        self.fitPhaseAngles(
-            gamma2xy_max=gamma2xy_max, print_status=print_status)
+        self.fitPhaseAngles(print_status=print_status)
 
     def getSpectralDensities(
             self, signals, locations, **csd_kwargs):
@@ -106,21 +108,12 @@ class Array(object):
 
         return
 
-    def fitPhaseAngles(self, gamma2xy_max=0.95, print_status=True):
+    def fitPhaseAngles(self, print_status=True):
         '''Fit cross-phase angle vs. measurement location to a
         linear, zero-intercept model using weighted, linear least-squares.
 
         Parameters:
         -----------
-        gamma2xy_max - float
-            Maximum allowed value of magnitude-squared coherence.
-            The fitting weights vary as
-
-                    [gamma2xy / (1 - gamma2xy)]^{0.5}
-
-            To prevent singular weights, enforce a ceiling
-            on the magnitude-squared coherence of `gamma2xy_max`.
-
         print_status - bool
             If true, print status of computations.
 
@@ -169,9 +162,11 @@ class Array(object):
                 theta_xy = theta_xy[dind]
                 theta_xy = np.unwrap(theta_xy)
 
-                # Get magnitude-squared coherence and enforce ceiling
+                # Get magnitude-squared coherence, enforce ceiling, and
+                # sort by `dind` to align with spatial separations `delta`
                 gamma2xy = self.getSlice('gamma2xy', tind=tind, find=find)
-                gamma2xy = np.minimum(gamma2xy, gamma2xy_max)
+                gamma2xy = np.minimum(gamma2xy, self.gamma2xy_max)
+                gamma2xy = gamma2xy[dind]
 
                 # Get standard deviation `sigma` of phase-angle estimates
                 sigma = cross_phase_std_dev(
@@ -284,7 +279,10 @@ class Array(object):
                cmap='viridis', interpolation='none', fontsize=16,
                title=None, xlabel='$t$', ylabel='$f$',
                ax=None, fig=None, geometry=111):
-        'Plot coefficient of determination on linear scale.'
+        '''Plot coefficient of determination as a function of frequency
+        and timeon linear scale.
+
+        '''
         ax = _plot_image(
             self.csd[0].t, self.csd[0].f, self.R2,
             xlim=tlim, ylim=flim, vlim=vlim,
@@ -295,6 +293,56 @@ class Array(object):
             ax=ax, fig=fig, geometry=geometry)
 
         return ax
+
+    def plotSlice(self, attr, error_bars=True, **getSlice_kwargs):
+        '''Plot slice of cross-spectral-density attribute `attr`
+        at specified time and frequency.
+
+        Parameters:
+        -----------
+        attr - string
+            Any time-varying spectral attribute of
+
+                :py:class:`CrossSpectralDensity
+                    <random_data.spectra.CrossSpectralDensity>`,
+
+            i.e. {'Gxy', 'gamma2xy', 'theta_xy'}.
+
+        error_bars - bool
+            If True, plot error bars corresponding to the
+            random error in estimate of `attr`.
+
+        getSlice_kwargs - any valid keyword arguments for
+            :py:method:`getSlice <random_data.array.Array.getSlice>`.
+
+            For example, use
+
+                self.plotSlice(t=1. f=50e3)
+
+            to plot slice of `attr` at time nearest to `t` and
+            frequency nearest to `f`.
+
+        '''
+        delta = self.yloc - self.xloc
+        dind = np.argsort(delta)
+        delta = delta[dind]
+
+        sl = self.getSlice(attr, **getSlice_kwargs)
+        sl = sl[dind]
+
+        # Error bars only currently implemented for cross-phase
+        if error_bars and (attr is 'theta_xy'):
+            gamma2xy = self.getSlice('gamma2xy', **getSlice_kwargs)
+            gamma2xy = np.minimum(gamma2xy, self.gamma2xy_max)
+            gamma2xy = gamma2xy[dind]
+            yerr = cross_phase_std_dev(gamma2xy, self.csd[0].Nreal_per_ens)
+        else:
+            yerr = None
+
+        plt.figure()
+        plt.errorbar(delta, sl, yerr=yerr, fmt='o')
+
+        return
 
 def coefficient_of_determination(ssresid, sstot):
     '''Get the coefficient of determination, "R^2", for a given fit.
