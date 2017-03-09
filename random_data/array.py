@@ -73,11 +73,9 @@ class Array(object):
         self.csd = [None] * Ncorr
 
         # Loop through each *unique* correlation pair
-        for xind in np.arange(Ncorr - 1):
-            for yind in np.arange(xind + 1, Ncorr):
-                # Correlation index
-                cind = xind + yind - 1
-
+        cind = 0  # correlation index
+        for xind in np.arange(N - 1):
+            for yind in np.arange(xind + 1, N):
                 # Note location for signal "x" and signal "y"
                 self.xloc[cind] = locations[xind]
                 self.yloc[cind] = locations[yind]
@@ -89,6 +87,8 @@ class Array(object):
                 # Compute cross-spectral density
                 self.csd[cind] = CrossSpectralDensity(
                     signals[xind, :], signals[yind, :], **csd_kwargs)
+
+                cind += 1
 
         return
 
