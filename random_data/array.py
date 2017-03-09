@@ -147,6 +147,12 @@ class Array(object):
         # with *zero* intercept -- by definition, the phase angle at
         # a given frequency and time cannot change if we do not change
         # locations, and the above model strictly enforces this constraint.
+        # (Note that one should *not* naively create a second column
+        # full of zeros for this purpose, as described here:
+        #
+        #       http://stackoverflow.com/a/28157066/5469497
+        #
+        # as this results in poor numerical properties).
         A0 = (np.atleast_2d(delta)).T
 
         if print_status:
