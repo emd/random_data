@@ -64,10 +64,8 @@ def test_getSlice():
 
     # Create an array object and compute corresponding
     # cross-spectral densities
-    A = Array(signals, locations, print_locations=False,
-              Fs=Fs, t0=t0,
-              Tens=Tens, Nreal_per_ens=Nreal_per_ens,
-              print_params=False, print_status=False)
+    A = Array(signals, locations, Fs=Fs, t0=t0,
+              Tens=Tens, Nreal_per_ens=Nreal_per_ens)
 
     # Test slice routines with indexing
     for tind in [0, -1]:

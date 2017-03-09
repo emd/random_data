@@ -13,7 +13,8 @@ from .errors import cross_phase_std_dev
 
 
 class Array(object):
-    def __init__(self, signals, locations, print_locations=True, **csd_kwargs):
+    def __init__(self, signals, locations,
+            gamma2xy_max=0.95, print_status=True, **csd_kwargs):
         '''Create an instance of the `Array` class.
 
         Input parameters:
@@ -26,8 +27,17 @@ class Array(object):
             Location of each measurement in `signals`.
             [locations] = arbitrary units
 
-        print_locations - bool
-            If True, print signal locations prior to spectral computations.
+        gamma2xy_max - float
+            Maximum allowed value of magnitude-squared coherence.
+            The phase-angle fitting weights vary as
+
+                    [gamma2xy / (1 - gamma2xy)]^{0.5}
+
+            To prevent singular weights, enforce a ceiling
+            on the magnitude-squared coherence of `gamma2xy_max`.
+
+        print_status - bool
+            If True, print status of computations.
 
         csd_kwargs - any valid keyword arguments for
             :py:class:`CrossSpectralDensity
@@ -53,13 +63,17 @@ class Array(object):
             raise ValueError(
                 'Number of signals must match number of locations!')
 
-        self.getSpectralDensities(
-            signals, locations, print_locations=print_locations, **csd_kwargs)
+        csd_kwargs['print_params'] = print_status
+        csd_kwargs['print_status'] = print_status
 
-        # self.fitPhaseAngles()
+        self.getSpectralDensities(
+            signals, locations, **csd_kwargs)
+
+        self.fitPhaseAngles(
+            gamma2xy_max=gamma2xy_max, print_status=print_status)
 
     def getSpectralDensities(
-            self, signals, locations, print_locations=True, **csd_kwargs):
+            self, signals, locations, **csd_kwargs):
         'Compute cross-spectral density for each unique measurement pairing.'
         # Number of measurements
         N = signals.shape[0]
@@ -80,7 +94,7 @@ class Array(object):
                 self.xloc[cind] = locations[xind]
                 self.yloc[cind] = locations[yind]
 
-                if print_locations:
+                if csd_kwargs['print_status']:
                     print '\nx-loc: %.3f' % self.xloc[cind]
                     print 'y-loc: %.3f' % self.yloc[cind]
 
@@ -92,7 +106,7 @@ class Array(object):
 
         return
 
-    def fitPhaseAngles(self, gamma2xy_max=0.95):
+    def fitPhaseAngles(self, gamma2xy_max=0.95, print_status=True):
         '''Fit cross-phase angle vs. measurement location using
         weighted, linear least-squares.
 
@@ -122,6 +136,9 @@ class Array(object):
         # Compute unweighted coefficient matrix
         # `A0`: array_like, (`N`, 2), where `N` is number of measurements
         A0 = (np.vstack([delta, np.ones(len(delta))])).T
+
+        if print_status:
+            print ''
 
         # Fit cross-phase angle vs. measurement location by
         # looping through time and frequency
@@ -155,6 +172,16 @@ class Array(object):
                 self.R2[find, tind] = coefficient_of_determination(
                     soln[1], np.var(theta_xy))
                 self.kappa[find, tind] = np.linalg.cond(A)
+
+            # Only print status when moving to a new point in time
+            # to avoid excessive printing (which could slow the fitting);
+            # these updates should be more than rapid enough for user.
+            if print_status:
+                print ('Phase-angle fitting percent complete: %.1f \r'
+                       % (100 * np.float(tind + 1) / len(self.csd[0].t))),
+
+        if print_status:
+            print ''
 
         return
 
