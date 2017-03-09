@@ -9,6 +9,7 @@ import numpy as np
 
 # Related 3rd-party imports
 from .spectra import CrossSpectralDensity
+from .errors import cross_phase_std_dev
 
 
 class Array(object):
@@ -55,6 +56,8 @@ class Array(object):
         self.getSpectralDensities(
             signals, locations, print_locations=print_locations, **csd_kwargs)
 
+        # self.fitPhaseAngles()
+
     def getSpectralDensities(
             self, signals, locations, print_locations=True, **csd_kwargs):
         'Compute cross-spectral density for each unique measurement pairing.'
@@ -89,31 +92,58 @@ class Array(object):
 
         return
 
-    def fitPhaseAngles(self):
+    def fitPhaseAngles(self, gamma2xy_max=0.95):
         '''Fit cross-phase angle vs. measurement location using
         weighted, linear least-squares.
 
+        Parameters:
+        -----------
+        gamma2xy_max - float
+            Maximum allowed value of magnitude-squared coherence.
+            The fitting weights vary as
+
+                    [gamma2xy / (1 - gamma2xy)]^{0.5}
+
+            To prevent singular weights, enforce a ceiling
+            on the magnitude-squared coherence of `gamma2xy_max`.
+
         '''
         # Initialize
-        self.mode_number = np.zeros(self.csd[0].shape)
-        self.theta0 = np.zeros(self.csd[0].shape)
-        self.R2 = np.zeros(self.csd[0].shape)
-        self.kappa = np.zeros(self.csd[0].shape)
+        self.mode_number = np.zeros(self.csd[0].Gxy.shape)
+        self.theta0 = np.zeros(self.csd[0].Gxy.shape)
+        self.R2 = np.zeros(self.csd[0].Gxy.shape)
+        self.kappa = np.zeros(self.csd[0].Gxy.shape)
 
         # Compute unweighted coefficient matrix
-        # `A_unweighted`: array_like, (`N`, 2), where
-        # `N` is the number of measurements
-        delta_loc = self.yloc - self.xloc
-        A_unweighted = (np.vstack([delta_loc, np.ones(len(delta_loc))])).T
+        # `A0`: array_like, (`N`, 2), where `N` is number of measurements
+        delta = self.yloc - self.xloc
+        A0 = (np.vstack([delta, np.ones(len(delta))])).T
 
         # Loop through time
         for tind in np.arange(len(self.csd[0].t)):
-            pass
+            # Get cross-phase angles
+            theta_xy = self.getTimeSlice('theta_xy', tind)
 
-            # Get phase angles to fit
-            # Get weights
-            # Weight phase angles and coefficient matrix
-            # Solve linear least-squares problem, Ax = b
+            # Get magnitude-squared coherence and enforce ceiling
+            gamma2xy = self.getTimeSlice('gamma2xy', tind)
+            gamma2xy = np.minimum(gamma2xy, gamma2xy_max)
+
+            # Get standard deviation `sigma` of phase-angle estimates
+            sigma = cross_phase_std_dev(gamma2xy, self.csd[0].Nreal_per_ens)
+
+            # Solve weighted, linear, least-squares problem A * x = b,
+            # where `A` is the weighted coefficient matrix and
+            # `b` is the weighted cross-phase angles.
+            A = np.dot(np.diag(sigma), A0)
+            b = np.dot(np.diag(sigma), theta_xy)
+            soln = np.linalg.lstsq(A, b)
+
+            # Unpack solution and relevant metrics
+            self.mode_number[:, tind] = soln[0][0, :]
+            self.theta0[:, tind] = soln[0][1, :]
+            self.R2[:, tind] = coefficient_of_determination(
+                soln[1], np.var(theta_xy, axis=0))
+            self.kappa[:, tind] = np.linalg.cond(A)
 
         return
 
@@ -140,6 +170,12 @@ class Array(object):
             number of measurements and `L` is the number of
             frequency bins in the cross-spectral-density object.
 
+            Note that this time slice is *not* a "view" of
+            the underlying cross-spectral-density object --
+            that is, the returned time slice is its own distinct
+            object and can be manipulated without influencing
+            the state of the underlying cross-spectral densities.
+
         '''
         valid_attr = ['Gxy', 'gamma2xy', 'theta_xy']
 
@@ -155,3 +191,31 @@ class Array(object):
             sl[cind, :] = getattr(self.csd[cind], attr)[:, tind]
 
         return sl
+
+
+def coefficient_of_determination(ssresid, sstot):
+    '''Get the coefficient of determination, "R^2", for a given fit.
+
+    Parameters:
+    -----------
+    ssresid - array_like, (`L`, `M`, ...)
+        The squared sum of the fit residuals.
+
+    ssrtot - array_like, (`L`, `M`, ...)
+        The total sum of squares.
+
+    Returns:
+    --------
+    R2 - array_like, (`L`, `M`, ...)
+        The coefficient of determination.
+
+    For an explanation of terms, see the article on Wikipedia:
+
+        https://en.wikipedia.org/wiki/Coefficient_of_determination
+
+    Further, computing R^2 from numpy outputs is discussed here:
+
+        http://stackoverflow.com/a/3057858/5469497
+
+    '''
+    return 1 - (ssresid / sstot)

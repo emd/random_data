@@ -1,7 +1,7 @@
 from nose import tools
 import numpy as np
 from random_data.spectra import CrossSpectralDensity
-from random_data.array import Array
+from random_data.array import Array, coefficient_of_determination
 
 
 def test_getSpectralDensities():
@@ -81,3 +81,10 @@ def test_getTimeSlice():
         np.testing.assert_equal(
             Gxy_tend[cind, :],
             A.csd[cind].Gxy[:, -1])
+
+    return
+
+
+def test_coefficient_of_determination():
+    tools.assert_equal(1, coefficient_of_determination(0., 1.))
+    tools.assert_equal(0, coefficient_of_determination(1., 1.))
