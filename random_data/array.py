@@ -348,6 +348,7 @@ class Array(object):
 
         return
 
+
 def coefficient_of_determination(ssresid, sstot):
     '''Get the coefficient of determination, "R^2", for a given fit.
 
