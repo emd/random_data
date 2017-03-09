@@ -107,8 +107,8 @@ class Array(object):
         return
 
     def fitPhaseAngles(self, gamma2xy_max=0.95, print_status=True):
-        '''Fit cross-phase angle vs. measurement location using
-        weighted, linear least-squares.
+        '''Fit cross-phase angle vs. measurement location to a
+        linear, zero-intercept model using weighted, linear least-squares.
 
         Parameters:
         -----------
@@ -121,21 +121,33 @@ class Array(object):
             To prevent singular weights, enforce a ceiling
             on the magnitude-squared coherence of `gamma2xy_max`.
 
+        print_status - bool
+            If true, print status of computations.
+
         '''
         # Initialize
         self.mode_number = np.zeros(self.csd[0].Gxy.shape)
-        self.theta0 = np.zeros(self.csd[0].Gxy.shape)
         self.R2 = np.zeros(self.csd[0].Gxy.shape)
-        self.kappa = np.zeros(self.csd[0].Gxy.shape)
 
         # Compute spatial separation for each probe pair and sort
         delta = self.yloc - self.xloc
         dind = np.argsort(delta)
         delta = delta[dind]
 
-        # Compute unweighted coefficient matrix
-        # `A0`: array_like, (`N`, 2), where `N` is number of measurements
-        A0 = (np.vstack([delta, np.ones(len(delta))])).T
+        # Compute unweighted coefficient matrix, `A0`: array_like, (`N`, 1),
+        # where `N` is number of measurements, and the second dimension
+        # is needed for compatibility with numpy's least-squares algorithm.
+        #
+        # The fact that the coefficient matrix has only one column means
+        # that we are fitting the measured phase angles at a given frequency
+        # and time to a model of the form
+        #
+        #   phase-angle change = (mode number) * (change in location)
+        #
+        # with *zero* intercept -- by definition, the phase angle at
+        # a given frequency and time cannot change if we do not change
+        # locations, and the above model strictly enforces this constraint.
+        A0 = (np.atleast_2d(delta)).T
 
         if print_status:
             print ''
@@ -168,10 +180,8 @@ class Array(object):
 
                 # Unpack solution and relevant metrics
                 self.mode_number[find, tind] = soln[0][0]
-                self.theta0[find, tind] = soln[0][1]
                 self.R2[find, tind] = coefficient_of_determination(
-                    soln[1], np.var(theta_xy))
-                self.kappa[find, tind] = np.linalg.cond(A)
+                    soln[1][0], np.var(theta_xy))
 
             # Only print status when moving to a new point in time
             # to avoid excessive printing (which could slow the fitting);
