@@ -305,4 +305,9 @@ def coefficient_of_determination(ssresid, sstot):
         http://stackoverflow.com/a/3057858/5469497
 
     '''
+    # To avoid divide-by-zero warnings at boundary points with
+    # little-to-no physical importance
+    if sstot == 0:
+        sstot = np.finfo('float64').eps
+
     return 1 - (ssresid / sstot)
