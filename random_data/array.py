@@ -119,36 +119,41 @@ class Array(object):
         delta = self.yloc - self.xloc
         A0 = (np.vstack([delta, np.ones(len(delta))])).T
 
-        # Loop through time
+        # Fit cross-phase angle vs. measurement location by
+        # looping through time and frequency
         for tind in np.arange(len(self.csd[0].t)):
-            # Get cross-phase angles
-            theta_xy = self.getTimeSlice('theta_xy', tind)
+            for find in np.arange(len(self.csd[0].f)):
+                # Get cross-phase angles
+                theta_xy = np.unwrap(
+                        self.getSlice('theta_xy', tind=tind, find=find))
 
-            # Get magnitude-squared coherence and enforce ceiling
-            gamma2xy = self.getTimeSlice('gamma2xy', tind)
-            gamma2xy = np.minimum(gamma2xy, gamma2xy_max)
+                # Get magnitude-squared coherence and enforce ceiling
+                gamma2xy = self.getSlice('gamma2xy', tind=tind, find=find)
+                gamma2xy = np.minimum(gamma2xy, gamma2xy_max)
 
-            # Get standard deviation `sigma` of phase-angle estimates
-            sigma = cross_phase_std_dev(gamma2xy, self.csd[0].Nreal_per_ens)
+                # Get standard deviation `sigma` of phase-angle estimates
+                sigma = cross_phase_std_dev(
+                    gamma2xy, self.csd[0].Nreal_per_ens)
 
-            # Solve weighted, linear, least-squares problem A * x = b,
-            # where `A` is the weighted coefficient matrix and
-            # `b` is the weighted cross-phase angles.
-            A = np.dot(np.diag(sigma), A0)
-            b = np.dot(np.diag(sigma), theta_xy)
-            soln = np.linalg.lstsq(A, b)
+                # Solve weighted, linear, least-squares problem A * x = b,
+                # where `A` is the weighted coefficient matrix and
+                # `b` is the weighted cross-phase angles.
+                A = np.dot(np.diag(sigma), A0)
+                b = np.dot(np.diag(sigma), theta_xy)
+                soln = np.linalg.lstsq(A, b)
 
-            # Unpack solution and relevant metrics
-            self.mode_number[:, tind] = soln[0][0, :]
-            self.theta0[:, tind] = soln[0][1, :]
-            self.R2[:, tind] = coefficient_of_determination(
-                soln[1], np.var(theta_xy, axis=0))
-            self.kappa[:, tind] = np.linalg.cond(A)
+                # Unpack solution and relevant metrics
+                self.mode_number[find, tind] = soln[0][0]
+                self.theta0[find, tind] = soln[0][1]
+                self.R2[find, tind] = coefficient_of_determination(
+                    soln[1], np.var(theta_xy))
+                self.kappa[find, tind] = np.linalg.cond(A)
 
         return
 
-    def getTimeSlice(self, attr, tind):
-        '''Get time slice of cross-spectral-density attribute `attr`.
+    def getSlice(self, attr, tind=None, find=None, t=None, f=None):
+        '''Get slice of cross-spectral-density attribute `attr`
+        at specified time and frequency.
 
         Parameters:
         -----------
@@ -158,37 +163,70 @@ class Array(object):
                 :py:class:`CrossSpectralDensity
                     <random_data.spectra.CrossSpectralDensity>`,
 
-            such as {'Gxy', 'gamma2xy', 'theta_xy'}.
+            i.e. {'Gxy', 'gamma2xy', 'theta_xy'}.
 
         tind - int
-            Index of requested time slice.
+            Time index of requested slice. If both `tind` and `t`
+            are specified, `tind` takes precedent.
+
+        find - int
+            Frequency index of requested slice. If both `find` and `f`
+            are specified, `find` takes precedent.
+
+        t - float
+            The time of requested slice. The returned slice will
+            correspond to the time nearest to `t`. If both `tind`
+            and `t` are specified, `tind` takes precedent.
+            [t] = [self.csd[0].t] = time
+
+        f - float
+            The frequency of requested slice. The returned slice will
+            correspond to the frequency nearest to `f`.  If both `find`
+            and `f` are specified, `find` takes precedent.
+            [f] = [self.csd[0].f] = 1 / time
 
         Returns:
         --------
-        slice - array_like, (`N`, `L`)
-            Time slice of requested attribute, where `N` is the
-            number of measurements and `L` is the number of
-            frequency bins in the cross-spectral-density object.
+        slice - array_like, (`N`,)
+            Slice of requested attribute, where `N` is the
+            number of cross-spectral-density objects.
 
-            Note that this time slice is *not* a "view" of
+            Note that this slice is *not* a "view" of
             the underlying cross-spectral-density object --
-            that is, the returned time slice is its own distinct
+            that is, the returned slice is its own distinct
             object and can be manipulated without influencing
             the state of the underlying cross-spectral densities.
 
         '''
+        # Ensure valid attribute has been requested
         valid_attr = ['Gxy', 'gamma2xy', 'theta_xy']
 
         if attr not in set(valid_attr):
             raise ValueError("Valid attributes are %s" % valid_attr)
 
+        # Determine time index for slice, if needed
+        if (t is not None):
+            if tind is not None:
+                print '\nBoth `tind` and `t` specified; slicing at `tind`.'
+            else:
+                dt = np.abs(t - self.csd[0].t)
+                tind = np.where(dt == np.min(dt))[0][0]
+
+        # Determine frequency index for slice, if needed
+        if (f is not None):
+            if find is not None:
+                print '\nBoth `find` and `f` specified; slicing at `find`.'
+            else:
+                df = np.abs(f - self.csd[0].f)
+                find = np.where(df == np.min(df))[0][0]
+
         # Initialize
         dtype = (getattr(self.csd[0], attr)).dtype
-        sl = np.zeros((len(self.csd), len(self.csd[0].f)), dtype=dtype)
+        sl = np.zeros(len(self.csd), dtype=dtype)
 
         # Loop through each cross-spectral density object
         for cind in np.arange(len(self.csd)):
-            sl[cind, :] = getattr(self.csd[cind], attr)[:, tind]
+            sl[cind] = getattr(self.csd[cind], attr)[find, tind]
 
         return sl
 

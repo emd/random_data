@@ -44,7 +44,7 @@ def test_getSpectralDensities():
     return
 
 
-def test_getTimeSlice():
+def test_getSlice():
     # Sampling properties
     Fs = 200e3
     t0 = 0
@@ -64,23 +64,64 @@ def test_getTimeSlice():
 
     # Create an array object and compute corresponding
     # cross-spectral densities
-    A = Array(signals, locations, Fs=Fs, t0=t0,
-              Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+    A = Array(signals, locations, print_locations=False,
+              Fs=Fs, t0=t0,
+              Tens=Tens, Nreal_per_ens=Nreal_per_ens,
+              print_params=False, print_status=False)
 
-    theta_xy_t0 = A.getTimeSlice('theta_xy', 0)
-    gamma2xy_t0 = A.getTimeSlice('gamma2xy', 0)
-    Gxy_tend = A.getTimeSlice('Gxy', -1)
+    # Test slice routines with indexing
+    for tind in [0, -1]:
+        for find in [0, -1]:
+            # Slice by index
+            theta_xy = A.getSlice('theta_xy', tind=tind, find=find)
+            gamma2xy = A.getSlice('gamma2xy', tind=tind, find=find)
+            Gxy = A.getSlice('Gxy', tind=tind, find=find)
 
-    for cind in np.arange(len(A.yloc)):
-        np.testing.assert_equal(
-            theta_xy_t0[cind, :],
-            A.csd[cind].theta_xy[:, 0])
-        np.testing.assert_equal(
-            gamma2xy_t0[cind, :],
-            A.csd[cind].gamma2xy[:, 0])
-        np.testing.assert_equal(
-            Gxy_tend[cind, :],
-            A.csd[cind].Gxy[:, -1])
+            # Ensure slicing routine does as expected
+            # by comparing against "manual" slices
+            for cind in np.arange(len(A.yloc)):
+                np.testing.assert_equal(
+                    theta_xy[cind],
+                    A.csd[cind].theta_xy[find, tind])
+                np.testing.assert_equal(
+                    gamma2xy[cind],
+                    A.csd[cind].gamma2xy[find, tind])
+                np.testing.assert_equal(
+                    Gxy[cind],
+                    A.csd[cind].Gxy[find, tind])
+
+    # Test slice routines with physical time and frequency values
+    # by using smallest and largest bins in frequency and time
+    for t in [t0, t[-1]]:
+        for f in [0, 0.5 * Fs]:
+            # Slice by physical time and frequency
+            theta_xy = A.getSlice('theta_xy', t=t, f=f)
+            gamma2xy = A.getSlice('gamma2xy', t=t, f=f)
+            Gxy = A.getSlice('Gxy', t=t, f=f)
+
+            # Determine corresponding indices
+            if t == t0:
+                tind = 0
+            else:
+                tind = -1
+
+            if f == 0:
+                find = 0
+            else:
+                find = -1
+
+            # Ensure slicing routine does as expected
+            # when slicing by physical time and frequency values
+            for cind in np.arange(len(A.yloc)):
+                np.testing.assert_equal(
+                    theta_xy[cind],
+                    A.csd[cind].theta_xy[find, tind])
+                np.testing.assert_equal(
+                    gamma2xy[cind],
+                    A.csd[cind].gamma2xy[find, tind])
+                np.testing.assert_equal(
+                    Gxy[cind],
+                    A.csd[cind].Gxy[find, tind])
 
     return
 
