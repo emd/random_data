@@ -114,18 +114,25 @@ class Array(object):
         self.R2 = np.zeros(self.csd[0].Gxy.shape)
         self.kappa = np.zeros(self.csd[0].Gxy.shape)
 
+        # Compute spatial separation for each probe pair and sort
+        delta = self.yloc - self.xloc
+        dind = np.argsort(delta)
+        delta = delta[dind]
+
         # Compute unweighted coefficient matrix
         # `A0`: array_like, (`N`, 2), where `N` is number of measurements
-        delta = self.yloc - self.xloc
         A0 = (np.vstack([delta, np.ones(len(delta))])).T
 
         # Fit cross-phase angle vs. measurement location by
         # looping through time and frequency
         for tind in np.arange(len(self.csd[0].t)):
             for find in np.arange(len(self.csd[0].f)):
-                # Get cross-phase angles
-                theta_xy = np.unwrap(
-                        self.getSlice('theta_xy', tind=tind, find=find))
+                # Get cross-phase angles, sort by `dind` so as to align
+                # with spatial separations `delta`, and unwrap to get
+                # a nice line
+                theta_xy = self.getSlice('theta_xy', tind=tind, find=find)
+                theta_xy = theta_xy[dind]
+                theta_xy = np.unwrap(theta_xy)
 
                 # Get magnitude-squared coherence and enforce ceiling
                 gamma2xy = self.getSlice('gamma2xy', tind=tind, find=find)
