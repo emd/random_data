@@ -8,7 +8,7 @@ where an "array" is defined as three or more measurements.
 import numpy as np
 
 # Related 3rd-party imports
-from .spectra import CrossSpectralDensity
+from .spectra import CrossSpectralDensity, _plot_image
 from .errors import cross_phase_std_dev
 
 
@@ -237,6 +237,21 @@ class Array(object):
 
         return sl
 
+    def plotR2(self, tlim=None, flim=None, vlim=[0, 1],
+               cmap='viridis', interpolation='none', fontsize=16,
+               title=None, xlabel='$t$', ylabel='$f$',
+               ax=None, fig=None, geometry=111):
+        'Plot coefficient of determination on linear scale.'
+        ax = _plot_image(
+            self.csd[0].t, self.csd[0].f, self.R2,
+            xlim=tlim, ylim=flim, vlim=vlim,
+            norm=None, cmap=cmap, interpolation=interpolation,
+            title=title, xlabel=xlabel, ylabel=ylabel,
+            cblabel='$R^2$',
+            fontsize=fontsize,
+            ax=ax, fig=fig, geometry=geometry)
+
+        return ax
 
 def coefficient_of_determination(ssresid, sstot):
     '''Get the coefficient of determination, "R^2", for a given fit.
