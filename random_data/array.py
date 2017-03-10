@@ -333,7 +333,11 @@ class Array(object):
                        title=None, xlabel='$t$', ylabel='$f$',
                        cblabel='mode number',
                        ax=None, fig=None, geometry=111):
-        'Plot mode number as a function of frequency and time.'
+        '''Plot mode number as a function of frequency and time
+        provided that the corresponding coefficient of correlation R^2
+        exceeds `R2_threshold`.
+
+        '''
         cbticks = np.arange(mode_number_lim[0], mode_number_lim[-1] + 1)
 
         # Get "discrete" colormap, with a distinct color corresponding
