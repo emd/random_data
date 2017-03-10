@@ -9,7 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Related 3rd-party imports
-from .spectra import CrossSpectralDensity, _plot_image
+from .ensemble import closest_index
+from .spectra import CrossSpectralDensity, _plot_image, wrap
 from .errors import cross_phase_std_dev
 
 
@@ -77,6 +78,13 @@ class Array(object):
     def getSpectralDensities(
             self, signals, locations, **csd_kwargs):
         'Compute cross-spectral density for each unique measurement pairing.'
+        # Sort `locations` in ascending order and shift `signals` accordingly.
+        # Enforcing `locations` to be sorted in ascending order removes
+        # some later complications.
+        lind = np.argsort(locations)
+        locations = locations[lind]
+        signals = signals[lind, :]
+
         # Number of measurements
         N = signals.shape[0]
 
@@ -206,6 +214,39 @@ class Array(object):
 
         return
 
+    def _preProcessSliceRequest(
+            self, attr, tind=None, find=None, t=None, f=None):
+        '''Pre-process slice request (a) checking that `attr` is
+        a valid attribute and (b) converting time and frequency
+        values into corresponding indices, if needed.
+
+        '''
+        # Ensure valid attribute has been requested
+        valid_attr = ['Gxy', 'gamma2xy', 'theta_xy']
+
+        if attr not in set(valid_attr):
+            raise ValueError("Valid attributes are %s" % valid_attr)
+
+        # Determine time index for slice, if needed
+        if (t is not None):
+            if tind is not None:
+                print '\nBoth `tind` and `t` specified; slicing at `tind`.'
+            else:
+                # dt = np.abs(t - self.csd[0].t)
+                # tind = np.where(dt == np.min(dt))[0][0]
+                tind = closest_index(self.csd[0].t, t)
+
+        # Determine frequency index for slice, if needed
+        if (f is not None):
+            if find is not None:
+                print '\nBoth `find` and `f` specified; slicing at `find`.'
+            else:
+                # df = np.abs(f - self.csd[0].f)
+                # find = np.where(df == np.min(df))[0][0]
+                find = closest_index(self.csd[0].f, f)
+
+        return tind, find
+
     def getSlice(self, attr, tind=None, find=None, t=None, f=None):
         '''Get slice of cross-spectral-density attribute `attr`
         at specified time and frequency.
@@ -253,27 +294,8 @@ class Array(object):
             the state of the underlying cross-spectral densities.
 
         '''
-        # Ensure valid attribute has been requested
-        valid_attr = ['Gxy', 'gamma2xy', 'theta_xy']
-
-        if attr not in set(valid_attr):
-            raise ValueError("Valid attributes are %s" % valid_attr)
-
-        # Determine time index for slice, if needed
-        if (t is not None):
-            if tind is not None:
-                print '\nBoth `tind` and `t` specified; slicing at `tind`.'
-            else:
-                dt = np.abs(t - self.csd[0].t)
-                tind = np.where(dt == np.min(dt))[0][0]
-
-        # Determine frequency index for slice, if needed
-        if (f is not None):
-            if find is not None:
-                print '\nBoth `find` and `f` specified; slicing at `find`.'
-            else:
-                df = np.abs(f - self.csd[0].f)
-                find = np.where(df == np.min(df))[0][0]
+        tind, find = self._preProcessSliceRequest(
+            attr, tind=tind, find=find, t=t, f=f)
 
         # Initialize
         dtype = (getattr(self.csd[0], attr)).dtype
@@ -304,7 +326,8 @@ class Array(object):
 
         return ax
 
-    def plotSlice(self, attr, error_bars=True, **getSlice_kwargs):
+    def plotSlice(self, attr, error_bars=True,
+                  loc_span=(2 * np.pi), **getSlice_kwargs):
         '''Plot slice of cross-spectral-density attribute `attr`
         at specified time and frequency.
 
@@ -322,6 +345,12 @@ class Array(object):
             If True, plot error bars corresponding to the
             random error in estimate of `attr`.
 
+        loc_span - float
+            The relevant span in measurement locations. For example,
+            if the measurements are in an angular coordinate system,
+            the span is 2 * pi radians.
+            [loc_span] = [self.xloc] = [self.yloc]
+
         getSlice_kwargs - any valid keyword arguments for
             :py:method:`getSlice <random_data.array.Array.getSlice>`.
 
@@ -333,18 +362,45 @@ class Array(object):
             frequency nearest to `f`.
 
         '''
-        sl = self.getSlice(attr, **getSlice_kwargs)
+        tind, find = self._preProcessSliceRequest(attr, **getSlice_kwargs)
+        sl = self.getSlice(attr, tind=tind, find=find)
 
         # Error bars only currently implemented for cross-phase
         if error_bars and (attr is 'theta_xy'):
-            gamma2xy = self.getSlice('gamma2xy', **getSlice_kwargs)
+            gamma2xy = self.getSlice('gamma2xy', tind=tind, find=find)
             gamma2xy = np.minimum(gamma2xy, self.gamma2xy_max)
             yerr = cross_phase_std_dev(gamma2xy, self.csd[0].Nreal_per_ens)
         else:
             yerr = None
 
         plt.figure()
-        plt.errorbar(self.separation, sl, yerr=yerr, fmt='o')
+
+        # Plot over full span of measurement locations
+        xlim = [0, loc_span]
+
+        # Plot only real component if complex
+        plt.errorbar(self.separation, np.real(sl), yerr=yerr, fmt='o')
+
+        if attr is 'theta_xy':
+            # Plot linear fit wrapped onto [-pi, pi)
+            xfit = np.arange(xlim[0], xlim[1], np.pi / 180)
+            yfit = self.mode_number[find, tind] * xfit
+            yfit = wrap(yfit, -np.pi, np.pi)
+            plt.plot(xfit, yfit)
+
+        if attr is 'gamma2xy':
+            # Enforce physical bounds of magnitude-squared coherence
+            plt.ylim([0, 1])
+
+        if attr is 'Gxy':
+            plt.errorbar(self.separation, np.imag(sl), yerr=yerr, fmt='s')
+            plt.legend(['Re', 'Im'], loc='lower right')
+
+        plt.xlim(xlim)
+        plt.xlabel('measurement separation')
+        plt.ylabel(attr)
+
+        plt.show()
 
         return
 
