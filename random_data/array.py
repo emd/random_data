@@ -312,7 +312,7 @@ class Array(object):
                title=None, xlabel='$t$', ylabel='$f$',
                ax=None, fig=None, geometry=111):
         '''Plot coefficient of determination as a function of frequency
-        and timeon linear scale.
+        and time on linear scale.
 
         '''
         ax = _plot_image(
@@ -321,6 +321,52 @@ class Array(object):
             norm=None, cmap=cmap, interpolation=interpolation,
             title=title, xlabel=xlabel, ylabel=ylabel,
             cblabel='$R^2$',
+            fontsize=fontsize,
+            ax=ax, fig=fig, geometry=geometry)
+
+        return ax
+
+    def plotModeNumber(self, R2_threshold=0.9,
+                       mode_number_lim=[-5, 5],
+                       tlim=None, flim=None,
+                       cmap='RdBu', interpolation='none', fontsize=16,
+                       title=None, xlabel='$t$', ylabel='$f$',
+                       cblabel='mode number',
+                       ax=None, fig=None, geometry=111):
+        'Plot mode number as a function of frequency and time.'
+        cbticks = np.arange(mode_number_lim[0], mode_number_lim[-1] + 1)
+
+        # Get "discrete" colormap, with a distinct color corresponding
+        # to each value in `cbticks`
+        cmap = plt.get_cmap(cmap, len(cbticks))
+
+        # However, the bins also have unity width such that
+        # the colorbar boundaries should correspond to
+        #
+        #        lower bound (0):      cbticks[0] - 0.5
+        #        (1):                  cbticks[0] + 0.5
+        #        (2):                  cbticks[0] + 1.5
+        #        ...
+        #        upper bound (N + 1):  cbticks[-1] + 0.5
+        #
+        # This is easily accomplished by setting the minimum and maximum
+        # values to represent in the image as follows:
+        vlim = np.array([
+            cbticks[0] - 0.5,
+            cbticks[-1] + 0.5])
+
+        # Only consider phase angles from regions whose coefficient of
+        # correlation R^2 are greater-than-or-equal-to the specified threshold
+        mode_number = np.ma.masked_where(
+            self.R2 < R2_threshold,
+            self.mode_number)
+
+        ax = _plot_image(
+            self.csd[0].t, self.csd[0].f, mode_number,
+            xlim=tlim, ylim=flim, vlim=vlim,
+            norm=None, cmap=cmap, interpolation=interpolation,
+            title=title, xlabel=xlabel, ylabel=ylabel,
+            cblabel=cblabel, cbticks=cbticks,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
