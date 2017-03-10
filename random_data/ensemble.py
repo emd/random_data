@@ -261,3 +261,9 @@ def _largest_power_of_2_leq(x):
     exponent = np.log2(x)           # exact
     exponent = np.int(exponent)     # next lowest power of 2
     return 2 ** exponent
+
+
+def closest_index(v, val):
+    'Return integer index of entry in `v` closest in value to `val`.'
+    delta = np.abs(v - val)
+    return np.where(delta == np.min(delta))[0][0]

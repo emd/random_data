@@ -1,6 +1,7 @@
 from nose import tools
 import numpy as np
-from random_data.ensemble import Ensemble, _largest_power_of_2_leq
+from random_data.ensemble import (
+    Ensemble, _largest_power_of_2_leq, closest_index)
 
 
 def test__largest_power_of_2_leq():
@@ -214,3 +215,18 @@ def test_Ensemble_getTimes():
     Texp = t0 + (Tens * np.arange(0.5, Nens_exp, 1))
 
     np.testing.assert_equal(ens.t, Texp)
+
+
+def test_closest_index():
+    N = 10
+    half_N = N // 2
+    v = np.arange(N)
+
+    # Check that works as expected with rounding
+    tools.assert_equal(closest_index(v, half_N), half_N)
+    tools.assert_equal(closest_index(v, half_N + 0.1), half_N)
+    tools.assert_equal(closest_index(v, half_N + 0.6), half_N + 1)
+
+    # Check that works as expected against boundary cases
+    tools.assert_equal(closest_index(v, -1), 0)
+    tools.assert_equal(closest_index(v, N), N - 1)
