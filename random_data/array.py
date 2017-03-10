@@ -486,3 +486,95 @@ def coefficient_of_determination(ssresid, sstot):
         sstot = np.finfo('float64').eps
 
     return 1 - (ssresid / sstot)
+
+
+def _test_plotModeNumber(
+        R2_threshold=0.9,
+        cmap='RdBu',
+        Tens=5e-3, Nreal_per_ens=10):
+    '''This routine plots the mode number of several test cases
+    to ensure that the mode number is correctly represented
+    by the methods in `Array`. Each test case lies near the lower
+    or upper boundary of a mode-number bin, and good behavior at
+    the bin's extrema implies good behavior throughout the rest of
+    the bin's interior. Note that several figures are generated!
+
+    '''
+    from .signals import RandomSignal
+
+    # Measurement locations
+    locations = np.arange(0, 2 * np.pi)
+    Nsig = len(locations)
+
+    # For a uniform spacing of `dzeta` radian between measurement locations,
+    # the Nyquist mode number is floor(pi / dzeta). For a spacing
+    # of 1 radian, the Nyquist mode number is 3.
+    n_Ny = np.int(np.floor(np.pi / (locations[1] - locations[0])))
+
+    # Signal parameters
+    Fs = 200e3
+    T = 0.1
+    s = RandomSignal(Fs, T)
+    Npts = len(s.x)
+    t = s.t
+    f0 = 50e3
+    A = 1e-2
+
+    # Initialize
+    signals = np.zeros((Nsig, Npts))
+
+    # Signal generation: use purely coherent modes because
+    # if mode-number extraction does not work in this ideal case,
+    # it certainly won't work in the presence of noise.
+    for i in np.arange(Nsig):
+        # Create some uncorrelated noise
+        signals[i, :] = (RandomSignal(Fs, T)).x
+
+        # Add coherent mode
+        signals[i, :] += A * np.cos(2 * np.pi * f0 * t)
+
+    # Perform fit
+    A = Array(signals, locations, Fs=Fs,
+              Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+
+    # Check lower boundary for each mode-number bin.
+    # As the Nyquist mode number is 3, we do not check
+    # the lower boundary of bins for n <= -n_Ny or n > n_Ny.
+    n_lower = np.arange(-n_Ny + 1, n_Ny + 1) - 0.45
+
+    for n in n_lower:
+        # Artificially insert mode number -- we are just testing
+        # the *visualization* here, not the computation, so
+        # we are free to impose any mode number we wish.
+        # This will result in a much more efficient test,
+        # as we will not have to recompute cross-spectral densities
+        # and perform fits for each mode-number bin.
+        A.mode_number[:] = n
+
+        A.plotModeNumber(
+            R2_threshold=R2_threshold,
+            mode_number_lim=[-n_Ny, n_Ny],
+            cmap=cmap,
+            title='Lower boundary of mode number %i' % np.int(np.ceil(n)))
+
+    # Check upper boundary for each mode-number bin.
+    # As the Nyquist mode number is 3, we do not check
+    # the upper boundary of bins for n < -n_Ny or n >= n_Ny.
+    n_upper = np.arange(-n_Ny, n_Ny) + 0.45
+
+    for n in n_upper:
+        # Artificially insert mode number -- we are just testing
+        # the *visualization* here, not the computation, so
+        # we are free to impose any mode number we wish.
+        # This will result in a much more efficient test,
+        # as we will not have to recompute cross-spectral densities
+        # and perform fits for each mode-number bin.
+        A.mode_number[:] = n
+
+        A.plotModeNumber(
+            R2_threshold=R2_threshold,
+            mode_number_lim=[-n_Ny, n_Ny],
+            cmap=cmap,
+            title='Upper boundary of mode number %i' % np.int(np.floor(n)))
+
+    return
