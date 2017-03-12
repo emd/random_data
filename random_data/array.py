@@ -124,7 +124,8 @@ class Array(object):
         # Compute cross-spectral density of each correlation pair
         for cind in np.arange(len(self.csd)):
             if csd_kwargs['print_status']:
-                print '\nx-loc: %.3f' % self.xloc[cind]
+                print '\npair %i of %i' % (cind + 1, Ncorr)
+                print 'x-loc: %.3f' % self.xloc[cind]
                 print 'y-loc: %.3f' % self.yloc[cind]
                 print 'separation (y - x): %.3f' % self.separation[cind]
 
