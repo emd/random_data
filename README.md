@@ -171,7 +171,7 @@ plt.show()
 
 ```
 
-![cross_spectral_density](https://raw.githubusercontent.com/emd/random_data/develop/figs/cross_spectral_density.png)
+![cross_spectral_density](https://raw.githubusercontent.com/emd/random_data/master/figs/cross_spectral_density.png)
 
 Note that the cross-phase angle (pi / 2) is correctly identified
 in the above spectral calculations.
@@ -276,7 +276,7 @@ plt.show()
 
 ```
 
-![mode_number_spectrum](https://raw.githubusercontent.com/emd/random_data/develop/figs/mode_number_spectrum.png)
+![mode_number_spectrum](https://raw.githubusercontent.com/emd/random_data/master/figs/mode_number_spectrum.png)
 
 Note that the mode number (n = -3) is correctly identified
 in the above computations.
@@ -291,7 +291,7 @@ A.plotSlice('theta_xy', f=50e3, t=0.05)
 
 ```
 
-![mode_number_fit](https://raw.githubusercontent.com/emd/random_data/develop/figs/mode_number_fit.png)
+![mode_number_fit](https://raw.githubusercontent.com/emd/random_data/master/figs/mode_number_fit.png)
 
 The error bars indicate the *random error* in the estimated cross-phase angle.
 Plotting slices of other spectral quantities
