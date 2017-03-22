@@ -275,7 +275,7 @@ A.plotSlice('theta_xy', f=50e3, t=0.05)
 
 ```
 
-![mode_number_fit](https://raw.githubusercontent.com/emd/random_data/develop/figs/mode_number_fit.pdf)
+![mode_number_fit](https://raw.githubusercontent.com/emd/random_data/develop/figs/mode_number_fit.png)
 
 The error bars indicate the *random error* in the estimated cross-phase angle.
 Plotting slices of other spectral quantities
