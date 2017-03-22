@@ -291,6 +291,7 @@ A.plotSlice('theta_xy', f=50e3, t=0.05)
 
 The error bars indicate the *random error* in the estimated cross-phase angle.
 Plotting slices of other spectral quantities
-('Gxy' for cross-spectral density, 'gamma2xy' for magnitude-squared coherence)
+(`'Gxy'` for cross-spectral density,
+`'gamma2xy'` for magnitude-squared coherence)
 can be similarly created by substituting the appropriate string
-in place of 'theta_xy'.
+in place of `'theta_xy'`.
