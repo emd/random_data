@@ -2,7 +2,7 @@ Python tools for random data analysis.
 
 
 Background:
------------
+===========
 This module (`random_data`) aims to provide Python tools for
 flexible and extensible analysis of random signals.
 The motivation and mathematical underpinnings of this module
@@ -33,7 +33,45 @@ of spectral density estimates.
 
 
 Installation:
--------------
+=============
+
+... on GA's Iris cluster:
+-------------------------
+Package management is cleanly handled on Iris via
+[modules](https://diii-d.gat.com/diii-d/Iris#Environment_modules).
+The `random_data` package has a corresponding modulefile
+[here](https://github.com/emd/modulefiles).
+
+To use the `random_data` package, change to the directory
+you'd like to download the source files to and
+retrieve the source files from github by typing
+
+    $ git clone https://github.com/emd/random_data.git
+
+The created `random_data` directory defines the
+package's top-level directory.
+The modulefiles should be similarly cloned.
+
+Now, at the top of the corresponding
+[modulefile](https://github.com/emd/modulefiles/blob/master/random_data),
+there is a TCL variable named `random_data_root`;
+this must be altered to point at the
+top-level directory of the cloned `random_data` package.
+That's it! You shouldn't need to change anything else in
+the modulefile. The `random_data` module can
+then be loaded, unloaded, etc., as is discussed in the
+above-linked Iris documentation.
+
+The modulefile also defines a series of automated tests
+for the `random_data` package. Run these tests at the command line
+by typing
+
+    $ test_random_data_
+
+If the tests return "OK", the installation should be working.
+
+... elsewhere:
+--------------
 Change to the directory you'd like to download the source files to
 and retrieve the source files from github by typing
 
