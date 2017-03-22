@@ -15,6 +15,98 @@ from .errors import cross_phase_std_dev
 
 
 class Array(object):
+    '''A class for fitting the cross-phase angles of an array
+    of measurements vs. measurement separation to a linear model
+    for the purposes of determining the corresponding mode number
+    as a function of frequency and time.
+
+    Attributes:
+    -----------
+    csd - list, length L
+        A list of :py:class:`CrossSpectralDensity
+        <random_data.spectra.CrossSpectralDensity>` objects, where
+        each cross-spectral density object corresponds to a
+        *unique* correlation pair of the `N` inputs in `signals`
+        (explicitly, there will be "N choose 2" cross-spectral density
+        objects in the list).
+
+        Each cross-spectral density object is given as
+        a function of frequency and time; below
+
+            Nf = len(csd[0].f)  # number of frequency bins, and
+            Nt = len(csd[0].t)  # number of time bins.
+
+        The cross-spectral density objects are ordered
+        sequentially from smallest separation of measurement
+        locations to largest separation of measurement locations.
+        The cross-phase angle vs. measurement separation is
+        then fit to a linear model to determine the corresponding
+        mode number as a function of frequency and time.
+
+    R2 - array_like, (`Nf`, `Nt`)
+        The coefficient of determination (R^2) of linear fit
+        as a function of frequency and time, with R^2 = 1
+        indicating a perfect fit and lesser values indicating
+        progressively worse fits.
+
+        [R2] = unitless
+
+    mode_number - array_like, (`Nf`, `Nt`)
+        The mode number as a function of frequency and time,
+        as determined by fitting the cross-phase angle vs.
+        measurement location to a linear model. The higher
+        the corresponding R^2, the more believable the
+        mode number. The fit at frequency `f0` and time `t0`
+        can also be qualitatively and easily visualized using
+
+            self.plotSlice('theta_xy', f=f0, t=t0)
+
+        [mode_number] = radians / [locations], where `locations`
+        is provided at object initialization. For example,
+        if `locations` corresponds to the toroidal (poloidal)
+        locations of an array of sensors, then `mode_number`
+        will correspond to the toroidal mode number, n
+        (poloidal mode number, m). In contrast, if `locations`
+        is given in units of length, `mode_number` will instead
+        have the units of wavenumber.
+
+    xloc (yloc) - array_like, (`L`,)
+        The measurement location of signal "x" ("y"), from which
+        the cross-spectral density Gxy is computed. As with the
+        cross-spectral density objects, `xloc` (`yloc`) is ordered
+        sequentially from smallest separation of measurement locations
+        to largest separation of measurement locations.
+
+        [xloc] = [yloc]  = [locations], where `locations` is provided
+        at object initialization
+
+    separation - array_like, (`L`,)
+        The separation (yloc - xloc) of measurements y and x,
+        from which the cross-spectral density Gxy is computed.
+        The cross-spectral density objects (`self.csd`) and
+        the corresponding measurement locations (`self.xloc` and
+        `self.yloc`) are ordered sequentially from smallest
+        separation to largest separation of measurement locations.
+
+        [separation] = [locations], where `locations` is provided
+        at object initialization
+
+    gamma2xy_max - float
+        The maximum allowed value of magnitude-squared coherence.
+        The phase-angle fitting weights vary as
+
+                [gamma2xy / (1 - gamma2xy)]^{0.5}
+
+        To prevent singular weights, enforce a ceiling
+        on the magnitude-squared coherence of `gamma2xy_max`.
+
+        [gamma2xy_max] = unitless
+
+    Methods:
+    --------
+    Type `help(Array)` in the IPython console for a listing.
+
+    '''
     def __init__(self, signals, locations,
                  gamma2xy_max=0.95, print_status=True, **csd_kwargs):
         '''Create an instance of the `Array` class.
@@ -335,7 +427,7 @@ class Array(object):
                        cblabel='mode number',
                        ax=None, fig=None, geometry=111):
         '''Plot mode number as a function of frequency and time
-        provided that the corresponding coefficient of correlation R^2
+        provided that the corresponding coefficient of determination R^2
         exceeds `R2_threshold`.
 
         '''
@@ -361,7 +453,7 @@ class Array(object):
             cbticks[-1] + 0.5])
 
         # Only consider phase angles from regions whose coefficient of
-        # correlation R^2 are greater-than-or-equal-to the specified threshold
+        # determination R^2 are greater-than-or-equal-to specified threshold
         mode_number = np.ma.masked_where(
             self.R2 < R2_threshold,
             self.mode_number)
