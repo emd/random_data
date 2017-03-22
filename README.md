@@ -4,7 +4,8 @@ Python tools for random data analysis.
 Background:
 ===========
 This module (`random_data`) aims to provide Python tools for
-flexible and extensible analysis of random signals.
+flexible and extensible analysis of random signals
+(see example use cases below).
 The motivation and mathematical underpinnings of this module
 are largely discussed in Bendat and Piersol's classic text "Random Data", and
 inquisitive users are directed there for a thorough discussion
@@ -27,9 +28,12 @@ In contrast, `random_data` produces time-resolved spectral density estimates
 that have been averaged over several realizations, effectively merging
 the functionality of `psd`/`csd` and `specgram`. This is largely accomplished
 via class definitions built around `matplotlib`'s `psd` and `csd` functions.
-Additionally, `random_data`'s spectral density classes have robust methods
-for visualizing the magnitude, coherence, and phase angle
-of spectral density estimates.
+Further, `random_data` provides a class to fit the cross-phase angles
+from an array of measurements to a linear model, allowing
+determination of mode numbers/wavenumbers as a function of frequency and time.
+Additionally, `random_data`'s classes have robust methods
+for visualizing the relevant spectral estimates
+(magnitude, coherence, phase angle, mode number, and quality of fit).
 
 
 Installation:
