@@ -66,7 +66,7 @@ The modulefile also defines a series of automated tests
 for the `random_data` package. Run these tests at the command line
 by typing
 
-    $ test_random_data_
+    $ test_random_data
 
 If the tests return "OK", the installation should be working.
 
