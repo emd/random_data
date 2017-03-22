@@ -95,3 +95,65 @@ To test your installation, run
     $ nosetests tests/
 
 If the tests return "OK", the installation should be working.
+
+
+Use:
+====
+
+Spectral calculations on two signals:
+-------------------------------------
+`random_data` allows easy computation and visualization
+of various spectral quantities (e.g. spectral densities,
+coherence, cross-phase). For example, the below code
+spectrally analyzes two "measurements" of a 50 kHz signal
+in the presence of non-white noise and plots:
+
+* the magnitude of the cross-spectral density (left),
+* the magnitude-squared coherence (middle), and
+* the cross-phase angle (pi / 2; right).
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import random_data as rd
+
+# Parameters of digitized record
+Fs = 200e3  # sample rate, [Fs] = samples / s
+T = 1       # (approximate) record length, [T] = s
+
+# Generate two random signals
+fc = 25e3   # cutoff frequency, [fc] = Hz
+pole = 2    # 2-pole filter above fc
+sig1 = rd.signals.RandomSignal(Fs=Fs, T=T, fc=fc, pole=pole)
+sig2 = rd.signals.RandomSignal(Fs=Fs, T=T, fc=fc, pole=pole)
+
+# Add a coherent signal with well-known phase difference
+A = 3e-4                # amplitude, [A] = [sig1.x]
+f0 = 50e3               # frequency, [f0] = Hz
+theta12 = np.pi / 2     # cross-phase, [theta12] = radian
+
+omega_t = 2 * np.pi * f0 * sig1.t
+sig1.x += (A * np.cos(omega_t))
+sig2.x += (A * np.cos(omega_t + theta12))
+
+# Compute cross-spectral density
+Tens = 5e-3         # ensemble time, [Tens] = s
+Nreal_per_ens = 10  # number of realizations per ensemble
+
+csd = rd.spectra.CrossSpectralDensity(
+    sig1.x, sig2.x, Fs=Fs, t0=sig1.t[0],
+    Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+
+# Create plots
+fig, axes = plt.subplots(1, 3, sharex=True, sharey=True)
+csd.plotSpectralDensity(ax=axes[0], title='|cross-spectral density|')
+csd.plotCoherence(ax=axes[1], title='magnitude-squared coherence')
+csd.plotPhaseAngle(ax=axes[2], title='cross-phase')
+plt.show()
+
+```
+
+![cross_spectral_density](https://raw.githubusercontent.com/emd/random_data/develop/figs/cross_spectral_density.png)
+
+Note that the cross-phase is only plotted for points
+with magnitude-squared coherence exceeding a user-specified threshold.
