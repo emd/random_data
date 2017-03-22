@@ -108,9 +108,10 @@ coherence, cross-phase). For example, the below code
 spectrally analyzes two "measurements" of a 50 kHz signal
 in the presence of non-white noise and plots:
 
-* the magnitude of the cross-spectral density (left),
-* the magnitude-squared coherence (middle), and
-* the cross-phase angle (pi / 2; right).
+* the magnitude of the cross-spectral density as a function of frequency vs.
+  time (left),
+* the magnitude-squared coherence as a function of frequency vs. time (middle), and
+* the cross-phase angle as a function of frequency vs. time (right).
 
 ```python
 import numpy as np
@@ -155,5 +156,14 @@ plt.show()
 
 ![cross_spectral_density](https://raw.githubusercontent.com/emd/random_data/develop/figs/cross_spectral_density.png)
 
-Note that the cross-phase is only plotted for points
+Note that the cross-phase angle (pi / 2) is correctly identified
+in the above spectral calculations.
+Further, note that the cross-phase is only plotted for points
 with magnitude-squared coherence exceeding a user-specified threshold.
+
+If only one signal is available for analysis,
+the `random_data.spectra.AutoSpectralDensity`
+is available for computing autospectral densities.
+(Of course, by definition, the coherence is unity and
+the phase angle zero for all frequencies and times
+in the autospectral density).
