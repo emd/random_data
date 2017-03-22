@@ -31,7 +31,7 @@ via class definitions built around `matplotlib`'s `psd` and `csd` functions.
 Further, `random_data` provides a class to fit the cross-phase angles
 from an array of measurements to a linear model, allowing
 determination of mode numbers/wavenumbers as a function of frequency and time.
-Additionally, `random_data`'s classes have robust methods
+Finally, `random_data`'s classes have robust methods
 for visualizing the relevant spectral estimates
 (magnitude, coherence, phase angle, mode number, and quality of fit).
 
