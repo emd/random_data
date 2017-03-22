@@ -114,6 +114,10 @@ in the presence of non-white noise and plots:
 * the magnitude-squared coherence as a function of frequency vs. time (middle), and
 * the cross-phase angle as a function of frequency vs. time (right).
 
+(Note that most of the code below is to generate representative
+fake signals, while the spectral computations only involve
+initialization of a *single* object.)
+
 ```python
 import numpy as np
 import matplotlib.pyplot as plt
@@ -194,6 +198,14 @@ in the presence of non-white noise and plots:
   larger R^2 being indicative of a better fit), as a function
   of frequency vs. time (left), and
 * the mode number as a function of frequency vs. time (right).
+
+(Note that most of the code below is to generate representative
+fake signals, while the spectral computations only involve
+initialization of a *single* object.
+For analysis of DIII-D magnetics signals, for example,
+a [simple package](https://github.com/emd/magnetics) exists
+for fetching and organizing the magnetics data in a format
+that is readily compatible with `random_data.array.Array`.)
 
 ```python
 import numpy as np
