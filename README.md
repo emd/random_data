@@ -286,7 +286,7 @@ with R^2 exceeding a user-specified threshold.
 Further, to easily examine the fit at a given frequency and time
 (say 50 kHz and 0.05 s), simply use:
 ```python
-# Using the object `A` created from running the abvoe code
+# Using the object `A` created from running the above code
 A.plotSlice('theta_xy', f=50e3, t=0.05)
 
 ```
