@@ -280,8 +280,9 @@ plt.show()
 
 Note that the mode number (n = -3) is correctly identified
 in the above computations.
-Further, note that the cross-phase is only plotted for points
-with R^2 exceeding a user-specified threshold.
+Further, note that the mode number is only plotted for points
+with R^2 exceeding a user-specified threshold
+that can be specified on the fly.
 
 Further, to easily examine the fit at a given frequency and time
 (say 50 kHz and 0.05 s), simply use:
