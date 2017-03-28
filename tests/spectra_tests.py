@@ -1,5 +1,4 @@
 from nose import tools
-import sys
 import numpy as np
 from random_data.spectra import (
     AutoSpectralDensity, CrossSpectralDensity,
@@ -164,7 +163,7 @@ def test_wrap():
     np.testing.assert_allclose(
         theta_expected,
         wrap(theta, theta_min, theta_max),
-        atol=(10 * sys.float_info.epsilon))
+        atol=(10 * np.finfo('float64').eps))
 
     # Test (2):
     # ---------
@@ -180,7 +179,7 @@ def test_wrap():
     np.testing.assert_allclose(
         theta_expected,
         wrap(theta, theta_min, theta_max),
-        atol=(10 * sys.float_info.epsilon))
+        atol=(10 * np.finfo('float64').eps))
 
     return
 
