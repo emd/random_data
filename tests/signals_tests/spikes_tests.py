@@ -17,9 +17,11 @@ def test__subset_boundary_values():
 
     # Trivial subset test 1: only one subset in `x`
     # ---------------------------------------------
+    min_subset_spacing = 2
     x = np.arange(10)
 
-    vals = _subset_boundary_values(x, min_subset_spacing=2)
+    vals = _subset_boundary_values(
+        x, min_subset_spacing=min_subset_spacing)
     subset_start_vals = vals[0]
     subset_stop_vals = vals[1]
 
@@ -34,9 +36,11 @@ def test__subset_boundary_values():
     # Trivial subset test 2: uniform spacing by `min_subset_spacing`
     # such that each point in `x` is a distinct subset
     # --------------------------------------------------------------
+    min_subset_spacing = 1
     x = np.array([0, 1, 2, 3])
 
-    vals = _subset_boundary_values(x, min_subset_spacing=1)
+    vals = _subset_boundary_values(
+        x, min_subset_spacing=min_subset_spacing)
     subset_start_vals = vals[0]
     subset_stop_vals = vals[1]
 
@@ -51,9 +55,11 @@ def test__subset_boundary_values():
     # Trivial subset test 3: non-uniform spacing by >= `min_subset_spacing`
     # such that each point in `x` is a distinct subset
     # ---------------------------------------------------------------------
+    min_subset_spacing = 1
     x = np.array([0, 1, 10, 33])
 
-    vals = _subset_boundary_values(x, min_subset_spacing=1)
+    vals = _subset_boundary_values(
+        x, min_subset_spacing=min_subset_spacing)
     subset_start_vals = vals[0]
     subset_stop_vals = vals[1]
 
@@ -70,12 +76,15 @@ def test__subset_boundary_values():
 
     # Non-trivial subset test 1: all subsets have length > 1
     # -------------------------------------------------------
+    min_subset_spacing = 2
+
     x = np.array([
         0, 1, 2, 3,         # subset 1
         5, 6, 7, 8,         # subset 2
         10, 11, 12, 13])    # subset 3
 
-    vals = _subset_boundary_values(x, min_subset_spacing=2)
+    vals = _subset_boundary_values(
+        x, min_subset_spacing=min_subset_spacing)
     subset_start_vals = vals[0]
     subset_stop_vals = vals[1]
 
@@ -89,12 +98,15 @@ def test__subset_boundary_values():
 
     # Non-trivial subset test 2: middle subset has unity length
     # ---------------------------------------------------------
+    min_subset_spacing = 2
+
     x = np.array([
         0, 1, 2, 3,         # subset 1
         5,                  # subset 2
         10, 11, 12, 13])    # subset 3
 
-    vals = _subset_boundary_values(x, min_subset_spacing=2)
+    vals = _subset_boundary_values(
+        x, min_subset_spacing=min_subset_spacing)
     subset_start_vals = vals[0]
     subset_stop_vals = vals[1]
 
@@ -108,12 +120,15 @@ def test__subset_boundary_values():
 
     # Non-trivial subset test 3: first subset has unity length
     # --------------------------------------------------------
+    min_subset_spacing = 2
+
     x = np.array([
         3,                  # subset 1
         5, 6, 7, 8,         # subset 2
         10, 11, 12, 13])    # subset 3
 
-    vals = _subset_boundary_values(x, min_subset_spacing=2)
+    vals = _subset_boundary_values(
+        x, min_subset_spacing=min_subset_spacing)
     subset_start_vals = vals[0]
     subset_stop_vals = vals[1]
 
@@ -127,12 +142,15 @@ def test__subset_boundary_values():
 
     # Non-trivial subset test 4: last subset has unity length
     # -------------------------------------------------------
+    min_subset_spacing = 2
+
     x = np.array([
         0, 1, 2, 3,     # subset 1
         5, 6, 7, 8,     # subset 2
         10])            # subset 3
 
-    vals = _subset_boundary_values(x, min_subset_spacing=2)
+    vals = _subset_boundary_values(
+        x, min_subset_spacing=min_subset_spacing)
     subset_start_vals = vals[0]
     subset_stop_vals = vals[1]
 
@@ -143,5 +161,28 @@ def test__subset_boundary_values():
     np.testing.assert_equal(
         subset_stop_vals,
         [3, 8, 10])
+
+    # Non-trivial subset test 5: bouncing < `min_subset_spacing`
+    # ----------------------------------------------------------
+    min_subset_spacing = 3
+
+    x = np.array([
+        0, 2, 3,            # subset 1
+        6, 8,               # subset 2
+        11, 13, 15, 16,     # subset 3
+        20])                # subset 4
+
+    vals = _subset_boundary_values(
+        x, min_subset_spacing=min_subset_spacing)
+    subset_start_vals = vals[0]
+    subset_stop_vals = vals[1]
+
+    np.testing.assert_equal(
+        subset_start_vals,
+        [0, 6, 11, 20])
+
+    np.testing.assert_equal(
+        subset_stop_vals,
+        [3, 8, 16, 20])
 
     return
