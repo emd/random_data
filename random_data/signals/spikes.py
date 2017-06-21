@@ -16,7 +16,7 @@ class SpikeHandler(object):
 
     '''
     def __init__(self, x, Fs=1., t0=0.,
-                 times_sigma_thresh=5., debounce_dt=None):
+                 sigma_mult=5., debounce_dt=None):
         '''Create an instance of the `SpikeHandler` class.
 
         Input parameters:
@@ -37,17 +37,18 @@ class SpikeHandler(object):
             The initial time corresponding to `x[0]`.
             [t0] = 1 / [Fs]
 
-        times_sigma_thresh - float
+        sigma_mult - float
             Points for which
 
-                |x| > (times_sigma_thresh * std(x))
+                |x| > (sigma_mult * std(x))
 
             will be considered as "spikes", where `std(x)` is the
             standard deviation of the raw input signal `x`.
-            [times_sigma_thresh] = unitless
+            [sigma_mult] = unitless
 
         debounce_dt - float, or None
-            Detected spikes will be separated in time by *at least*
+            The first point of a spike and the final point of the
+            preceding spike will be separated in time by *at least*
             `debounce_dt`. This ensures that peaks belonging to the
             same transient event are identified as a single "spike".
             As this prevents "bouncing" between identification as
@@ -56,41 +57,48 @@ class SpikeHandler(object):
             [debounce_dt] = 1 / [Fs]
 
         '''
+        # Note parameters for spike detection & debouncing
         self._Fs = Fs
         self._t0 = t0
-        self._times_sigma_thresh = times_sigma_thresh
+        self._sigma_mult = sigma_mult
         self._debounce_dt = debounce_dt
+
+        # Determine spike and spike-free start times
+        times = self._getStartTimes(x)
+        self.spike_start_times = times[0]
+        self.spike_free_start_times = times[1]
 
     def _getStartTimes(self, x):
         'Get start times for spikes and spike-free portions in `x`.'
         # Determine indices for points exceeding threshold
-        threshold = self._times_sigma_thresh * np.std(x)
+        threshold = self._sigma_mult * np.std(x)
         ind = np.where(np.abs(x) > threshold)[0]
 
         if self._debounce_dt is None:
+            # Adjacent points in `x` are defined to belong to
+            # the same spike, but points with separation of 2
+            # or more are defined to belong to different spikes
             debounce_pts = 2
         else:
+            # Here, `ceil(...)` ensures that the debounced spikes
+            # are separated by *at least* `self._debounce_dt` in time
             debounce_pts = np.int(np.ceil(self._debounce_dt * self._Fs))
 
-        # Distinct spikes are separated by *at least* `debounce_pts`.
-        new_spike_start = np.where(np.diff(ind) >= debounce_pts)[0] + 1
-        old_spike_stop = new_spike_start - 1
+        # Determine indices corresponding to the start and stop
+        # of each detected spike
+        spike_start_ind, spike_stop_ind = _subset_boundary_values(
+            ind, min_subset_spacing=debounce_pts)
 
-        # As the above identification of distinct spikes is based upon
-        # a differencing scheme, it misses the start of the
-        # first distinct spike and the stop of the last spike;
-        # manually insert these values.
-        new_spike_start = np.concatenate(([0], new_spike_start))
-        old_spike_stop = np.concatenate((old_spike_stop, [len(ind) - 1]))
+        # Spike-free region begins immediately after end of spike
+        spike_free_start_ind = spike_stop_ind + 1
 
-        spike_start_ind = ind[new_spike_start]
-        spike_free_start_ind = ind[old_spike_stop] + 1
+        # Convert indices into times
+        spike_start_times = _index_times(
+            spike_start_ind, self._Fs, self._t0)
+        spike_free_start_times = _index_times(
+            spike_free_start_ind, self._Fs, self._t0)
 
-        # Boundary cases!!!
-
-        # Get corresponding times
-
-        return
+        return spike_start_times, spike_free_start_times
 
 
 def _subset_boundary_values(x, min_subset_spacing=2):
@@ -171,3 +179,11 @@ def _subset_boundary_values(x, min_subset_spacing=2):
         subset_start_vals = np.array([x[-1]])
 
     return subset_start_vals, subset_stop_vals
+
+
+def _index_times(ind, Fs, t0):
+    '''Return times corresponding to indices in `ind` assuming
+    uniform sampling at `Fs` beginning at time `t0`.
+
+    '''
+    return t0 + (ind / Fs)

@@ -1,6 +1,7 @@
 from nose import tools
 import numpy as np
-from random_data.signals.spikes import _subset_boundary_values
+from random_data.signals.spikes import (
+    _subset_boundary_values, _index_times)
 
 
 def test__subset_boundary_values():
@@ -184,5 +185,35 @@ def test__subset_boundary_values():
     np.testing.assert_equal(
         subset_stop_vals,
         [3, 8, 16, 20])
+
+    return
+
+
+def test__index_times():
+    # Non-uniformly spaced indices, beginning at 0
+    ind = np.array([0, 10, 30])
+
+    # For this "trivial" choice of `Fs` and `t0`,
+    # the returned times are simply equal to `ind`
+    Fs = 1
+    t0 = 0
+    np.testing.assert_equal(
+        _index_times(ind, Fs, t0),
+        ind)
+
+    # Increasing `t0` by unity augments returned times
+    # by unity as well
+    t0 = 1
+    np.testing.assert_equal(
+        _index_times(ind, Fs, t0),
+        ind + 1)
+
+    # Doubling sampling rate decreases returned times
+    # by a factor of two
+    Fs = 2
+    t0 = 0
+    np.testing.assert_equal(
+        _index_times(ind, Fs, t0),
+        ind / 2)
 
     return
