@@ -120,6 +120,53 @@ class SpikeHandler(object):
 
         return spike_start_times, spike_free_start_times
 
+    def _getSpikeFreeTimeWindows(self, window_fraction=[0.2, 0.8]):
+        'Get times corresponding to `window_fraction` of spike-free signal.'
+        if len(window_fraction) != 2:
+            raise ValueError('`window_fraction` must have length 2')
+
+        window_fraction = np.sort(window_fraction)
+
+        if (window_fraction[0] < 0) or (window_fraction[1] > 1):
+            raise ValueError('`window_fraction` values must be between 0 & 1')
+
+        # The end of a spike-free time window is one timestamp before
+        # the first timestamp of the subsequent spike
+        spike_free_end_times = self.spike_start_times - (1. / self._Fs)
+
+        # If first point in the input signal is identified as
+        # a spike, then
+        #
+        #                       L == M,
+        #
+        # where `L` is the length of `self.spike_start_times` and
+        # `M` is the length of `self.spike_free_start_times`.
+        # If `L` == `M`, the first point in `spike_free_end_times`
+        # has no corresponding start time, so this point should
+        # be disregarded.
+        if len(self.spike_start_times) == len(self.spike_free_start_times):
+            spike_free_end_times = spike_free_end_times[1:]
+
+        # Temporal duration of each spike-free region in signal.
+        # Note that the *last* point in `self.spike_free_start_times`
+        # does not have a corresponding end time and therefore
+        # should not be included in the window-length computation.
+        window_length = spike_free_end_times - self.spike_free_start_times[:-1]
+
+        # Starts of requested window fractions
+        tstart = self.spike_free_start_times.copy()[:-1]
+        tstart += (window_fraction[0] * window_length)
+
+        # Ends of requested window fractions
+        tstop = spike_free_end_times
+        tstop -= ((1 - window_fraction[1]) * window_length)
+
+        return tstart, tstop
+
+    def getIndices(self, timebase):
+        'Get indices of `timebase` falling within spike-free phases.'
+        return
+
 
 def _subset_boundary_values(x, min_subset_spacing=2):
     '''Get initial and final values of each subset in `x`,

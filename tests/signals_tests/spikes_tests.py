@@ -219,7 +219,7 @@ def test__index_times():
     return
 
 
-def test_SpikeHandler():
+def test_SpikeHandler__init__():
     # Sinusoidal signal parameters
     A = np.sqrt(2)      # RMS amplitude of unity
     Fs = 1.             # sampling rate
@@ -229,7 +229,7 @@ def test_SpikeHandler():
 
     # Generate stationary signal
     t = np.arange(t0, Nperiods / f0, 1. / Fs)
-    x = np.sqrt(2) * np.cos(2 * np.pi * f0 * t)
+    x = A * np.cos(2 * np.pi * f0 * t)
 
     # Single, one-point spike:
     # ========================
@@ -245,7 +245,7 @@ def test_SpikeHandler():
 
     # Spike detection
     sh = SpikeHandler(x + spike, Fs=Fs, t0=t0,
-                 sigma_mult=sigma_mult, debounce_dt=None)
+                      sigma_mult=sigma_mult, debounce_dt=None)
 
     np.testing.assert_equal(
         sh.spike_start_times,
@@ -263,7 +263,7 @@ def test_SpikeHandler():
 
     # Spike detection
     sh = SpikeHandler(x + spike, Fs=Fs, t0=t0,
-                 sigma_mult=sigma_mult, debounce_dt=None)
+                      sigma_mult=sigma_mult, debounce_dt=None)
 
     np.testing.assert_equal(
         sh.spike_start_times,
@@ -281,7 +281,7 @@ def test_SpikeHandler():
 
     # Spike detection
     sh = SpikeHandler(x + spike, Fs=Fs, t0=t0,
-                 sigma_mult=sigma_mult, debounce_dt=None)
+                      sigma_mult=sigma_mult, debounce_dt=None)
 
     np.testing.assert_equal(
         sh.spike_start_times,
@@ -307,7 +307,7 @@ def test_SpikeHandler():
 
     # Spike detection
     sh = SpikeHandler(x + spike, Fs=Fs, t0=t0,
-                 sigma_mult=sigma_mult, debounce_dt=debounce_dt)
+                      sigma_mult=sigma_mult, debounce_dt=debounce_dt)
 
     np.testing.assert_equal(
         sh.spike_start_times,
@@ -329,7 +329,7 @@ def test_SpikeHandler():
 
     # Spike detection
     sh = SpikeHandler(x + spike, Fs=Fs, t0=t0,
-                 sigma_mult=sigma_mult, debounce_dt=debounce_dt)
+                      sigma_mult=sigma_mult, debounce_dt=debounce_dt)
 
     np.testing.assert_equal(
         sh.spike_start_times,
@@ -351,7 +351,7 @@ def test_SpikeHandler():
 
     # Spike detection
     sh = SpikeHandler(x + spike, Fs=Fs, t0=t0,
-                 sigma_mult=sigma_mult, debounce_dt=debounce_dt)
+                      sigma_mult=sigma_mult, debounce_dt=debounce_dt)
 
     np.testing.assert_equal(
         sh.spike_start_times,
@@ -360,5 +360,81 @@ def test_SpikeHandler():
     np.testing.assert_equal(
         sh.spike_free_start_times,
         np.array([0, spike_start_ind + 5]))
+
+    return
+
+
+def test_SpikeHandler__getSpikeFreeTimeWindows():
+    # ValueError tests:
+    # =================
+    x = np.zeros(100)
+    x[50] = 10
+    sh = SpikeHandler(x)
+
+    # `window_fraction` should have length 2
+    window_fraction = [0.2, 0.3, 0.4]
+    tools.assert_raises(
+        ValueError,
+        sh._getSpikeFreeTimeWindows,
+        **{'window_fraction': window_fraction})
+
+    # Values in `window_fraction` should be between 0 & 1, inclusive
+    window_fraction = [-0.1, 1.]
+    tools.assert_raises(
+        ValueError,
+        sh._getSpikeFreeTimeWindows,
+        **{'window_fraction': window_fraction})
+
+    window_fraction = [0, 1.1]
+    tools.assert_raises(
+        ValueError,
+        sh._getSpikeFreeTimeWindows,
+        **{'window_fraction': window_fraction})
+
+    # Functionality tests:
+    # ====================
+
+    # Two, single-point peaks:
+    # ------------------------
+    Fs = 1.
+    t0 = 0.
+    x = np.zeros(301)  # also timebase for this choice of `Fs` & `t0`
+    x[101] = 10.
+    x[203] = 10.
+
+    sh = SpikeHandler(x, Fs=Fs, t0=t0)
+
+    # 20% - 80% window
+    tstart, tstop = sh._getSpikeFreeTimeWindows(
+        window_fraction=[0.2, 0.8])
+
+    # Shift of 2 in second entry of each array expected because
+    # first peak happens at t = 101 and start of second spike-free
+    # region begins at t = 102 (contrast this with first region,
+    # which begins at t = 0).
+    np.testing.assert_equal(tstart, np.array([20, 122]))
+    np.testing.assert_equal(tstop, np.array([80, 182]))
+
+    # 0% - 100% window
+    tstart, tstop = sh._getSpikeFreeTimeWindows(
+        window_fraction=[0., 1.0])
+
+    # Shift of 2 in second entry of each array expected because
+    # first peak happens at t = 101 and start of second spike-free
+    # region begins at t = 102 (contrast this with first region,
+    # which begins at t = 0).
+    np.testing.assert_equal(tstart, np.array([0, 102]))
+    np.testing.assert_equal(tstop, np.array([100, 202]))
+
+    # 35% - 53% window
+    tstart, tstop = sh._getSpikeFreeTimeWindows(
+        window_fraction=[0.35, 0.53])
+
+    # Shift of 2 in second entry of each array expected because
+    # first peak happens at t = 101 and start of second spike-free
+    # region begins at t = 102 (contrast this with first region,
+    # which begins at t = 0).
+    np.testing.assert_equal(tstart, np.array([35, 137]))
+    np.testing.assert_equal(tstop, np.array([53, 155]))
 
     return
