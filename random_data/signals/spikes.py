@@ -13,6 +13,17 @@ class SpikeHandler(object):
 
     Attributes:
     -----------
+    spike_start_times - array_like, (`L`,)
+        Timestamp corresponding to the start of each detected spike.
+        [spike_start_times] = 1 / [Fs], where Fs was the sampling rate
+            provided at initialization
+
+    spike_free_start_times - array_like, (`M`,)
+        Timestamp corresponding to the start of each spike-free region.
+        If the first point in the input signal is identified as a spike,
+        then `M` = `L`; otherwise, `M` = `L` + 1.
+        [spike_free_start_times] = 1 / [Fs], where Fs was the sampling
+            rate provided at initialization
 
     '''
     def __init__(self, x, Fs=1., t0=0.,
@@ -91,6 +102,15 @@ class SpikeHandler(object):
 
         # Spike-free region begins immediately after end of spike
         spike_free_start_ind = spike_stop_ind + 1
+
+        # If the first point in `x` does *not* correspond to a spike,
+        # however, we need to manually insert the zero index
+        # into the spike-free indices
+        if spike_start_ind[0] != 0:
+            # `len(spike_free_start_ind) >= 1` such that
+            # we can always concatenate w/o ValueError
+            spike_free_start_ind = np.concatenate((
+                [0], spike_free_start_ind))
 
         # Convert indices into times
         spike_start_times = _index_times(

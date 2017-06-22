@@ -1,7 +1,7 @@
 from nose import tools
 import numpy as np
 from random_data.signals.spikes import (
-    _subset_boundary_values, _index_times)
+    _subset_boundary_values, _index_times, SpikeHandler)
 
 
 def test__subset_boundary_values():
@@ -215,5 +215,150 @@ def test__index_times():
     np.testing.assert_equal(
         _index_times(ind, Fs, t0),
         ind / 2)
+
+    return
+
+
+def test_SpikeHandler():
+    # Sinusoidal signal parameters
+    A = np.sqrt(2)      # RMS amplitude of unity
+    Fs = 1.             # sampling rate
+    f0 = Fs / 20        # frequency of sinusoid
+    t0 = 0              # initial time of waveform
+    Nperiods = 10       # number of periods in waveform
+
+    # Generate stationary signal
+    t = np.arange(t0, Nperiods / f0, 1. / Fs)
+    x = np.sqrt(2) * np.cos(2 * np.pi * f0 * t)
+
+    # Single, one-point spike:
+    # ========================
+    debounce_dt = None  # debouncing not needed for single-point spike
+    sigma_mult = 5
+    spike_amplitude = 10
+
+    # In middle of signal:
+    # --------------------
+    spike_ind = 50          # w/ t0 = 0 & Fs=1, this is also spike *time*
+    spike = np.zeros(len(x))
+    spike[spike_ind] = spike_amplitude
+
+    # Spike detection
+    sh = SpikeHandler(x + spike, Fs=Fs, t0=t0,
+                 sigma_mult=sigma_mult, debounce_dt=None)
+
+    np.testing.assert_equal(
+        sh.spike_start_times,
+        np.array([spike_ind]))
+
+    np.testing.assert_equal(
+        sh.spike_free_start_times,
+        np.array([0, spike_ind + 1]))
+
+    # At start of signal:
+    # -------------------
+    spike_ind = 0           # w/ t0 = 0 & Fs=1, this is also spike *time*
+    spike = np.zeros(len(x))
+    spike[spike_ind] = spike_amplitude
+
+    # Spike detection
+    sh = SpikeHandler(x + spike, Fs=Fs, t0=t0,
+                 sigma_mult=sigma_mult, debounce_dt=None)
+
+    np.testing.assert_equal(
+        sh.spike_start_times,
+        np.array([spike_ind]))
+
+    np.testing.assert_equal(
+        sh.spike_free_start_times,
+        np.array([spike_ind + 1]))
+
+    # At end of signal:
+    # -----------------
+    spike_ind = len(x) - 1  # w/ t0 = 0 & Fs=1, this is also spike *time*
+    spike = np.zeros(len(x))
+    spike[spike_ind] = spike_amplitude
+
+    # Spike detection
+    sh = SpikeHandler(x + spike, Fs=Fs, t0=t0,
+                 sigma_mult=sigma_mult, debounce_dt=None)
+
+    np.testing.assert_equal(
+        sh.spike_start_times,
+        np.array([spike_ind]))
+
+    np.testing.assert_equal(
+        sh.spike_free_start_times,
+        np.array([0, spike_ind + 1]))
+
+    # Single, multi-point w/ "bouncing" spike:
+    # ========================================
+    debounce_dt = 4
+
+    # In middle of signal:
+    # --------------------
+    spike_start_ind = 50    # w/ t0 = 0 & Fs=1, this is also spike *time*
+    spike = np.zeros(len(x))
+
+    # Spike jumps above & below signal baseline with
+    # two empty spaces between spike peak & valley
+    spike[spike_start_ind:(spike_start_ind + 5)] = np.array([
+        spike_amplitude, 0, 0, -spike_amplitude, -spike_amplitude])
+
+    # Spike detection
+    sh = SpikeHandler(x + spike, Fs=Fs, t0=t0,
+                 sigma_mult=sigma_mult, debounce_dt=debounce_dt)
+
+    np.testing.assert_equal(
+        sh.spike_start_times,
+        np.array([spike_start_ind]))
+
+    np.testing.assert_equal(
+        sh.spike_free_start_times,
+        np.array([0, spike_start_ind + 5]))
+
+    # At beginning of signal:
+    # -----------------------
+    spike_start_ind = 0     # w/ t0 = 0 & Fs=1, this is also spike *time*
+    spike = np.zeros(len(x))
+
+    # Spike jumps above & below signal baseline with
+    # two empty spaces between spike peak & valley
+    spike[spike_start_ind:(spike_start_ind + 5)] = np.array([
+        spike_amplitude, 0, 0, -spike_amplitude, -spike_amplitude])
+
+    # Spike detection
+    sh = SpikeHandler(x + spike, Fs=Fs, t0=t0,
+                 sigma_mult=sigma_mult, debounce_dt=debounce_dt)
+
+    np.testing.assert_equal(
+        sh.spike_start_times,
+        np.array([spike_start_ind]))
+
+    np.testing.assert_equal(
+        sh.spike_free_start_times,
+        np.array([spike_start_ind + 5]))
+
+    # At end of signal:
+    # -----------------
+    spike_start_ind = len(x) - 5
+    spike = np.zeros(len(x))
+
+    # Spike jumps above & below signal baseline with
+    # two empty spaces between spike peak & valley
+    spike[spike_start_ind:] = np.array([
+        spike_amplitude, 0, 0, -spike_amplitude, -spike_amplitude])
+
+    # Spike detection
+    sh = SpikeHandler(x + spike, Fs=Fs, t0=t0,
+                 sigma_mult=sigma_mult, debounce_dt=debounce_dt)
+
+    np.testing.assert_equal(
+        sh.spike_start_times,
+        np.array([spike_start_ind]))
+
+    np.testing.assert_equal(
+        sh.spike_free_start_times,
+        np.array([0, spike_start_ind + 5]))
 
     return
