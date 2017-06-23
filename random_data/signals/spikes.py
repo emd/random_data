@@ -214,6 +214,63 @@ class SpikeHandler(object):
         # understand the logic here...
         return np.where(insertion_ind_start == (insertion_ind_stop + 1))[0]
 
+    def plotTraceWithSpikeColor(
+            self, trace, timebase, downsample=None,
+            window_fraction=[0.2, 0.8], spike_color='lightcoral',
+            ax=None):
+        '''Plot `trace` with spikes highlighted by `spike_color`.
+
+        Parameters:
+        -----------
+        trace - array_like, (`J`,)
+            Trace to be plotted. Note that `trace` does *not* have
+            to be the original signal used to to initialize this
+            `SpikeHandler` instance, but the spike and spike-free
+            regions will (obviously) correspond to the signal
+            used during initialization.
+            [trace] = arbitrary units
+
+        timebase - array_like, (`J`,)
+            Timebase corresponding to `trace`.
+            [timebase] = [self.spike_start_times]
+
+        downsample - int
+            Reduce datapoints plotted by `downsample` for quicker
+            plotting/viewing and reduced consumption of diskspace.
+            Downsampling is implemented simply as
+
+                plt.plot(timebase[::downsample], trace[::downsample]
+
+            [downsample] = unitless
+
+        window_fraction - array_like, (2,)
+            Fraction of spike-free window to return indices for.
+            By default, return indices of `timebase` that fall
+            within 20% to 80% of the spike-free windows.
+            [window_fraction] = unitless
+
+        spike_color - any valid matplotlib color specification
+            Portions of `trace` that are *outside* of `window_fraction`
+            of the identified spike-free regions will be highlighted
+            with `spike_color`.
+
+        ax - `AxesSubplot <matplotlib.axes._subplots.AxesSubplot>` or None
+            Axis in which to plot `trace` vs. `timebase`.
+
+        '''
+        if ax is None:
+            fig, ax = plt.subplots(1, 1)
+
+        ax.plot(timebase[::downsample], trace[::downsample])
+
+        tstart, tstop = self._getSpikeFreeTimeWindows(
+            window_fraction=window_fraction)
+
+        for i in np.arange(len(tstop) - 1):
+            ax.axvspan(tstop[i], tstart[i + 1], color=spike_color)
+
+        return
+
 
 def _subset_boundary_values(x, min_subset_spacing=2):
     '''Get initial and final values of each subset in `x`,
