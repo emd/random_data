@@ -25,6 +25,11 @@ class SpikeHandler(object):
         [spike_free_start_times] = 1 / [Fs], where Fs was the sampling
             rate provided at initialization
 
+    Methods:
+    --------
+    Type `help(SpikeHandler)` in the IPython console for a listing
+    of available methods.
+
     '''
     def __init__(self, x, Fs=1., t0=0.,
                  sigma_mult=5., debounce_dt=None):
@@ -163,9 +168,51 @@ class SpikeHandler(object):
 
         return tstart, tstop
 
-    def getIndices(self, timebase):
-        'Get indices of `timebase` falling within spike-free phases.'
-        return
+    def getSpikeFreeTimeIndices(self, timebase, window_fraction=[0.2, 0.8]):
+        '''Get indices of `timebase` falling within `window_fraction` of
+        spike-free phases.
+
+        Parameters:
+        -----------
+        timebase - array_like, (`J`,)
+            Timebase to be mapped to `window_fraction` of the
+            spike-free windows. Note that `timebase` does *not*
+            have to be the timebase of the signal `x` used to
+            initialize this `SpikeHandler` instance.
+            [timebase] = [self.spike_start_times]
+
+        window_fraction - array_like, (2,)
+            Fraction of spike-free window to return indices for.
+            By default, return indices of `timebase` that fall
+            within 20% to 80% of the spike-free windows.
+            [window_fraction] = unitless
+
+        Returns:
+        --------
+        ind - array_like, (`K`,)
+            Indices of `timebase` that fall within `window_fraction`
+            of the spike-free regions. `K` <= `J`.
+            [ind] = unitless
+
+        '''
+        tstart, tstop = self._getSpikeFreeTimeWindows(
+            window_fraction=window_fraction)
+
+        # Determine indices for ordered insertion of `timebase`
+        # into both `tstart` and `tstop`.
+        #
+        # Note that the `side` keyword is specified to handle
+        # the cases when elements of `timebase` are exactly
+        # equal to elements in either `tstart` or `tstop`.
+        insertion_ind_start = np.searchsorted(
+            tstart, timebase, side='right')
+        insertion_ind_stop = np.searchsorted(
+            tstop, timebase, side='left')
+
+        # Drawing a picture of signal with spikes and spike-free regions
+        # with corresponding `tstart` and `tstop` values should help
+        # understand the logic here...
+        return np.where(insertion_ind_start == (insertion_ind_stop + 1))[0]
 
 
 def _subset_boundary_values(x, min_subset_spacing=2):

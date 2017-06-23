@@ -398,7 +398,7 @@ def test_SpikeHandler__getSpikeFreeTimeWindows():
     # ------------------------
     Fs = 1.
     t0 = 0.
-    x = np.zeros(301)  # also timebase for this choice of `Fs` & `t0`
+    x = np.zeros(301)
     x[101] = 10.
     x[203] = 10.
 
@@ -436,5 +436,123 @@ def test_SpikeHandler__getSpikeFreeTimeWindows():
     # which begins at t = 0).
     np.testing.assert_equal(tstart, np.array([35, 137]))
     np.testing.assert_equal(tstop, np.array([53, 155]))
+
+    return
+
+
+def test_SpikeHandler_getSpikeFreeTimeIndices():
+    # Generate signal w/ two, single-point peaks for tests:
+    # =====================================================
+    Fs = 1.
+    t0 = 0.
+    x = np.zeros(301)
+    x[101] = 10.
+    x[203] = 10.
+
+    sh = SpikeHandler(x, Fs=Fs, t0=t0)
+
+    # Tests with same timebase as that of input signal:
+    # =================================================
+    timebase = t0 + (np.arange(len(x)) / Fs)
+
+    # 20% - 80% window:
+    # -----------------
+    ind = sh.getSpikeFreeTimeIndices(
+        timebase, window_fraction=[0.2, 0.8])
+
+    # Shift of 2 in second `arange(...)` expected because
+    # first peak happens at t = 101 and start of second spike-free
+    # region begins at t = 102 (contrast this with first region,
+    # which begins at t = 0).
+    ind_expected = np.concatenate((
+        np.arange(20, 81),
+        np.arange(122, 183)))
+
+    np.testing.assert_equal(ind, ind_expected)
+
+    # 0% - 100% window:
+    # -----------------
+    ind = sh.getSpikeFreeTimeIndices(
+        timebase, window_fraction=[0., 1.0])
+
+    # Shift of 2 in second `arange(...)` expected because
+    # first peak happens at t = 101 and start of second spike-free
+    # region begins at t = 102 (contrast this with first region,
+    # which begins at t = 0).
+    ind_expected = np.concatenate((
+        np.arange(0, 101),
+        np.arange(102, 203)))
+
+    np.testing.assert_equal(ind, ind_expected)
+
+    # Tests with same timebase offset by one from that of input signal:
+    # =================================================================
+    timebase = t0 + (np.arange(len(x)) / Fs) - 1
+
+    # 20% - 80% window:
+    # -----------------
+    ind = sh.getSpikeFreeTimeIndices(
+        timebase, window_fraction=[0.2, 0.8])
+
+    # Subtracting one from `timebase` of original signal means
+    # that we need to *add* one to expected indices from
+    # corresponding tests with original timebase.
+    ind_expected = np.concatenate((
+        np.arange(21, 82),
+        np.arange(123, 184)))
+
+    np.testing.assert_equal(ind, ind_expected)
+
+    # 0% - 100% window:
+    # -----------------
+    ind = sh.getSpikeFreeTimeIndices(
+        timebase, window_fraction=[0., 1.0])
+
+    # Subtracting one from `timebase` of original signal means
+    # that we need to *add* one to expected indices from
+    # corresponding tests with original timebase.
+    ind_expected = np.concatenate((
+        np.arange(1, 102),
+        np.arange(103, 204)))
+
+    np.testing.assert_equal(ind, ind_expected)
+
+    # Tests with same timebase 2x slower than that of input signal:
+    # =============================================================
+    timebase = t0 + (np.arange(len(x)) / (0.5 * Fs))
+
+    # 20% - 80% window:
+    # -----------------
+    ind = sh.getSpikeFreeTimeIndices(
+        timebase, window_fraction=[0.2, 0.8])
+
+    # For `timebase` that is 2x slower than that of original input signal,
+    # indices reduced by a factor of two as well relative to those
+    # determined for the original timebase. (Also, need to account for
+    # "off-by-one" type factors associated w/ using `arange(...)` etc.).
+    ind_expected = np.concatenate((
+        np.arange(10, 41),
+        np.arange(61, 92)))
+
+    np.testing.assert_equal(ind, ind_expected)
+
+    # 0% - 100% window:
+    # -----------------
+    ind = sh.getSpikeFreeTimeIndices(
+        timebase, window_fraction=[0., 1.0])
+
+    # For `timebase` that is 2x slower than that of original input signal,
+    # indices reduced by a factor of two as well relative to those
+    # determined for the original timebase. (Also, need to account for
+    # "off-by-one" type factors associated w/ using `arange(...)` etc.).
+    #
+    # In this particular case, note that the timebase is too slow
+    # and the fraction of the window is too large to exclude any
+    # points from the spike-free region.
+    ind_expected = np.concatenate((
+        np.arange(0, 51),
+        np.arange(51, 102)))
+
+    np.testing.assert_equal(ind, ind_expected)
 
     return
