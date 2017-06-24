@@ -126,7 +126,32 @@ class SpikeHandler(object):
         return spike_start_times, spike_free_start_times
 
     def _getSpikeFreeTimeWindows(self, window_fraction=[0.2, 0.8]):
-        'Get times corresponding to `window_fraction` of spike-free signal.'
+        '''Get times corresponding to `window_fraction` of spike-free signal.
+
+        Parameters:
+        -----------
+        window_fraction - array_like, (2,)
+            Fraction of spike-free window to return indices for.
+            By default, return indices of `timebase` that fall
+            within 20% to 80% of the spike-free windows.
+            [window_fraction] = unitless
+
+        Returns:
+        --------
+        (tstart, tstop) - tuple, where
+
+        tstart - array_like, (`L`,)
+            Time corresponding to the start of the `window_fraction`
+            spike-free window. (Note that `tstart[-1]` is computed
+            using the window length of the preceding spike-free region).
+            [tstart] = [self.spike_start_times]
+
+        tstop - array_like, (`L - 1`,)
+            Time corresponding to the end of the `window_fraction`
+            spike-free window.
+            [tstop] = [self.spike_start_times]
+
+        '''
         if len(window_fraction) != 2:
             raise ValueError('`window_fraction` must have length 2')
 
@@ -152,15 +177,20 @@ class SpikeHandler(object):
         if len(self.spike_start_times) == len(self.spike_free_start_times):
             spike_free_end_times = spike_free_end_times[1:]
 
-        # Temporal duration of each spike-free region in signal.
+        # Temporal duration of each inter-spike region in signal.
         # Note that the *last* point in `self.spike_free_start_times`
         # does not have a corresponding end time and therefore
         # should not be included in the window-length computation.
         window_length = spike_free_end_times - self.spike_free_start_times[:-1]
 
-        # Starts of requested window fractions
-        tstart = self.spike_free_start_times.copy()[:-1]
-        tstart += (window_fraction[0] * window_length)
+        # Starts of requested window fractions. Because the *last* point
+        # in `self.spike_free_start_times` does not have a corresponding
+        # end time from which to compute a window length, assume that
+        # the window length for `self.spike_free_start_times[-1]` is
+        # equal to that from the previous spike-free time.
+        tstart = self.spike_free_start_times.copy()
+        tstart[:-1] += (window_fraction[0] * window_length)
+        tstart[-1] += window_fraction[0] * window_length[-1]
 
         # Ends of requested window fractions
         tstop = spike_free_end_times
@@ -266,7 +296,7 @@ class SpikeHandler(object):
         tstart, tstop = self._getSpikeFreeTimeWindows(
             window_fraction=window_fraction)
 
-        for i in np.arange(len(tstop) - 1):
+        for i in np.arange(len(tstop)):
             ax.axvspan(tstop[i], tstart[i + 1], color=spike_color)
 
         return

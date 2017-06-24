@@ -411,8 +411,9 @@ def test_SpikeHandler__getSpikeFreeTimeWindows():
     # Shift of 2 in second entry of each array expected because
     # first peak happens at t = 101 and start of second spike-free
     # region begins at t = 102 (contrast this with first region,
-    # which begins at t = 0).
-    np.testing.assert_equal(tstart, np.array([20, 122]))
+    # which begins at t = 0). Similar reasoning applies for third
+    # entry of array in `tstart` test.
+    np.testing.assert_equal(tstart, np.array([20, 122, 224]))
     np.testing.assert_equal(tstop, np.array([80, 182]))
 
     # 0% - 100% window
@@ -422,8 +423,9 @@ def test_SpikeHandler__getSpikeFreeTimeWindows():
     # Shift of 2 in second entry of each array expected because
     # first peak happens at t = 101 and start of second spike-free
     # region begins at t = 102 (contrast this with first region,
-    # which begins at t = 0).
-    np.testing.assert_equal(tstart, np.array([0, 102]))
+    # which begins at t = 0). Similar reasoning applies for third
+    # entry of array in `tstart` test.
+    np.testing.assert_equal(tstart, np.array([0, 102, 204]))
     np.testing.assert_equal(tstop, np.array([100, 202]))
 
     # 35% - 53% window
@@ -433,8 +435,9 @@ def test_SpikeHandler__getSpikeFreeTimeWindows():
     # Shift of 2 in second entry of each array expected because
     # first peak happens at t = 101 and start of second spike-free
     # region begins at t = 102 (contrast this with first region,
-    # which begins at t = 0).
-    np.testing.assert_equal(tstart, np.array([35, 137]))
+    # which begins at t = 0). Similar reasoning applies for third
+    # entry of array in `tstart` test.
+    np.testing.assert_equal(tstart, np.array([35, 137, 239]))
     np.testing.assert_equal(tstop, np.array([53, 155]))
 
     return
@@ -463,10 +466,12 @@ def test_SpikeHandler_getSpikeFreeTimeIndices():
     # Shift of 2 in second `arange(...)` expected because
     # first peak happens at t = 101 and start of second spike-free
     # region begins at t = 102 (contrast this with first region,
-    # which begins at t = 0).
+    # which begins at t = 0). Similar reasoning applies for third
+    # `arange(...)`.
     ind_expected = np.concatenate((
         np.arange(20, 81),
-        np.arange(122, 183)))
+        np.arange(122, 183),
+        np.arange(224, 301)))
 
     np.testing.assert_equal(ind, ind_expected)
 
@@ -478,10 +483,12 @@ def test_SpikeHandler_getSpikeFreeTimeIndices():
     # Shift of 2 in second `arange(...)` expected because
     # first peak happens at t = 101 and start of second spike-free
     # region begins at t = 102 (contrast this with first region,
-    # which begins at t = 0).
+    # which begins at t = 0). Similar reasoning applies for third
+    # `arange(...)`.
     ind_expected = np.concatenate((
         np.arange(0, 101),
-        np.arange(102, 203)))
+        np.arange(102, 203),
+        np.arange(204, 301)))
 
     np.testing.assert_equal(ind, ind_expected)
 
@@ -496,10 +503,13 @@ def test_SpikeHandler_getSpikeFreeTimeIndices():
 
     # Subtracting one from `timebase` of original signal means
     # that we need to *add* one to expected indices from
-    # corresponding tests with original timebase.
+    # corresponding tests with original timebase. (*Except* for
+    # last argument in final `arange(...)`, as this value is
+    # fixed by the size of `timebase`, which still has length 300).
     ind_expected = np.concatenate((
         np.arange(21, 82),
-        np.arange(123, 184)))
+        np.arange(123, 184),
+        np.arange(225, 301)))
 
     np.testing.assert_equal(ind, ind_expected)
 
@@ -510,16 +520,19 @@ def test_SpikeHandler_getSpikeFreeTimeIndices():
 
     # Subtracting one from `timebase` of original signal means
     # that we need to *add* one to expected indices from
-    # corresponding tests with original timebase.
+    # corresponding tests with original timebase. (*Except* for
+    # last argument in final `arange(...)`, as this value is
+    # fixed by the size of `timebase`, which still has length 300).
     ind_expected = np.concatenate((
         np.arange(1, 102),
-        np.arange(103, 204)))
+        np.arange(103, 204),
+        np.arange(205, 301)))
 
     np.testing.assert_equal(ind, ind_expected)
 
     # Tests with same timebase 2x slower than that of input signal:
     # =============================================================
-    timebase = t0 + (np.arange(len(x)) / (0.5 * Fs))
+    timebase = np.arange(t0, len(x) / Fs, 1 / (0.5 * Fs))
 
     # 20% - 80% window:
     # -----------------
@@ -532,7 +545,8 @@ def test_SpikeHandler_getSpikeFreeTimeIndices():
     # "off-by-one" type factors associated w/ using `arange(...)` etc.).
     ind_expected = np.concatenate((
         np.arange(10, 41),
-        np.arange(61, 92)))
+        np.arange(61, 92),
+        np.arange(112, 151)))
 
     np.testing.assert_equal(ind, ind_expected)
 
@@ -551,7 +565,8 @@ def test_SpikeHandler_getSpikeFreeTimeIndices():
     # points from the spike-free region.
     ind_expected = np.concatenate((
         np.arange(0, 51),
-        np.arange(51, 102)))
+        np.arange(51, 102),
+        np.arange(102, 151)))
 
     np.testing.assert_equal(ind, ind_expected)
 
