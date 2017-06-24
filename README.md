@@ -28,12 +28,19 @@ In contrast, `random_data` produces time-resolved spectral density estimates
 that have been averaged over several realizations, effectively merging
 the functionality of `psd`/`csd` and `specgram`. This is largely accomplished
 via class definitions built around `matplotlib`'s `psd` and `csd` functions.
-Further, `random_data` provides a class to fit the cross-phase angles
-from an array of measurements to a linear model, allowing
-determination of mode numbers/wavenumbers as a function of frequency and time.
-Finally, `random_data`'s classes have robust methods
-for visualizing the relevant spectral estimates
-(magnitude, coherence, phase angle, mode number, and quality of fit).
+
+In addition, `random_data` provides:
+
+- a class to fit the cross-phase angles
+  from an array of measurements to a linear model,
+  allowing determination of mode numbers/wavenumbers
+  as a function of frequency and time,
+- robust methods for visualizing the relevant spectral estimates
+  (magnitude, coherence, phase angle, mode number, and quality of fit), and
+- a class for "spike" identification and
+  removal from spectral estimates.
+
+The installation and use of `random_data` are discussed below.
 
 
 Installation:
@@ -132,20 +139,21 @@ import random_data as rd
 # ------------------------
 # Parameters of digitized record
 Fs = 200e3  # sample rate, [Fs] = samples / s
+t0 = 0      # initial time, [t0] = s
 T = 1       # (approximate) record length, [T] = s
 
 # Generate two random signals
 fc = 25e3   # cutoff frequency, [fc] = Hz
 pole = 2    # 2-pole filter above fc
-sig1 = rd.signals.RandomSignal(Fs=Fs, T=T, fc=fc, pole=pole)
-sig2 = rd.signals.RandomSignal(Fs=Fs, T=T, fc=fc, pole=pole)
+sig1 = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
+sig2 = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
 
 # Add a coherent signal with well-known phase difference
 A = 3e-4                # amplitude, [A] = [sig1.x]
 f0 = 50e3               # frequency, [f0] = Hz
 theta12 = np.pi / 2     # cross-phase, [theta12] = radian
 
-omega0_t = 2 * np.pi * f0 * sig1.t
+omega0_t = 2 * np.pi * f0 * sig1.t()
 sig1.x += (A * np.cos(omega0_t))
 sig2.x += (A * np.cos(omega0_t + theta12))
 # =============================================================================
@@ -158,7 +166,7 @@ Tens = 5e-3         # ensemble time, [Tens] = s
 Nreal_per_ens = 10  # number of realizations per ensemble
 
 csd = rd.spectra.CrossSpectralDensity(
-    sig1.x, sig2.x, Fs=Fs, t0=sig1.t[0],
+    sig1.x, sig2.x, Fs=sig1.Fs, t0=sig1.t0,
     Tens=Tens, Nreal_per_ens=Nreal_per_ens)
 
 # Create plots
@@ -221,6 +229,7 @@ import random_data as rd
 # ------------------------
 # Parameters of digitized record
 Fs = 200e3  # sample rate, [Fs] = samples / s
+t0 = 0      # initial time, [t0] = s
 T = 0.2     # (approximate) record length, [T] = s
 
 # Measurement locations
@@ -231,8 +240,8 @@ Nsig = len(locations)
 # Generate representative random signal
 fc = 25e3   # cutoff frequency, [fc] = Hz
 pole = 2    # 2-pole filter above fc
-sig = rd.signals.RandomSignal(Fs=Fs, T=T, fc=fc, pole=pole)
-Npts = len(sig.t)
+sig = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
+Npts = len(sig.t())
 
 # Initialize signal array
 signals = np.zeros((Nsig, Npts))
@@ -241,7 +250,7 @@ signals = np.zeros((Nsig, Npts))
 A = 1e-3   # amplitude, [A] = [sig1.x]
 f0 = 50e3  # frequency, [f0] = Hz
 n = -3     # mode number
-omega0_t = 2 * np.pi * f0 * sig.t
+omega0_t = 2 * np.pi * f0 * sig.t()
 
 # Loop through measurement locations, creating corresponding
 # coherent signal corrupted by noise at each point
@@ -253,7 +262,7 @@ for i in np.arange(Nsig):
     signals[i, :] = A * np.cos(omega0_t + dtheta)
 
     # Uncorrelated noise
-    signals[i, :] += (rd.signals.RandomSignal(Fs=Fs, T=T, fc=fc, pole=pole)).x
+    signals[i, :] += (rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)).x
 # =============================================================================
 
 # =============================================================================
@@ -264,7 +273,7 @@ Tens = 5e-3        # ensemble time, [Tens] = s
 Nreal_per_ens = 4   # number of realizations per ensemble
 
 A = rd.array.Array(
-    signals, locations, Fs=Fs, t0=sig.t[0],
+    signals, locations, Fs=sig.Fs, t0=sig.t0,
     Tens=Tens, Nreal_per_ens=Nreal_per_ens)
 
 # Create plots
@@ -300,3 +309,110 @@ Plotting slices of other spectral quantities
 `'gamma2xy'` for magnitude-squared coherence)
 can be similarly created by substituting the appropriate string
 in place of `'theta_xy'`.
+
+
+Spike identification and handling:
+----------------------------------
+Spikes, whether physical or an artifact of a given measurement,
+may find their way into a random signal.
+Such spikes must be removed from the signal
+prior to performing spectral calculations
+to prevent corruption of the spectral estimates.
+The `random_data.signals.SpikeHandler` class allows for
+robust identification and visualization of spikes and
+easy removal of spike-induced contributions
+to the spectral estimates.
+
+(Note that most of the code below is to generate representative
+fake signals, while
+spike identification only requires
+initialization of a *single* object and
+spike visualization only requires
+the subsequent evaluation of a *single* method.)
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import random_data as rd
+
+# =============================================================================
+# Generate some fake data:
+# ------------------------
+# Parameters of digitized record
+Fs = 200e3  # sample rate, [Fs] = samples / s
+t0 = 0      # initial time, [t0] = s
+T = 0.2     # (approximate) record length, [T] = s
+
+# Generate representative random signal
+fc = 25e3   # cutoff frequency, [fc] = Hz
+pole = 2    # 2-pole filter above fc
+sig = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
+
+# Add "spikes" to various points of signal
+N = 200
+spike = 3 * np.std(sig.x) * np.random.randn(N)
+sig.x[5000:(5000 + N)] += spike
+sig.x[15000:(15000 + N)] -= spike
+sig.x[20000:(20000 + N)] += spike
+sig.x[23000:(23000 + N)] -= spike
+sig.x[29000:(29000 + N)] += spike
+# =============================================================================
+
+# =============================================================================
+# Detect spikes:
+# --------------
+sigma_mult = 5      # detect spikes that at 5x the RMS of `sig.x`
+debounce_dt = 5e-3  # distinct spikes must be at least 5 ms apart
+
+SH = rd.signals.SpikeHandler(
+    sig.x, Fs=sig.Fs, t0=sig.t0,
+    sigma_mult=sigma_mult, debounce_dt=debounce_dt)
+
+# Plot original signal, highlighting spikes:
+# ------------------------------------------
+window_fraction = [0.1, 0.9]
+SH.plotTraceWithSpikeColor(sig.x, sig.t(), window_fraction=window_fraction)
+plt.show()
+# =============================================================================
+
+```
+
+![trace_w_spikes](https://raw.githubusercontent.com/emd/random_data/master/figs/trace_w_spikes.png)
+
+The effects of including vs. excluding the spikes
+from the spectral computations can be easily evaluated:
+
+```python
+# Spectral calculations:
+# ----------------------
+# Spectral-estimation parameters
+Tens = 1e-3         # ensemble time, [Tens] = s; *LESS* than spike spacing!!!
+Nreal_per_ens = 1   # will perform averaging later, after spike removal
+
+asd = rd.spectra.AutoSpectralDensity(
+    sig.x, Fs=sig.Fs, t0=sig.t0,
+    Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+
+# Average over all contributions, including spikes
+Gxx_raw = np.mean(asd.Gxx, axis=-1)
+
+# Average only over `window_fraction` of spike-free windows
+ind = SH.getSpikeFreeTimeIndices(asd.t, window_fraction=window_fraction)
+Gxx_no_spikes = np.mean(asd.Gxx[:, ind], axis=-1)
+
+# Plot difference between raw and spike-free spectra:
+# ---------------------------------------------------
+fontsize = 16
+
+plt.figure()
+plt.loglog(asd.f, Gxx_raw, 'r')
+plt.loglog(asd.f, Gxx_no_spikes, 'b')
+plt.xlabel(r'$f$', fontsize=fontsize)
+plt.ylabel(r'$G_{xx}(f)$', fontsize=fontsize)
+plt.legend(['raw (w/ spikes)', 'w/o spikes'],
+           loc='lower left', fontsize=fontsize)
+plt.show()
+
+```
+
+![spike_vs_spikefree_spectra](https://raw.githubusercontent.com/emd/random_data/master/figs/spike_vs_spikefree_spectra.png)

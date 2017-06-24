@@ -606,10 +606,11 @@ def _test_plotModeNumber(
 
     # Signal parameters
     Fs = 200e3
+    t0 = 0
     T = 0.1
-    s = RandomSignal(Fs, T)
+    s = RandomSignal(Fs, t0, T)
     Npts = len(s.x)
-    t = s.t
+    t = s.t()
     f0 = 50e3
     A = 1e-2
 
@@ -621,7 +622,7 @@ def _test_plotModeNumber(
     # it certainly won't work in the presence of noise.
     for i in np.arange(Nsig):
         # Create some uncorrelated noise
-        signals[i, :] = (RandomSignal(Fs, T)).x
+        signals[i, :] = (RandomSignal(Fs, t0, T)).x
 
         # Add coherent mode
         signals[i, :] += A * np.cos(2 * np.pi * f0 * t)

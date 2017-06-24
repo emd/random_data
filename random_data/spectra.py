@@ -981,8 +981,8 @@ def _test_phase_angle(
     '''
     # Create some uncorrelated noise
     from .signals import RandomSignal
-    sig1 = RandomSignal(4e6, 0.1, fc=100e3, pole=2)
-    sig2 = RandomSignal(4e6, 0.1, fc=100e3, pole=2)
+    sig1 = RandomSignal(4e6, 0, 0.1, fc=100e3, pole=2)
+    sig2 = RandomSignal(4e6, 0, 0.1, fc=100e3, pole=2)
 
     # Coherent signal amplitude
     A0 = 1e-3
@@ -990,8 +990,9 @@ def _test_phase_angle(
     # Signal will have a linearly *ramping* frequency
     f0 = 50e3
     f1 = 75e3
-    m = (f1 - f0) / (2 * (sig1.t[-1] - sig1.t[0]))
-    f = f0 + (m * sig1.t)
+    t = sig1.t()
+    m = (f1 - f0) / (2 * (t[-1] - t[0]))
+    f = f0 + (m * t)
 
     # Check that plotted phase angle is correct for specified phase angles
     bins, dtheta = phase_angle_bins(dtheta, theta_min)
@@ -1001,11 +1002,11 @@ def _test_phase_angle(
         # Ideal lower boundary of phase angle is at `theta` - (0.5 * `dtheta`),
         # but we select 0.45 to give a bit of head room due to noise etc.
         th = th0 - (0.45 * dtheta)
-        y1 = sig1.x + (A0 * np.cos(2 * np.pi * f * sig1.t))
-        y2 = sig2.x + (A0 * np.cos((2 * np.pi * f * sig2.t) + th))
+        y1 = sig1.x + (A0 * np.cos(2 * np.pi * f * t))
+        y2 = sig2.x + (A0 * np.cos((2 * np.pi * f * t) + th))
 
         csd = CrossSpectralDensity(
-            y1, y2, Fs=sig1.Fs, t0=sig1.t[0],
+            y1, y2, Fs=sig1.Fs, t0=sig1.t0,
             Tens=Tens, Nreal_per_ens=Nreal_per_ens,
             print_params=False, print_status=False)
 
@@ -1034,11 +1035,11 @@ def _test_phase_angle(
         # Ideal upper boundary of phase angle is at `theta` + (0.5 * `dtheta`),
         # but we select 0.45 to give a bit of head room due to noise etc.
         th = th0 + (0.45 * dtheta)
-        y1 = sig1.x + (A0 * np.cos(2 * np.pi * f * sig1.t))
-        y2 = sig2.x + (A0 * np.cos((2 * np.pi * f * sig2.t) + th))
+        y1 = sig1.x + (A0 * np.cos(2 * np.pi * f * t))
+        y2 = sig2.x + (A0 * np.cos((2 * np.pi * f * t) + th))
 
         csd = CrossSpectralDensity(
-            y1, y2, Fs=sig1.Fs, t0=sig1.t[0],
+            y1, y2, Fs=sig1.Fs, t0=sig1.t0,
             Tens=Tens, Nreal_per_ens=Nreal_per_ens,
             print_params=False, print_status=False)
 
