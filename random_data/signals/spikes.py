@@ -175,6 +175,10 @@ class SpikeHandler(object):
         # has no corresponding start time, so this point should
         # be disregarded.
         if len(self.spike_start_times) == len(self.spike_free_start_times):
+            print ('\nWARNING: Spike detected as first data point -- '
+                   'ignoring this spike.')
+            print ('Consider altering time window '
+                   'to avoid this issue.')
             spike_free_end_times = spike_free_end_times[1:]
 
         # Temporal duration of each inter-spike region in signal.
