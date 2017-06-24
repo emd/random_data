@@ -251,7 +251,7 @@ class SpikeHandler(object):
     def plotTraceWithSpikeColor(
             self, trace, timebase, downsample=None,
             window_fraction=[0.2, 0.8], spike_color='lightcoral',
-            ax=None):
+            ax=None, fontsize=16):
         '''Plot `trace` with spikes highlighted by `spike_color`.
 
         Parameters:
@@ -291,6 +291,9 @@ class SpikeHandler(object):
         ax - `AxesSubplot <matplotlib.axes._subplots.AxesSubplot>` or None
             Axis in which to plot `trace` vs. `timebase`.
 
+        fontsize - int
+            Size of font in titles, labels, etc.
+
         '''
         if ax is None:
             fig, ax = plt.subplots(1, 1)
@@ -302,6 +305,11 @@ class SpikeHandler(object):
 
         for i in np.arange(len(tstop)):
             ax.axvspan(tstop[i], tstart[i + 1], color=spike_color)
+
+        ax.set_xlabel(r'$t$', fontsize=fontsize)
+        ax.set_ylabel(r'$x(t)$', fontsize=fontsize)
+
+        plt.show()
 
         return
 

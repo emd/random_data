@@ -7,56 +7,66 @@ import numpy as np
 
 
 class RandomSignal(object):
-    '''Random signal class.
+    '''A class for the creation of random signals.
 
-    Random signal sampled at frequency `Fs` over time interval `T`
-    with a pole of order `pole` above the cutoff frequency `fc`.
+    Attributes:
+    -----------
+    Fs - float
+        Sample rate.
+        [Fs] = arbitrary units
 
-    Instances have the following attributes as inputs:
+    t0 - float
+        Initial time (i.e. when sampling begins).
+        [t0] = 1 / [Fs]
 
-        Fs - float, required
-            Sample frequency
-            [Fs] = Arbitrary Units
+    fc - float, optional
+        Cutoff frequency; frequencies f > fc are "cutoff"
+        with a strength determined by `self.pole`
+        [fc] = [Fs]
 
-        T - float, required
-            Time interval over which signal is measured
+    pole - float, optional
+        Order of the pole for f > fc
+
+    '''
+    def __init__(self, Fs, t0, T, fc=np.inf, pole=None):
+        '''Create instance of the `RandomSignal` class.
+
+        Parameters:
+        -----------
+        Fs - float
+            Sample rate.
+            [Fs] = arbitrary units
+
+        t0 - float
+            Initial time (i.e. when sampling begins).
+            [t0] = 1 / [Fs]
+
+        T - float
+            Desired time interval over which signal is measured.
+            Because creation of the random signal relies on the FFT
+            (which is fastest for powers of two), the realized time
+            interval `Treal` will be selected such that
+
+                    Treal * Fs = nearest_power_of_2(T * Fs).
+
             [T] = 1 / [Fs]
 
-        fc - float, optional
+        fc - float
             Cutoff frequency; frequencies f > fc will be "cutoff"
-            with a strength determined by `pole`
+            with a strength determined by `pole`.
             [fc] = [Fs]
 
         pole - float, optional
-            Order of the pole for f > fc
+            Order of the pole for f > fc.
 
-    In addition, the following attributes are created during initialization
-
-        f - array, (`N`,)
-            Frequency bins
-            [f] = [Fs]
-
-        Xf - array, (`N`,)
-            Fourier transform (i.e. frequency domain representation)
-            of signal
-            [Xf] = [x] / [Fs]
-
-        t - array, (`M`,) where `M` = 2 * (`N` - 1)
-            Sample times
-            [t] = 1 / [Fs]
-
-        x - array, (`M`,) where `M` = 2 * (`N` - 1)
-            Time domain representation of signal/sampled values
-            [x] = Arbitrary Units
-
-    '''
-    def __init__(self, Fs, T, fc=np.inf, pole=None):
-        '''
         '''
         self.Fs = Fs
+        self.t0 = t0
         self.fc = fc
         self.pole = pole
 
+        # Construct the random signal in the frequency domain
+        #
         # As we are dealing with *real* signals, the Fourier transform
         # is Hermitian, so we can simply look at the one-sided spectrum.
         # This reduces the number of bins in the frequency domain by 2.
@@ -68,14 +78,6 @@ class RandomSignal(object):
         exponent = int(np.round(np.log2(Nfreq_1sided)))
         Nfreq_1sided = (2 ** exponent) + 1
 
-        # The realized time, using `Nfreq_1sided` as determined above
-        Ntimes = 2 * (Nfreq_1sided - 1)
-        self.T = Ntimes / Fs
-        self.t = np.linspace(0, self.T, Ntimes)
-
-        # Construct the random signal in the frequency domain
-        self.f = np.linspace(0, Fs / 2., Nfreq_1sided)
-
         # Signal phase, random
         ph = 2 * np.pi * np.random.random(Nfreq_1sided)
 
@@ -85,10 +87,15 @@ class RandomSignal(object):
         # If desired, weight signal magnitude with a pole of order `pole`
         # above cutoff frequency `fc`
         if pole is not None:
-            Xf = Xf / (1 + ((self.f / fc) ** pole))
+            f = np.linspace(0, Fs / 2., Nfreq_1sided)
+            Xf = Xf / (1 + ((f / fc) ** pole))
 
         # Random signal's frequency domain representation, magnitude and phase
-        self.Xf = Xf * np.exp(1j * ph)
+        Xf = Xf * np.exp(1j * ph)
 
         # Random signal in the time domain
-        self.x = np.fft.irfft(self.Xf)
+        self.x = np.fft.irfft(Xf)
+
+    def t(self):
+        'Get times for points in `self.x`.'
+        return self.t0 + (np.arange(len(self.x)) / self.Fs)
