@@ -132,20 +132,21 @@ import random_data as rd
 # ------------------------
 # Parameters of digitized record
 Fs = 200e3  # sample rate, [Fs] = samples / s
+t0 = 0      # initial time, [t0] = s
 T = 1       # (approximate) record length, [T] = s
 
 # Generate two random signals
 fc = 25e3   # cutoff frequency, [fc] = Hz
 pole = 2    # 2-pole filter above fc
-sig1 = rd.signals.RandomSignal(Fs=Fs, T=T, fc=fc, pole=pole)
-sig2 = rd.signals.RandomSignal(Fs=Fs, T=T, fc=fc, pole=pole)
+sig1 = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
+sig2 = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
 
 # Add a coherent signal with well-known phase difference
 A = 3e-4                # amplitude, [A] = [sig1.x]
 f0 = 50e3               # frequency, [f0] = Hz
 theta12 = np.pi / 2     # cross-phase, [theta12] = radian
 
-omega0_t = 2 * np.pi * f0 * sig1.t
+omega0_t = 2 * np.pi * f0 * sig1.t()
 sig1.x += (A * np.cos(omega0_t))
 sig2.x += (A * np.cos(omega0_t + theta12))
 # =============================================================================
@@ -158,7 +159,7 @@ Tens = 5e-3         # ensemble time, [Tens] = s
 Nreal_per_ens = 10  # number of realizations per ensemble
 
 csd = rd.spectra.CrossSpectralDensity(
-    sig1.x, sig2.x, Fs=Fs, t0=sig1.t[0],
+    sig1.x, sig2.x, Fs=sig1.Fs, t0=sig1.t0,
     Tens=Tens, Nreal_per_ens=Nreal_per_ens)
 
 # Create plots
@@ -221,6 +222,7 @@ import random_data as rd
 # ------------------------
 # Parameters of digitized record
 Fs = 200e3  # sample rate, [Fs] = samples / s
+t0 = 0      # initial time, [t0] = s
 T = 0.2     # (approximate) record length, [T] = s
 
 # Measurement locations
@@ -231,8 +233,8 @@ Nsig = len(locations)
 # Generate representative random signal
 fc = 25e3   # cutoff frequency, [fc] = Hz
 pole = 2    # 2-pole filter above fc
-sig = rd.signals.RandomSignal(Fs=Fs, T=T, fc=fc, pole=pole)
-Npts = len(sig.t)
+sig = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
+Npts = len(sig.t())
 
 # Initialize signal array
 signals = np.zeros((Nsig, Npts))
@@ -241,7 +243,7 @@ signals = np.zeros((Nsig, Npts))
 A = 1e-3   # amplitude, [A] = [sig1.x]
 f0 = 50e3  # frequency, [f0] = Hz
 n = -3     # mode number
-omega0_t = 2 * np.pi * f0 * sig.t
+omega0_t = 2 * np.pi * f0 * sig.t()
 
 # Loop through measurement locations, creating corresponding
 # coherent signal corrupted by noise at each point
@@ -253,7 +255,7 @@ for i in np.arange(Nsig):
     signals[i, :] = A * np.cos(omega0_t + dtheta)
 
     # Uncorrelated noise
-    signals[i, :] += (rd.signals.RandomSignal(Fs=Fs, T=T, fc=fc, pole=pole)).x
+    signals[i, :] += (rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)).x
 # =============================================================================
 
 # =============================================================================
@@ -264,7 +266,7 @@ Tens = 5e-3        # ensemble time, [Tens] = s
 Nreal_per_ens = 4   # number of realizations per ensemble
 
 A = rd.array.Array(
-    signals, locations, Fs=Fs, t0=sig.t[0],
+    signals, locations, Fs=sig.Fs, t0=sig.t0,
     Tens=Tens, Nreal_per_ens=Nreal_per_ens)
 
 # Create plots
