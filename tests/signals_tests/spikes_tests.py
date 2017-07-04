@@ -547,6 +547,53 @@ def test_SpikeHandler_addSpike():
     return
 
 
+def test_SpikeHandler_removeSpike():
+    # Two, single-point peaks; initial point is spike-free:
+    # -----------------------------------------------------
+    Fs = 1.
+    t0 = 0.
+    x = np.zeros(301)
+    x[101] = 10.
+    x[203] = 10.
+
+    sh = SpikeHandler(x, Fs=Fs, t0=t0)
+
+    # Remove spike closest to time 100
+    sh.removeSpike(100)
+
+    np.testing.assert_equal(
+        sh.spike_start_times,
+        [203])
+
+    np.testing.assert_equal(
+        sh.spike_free_start_times,
+        [0, 204])
+
+    # Three, single-point peaks; initial point is a spike:
+    # ----------------------------------------------------
+    Fs = 1.
+    t0 = 0.
+    x = np.zeros(301)
+    x[0] = 10.
+    x[101] = 10.
+    x[203] = 10.
+
+    sh = SpikeHandler(x, Fs=Fs, t0=t0)
+
+    # Remove spike closest to time 100
+    sh.removeSpike(100)
+
+    np.testing.assert_equal(
+        sh.spike_start_times,
+        [0, 203])
+
+    np.testing.assert_equal(
+        sh.spike_free_start_times,
+        [1, 204])
+
+    return
+
+
 def test_SpikeHandler_getSpikeFreeTimeIndices():
     # Generate signal w/ two, single-point peaks for tests:
     # =====================================================

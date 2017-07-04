@@ -256,6 +256,37 @@ class SpikeHandler(object):
 
         return
 
+    def removeSpike(self, t):
+        'Remove spike closest to `t`.'
+        # Determine index for `self.spike_start_times` closest to `t`.
+        # Note that the indexing of `self.spike_start_times` is
+        # *independent* of whether or not the first point in the
+        # input signal is identified as a spike.
+        dt = np.abs(self.spike_start_times - t)
+        spike_start_ind = np.where(dt == np.min(dt))[0][0]
+
+        # However, the indexing of `self.spike_free_start_times`
+        # relative to that of `self.spike_start_times` depends on
+        # whether or not the first point in the input signal
+        # is identified as being a spike.
+        if len(self.spike_start_times) == len(self.spike_free_start_times):
+            # First point in input signal was identified as a spike
+            spike_free_start_ind = spike_start_ind
+        else:
+            # First point in input signal was identified as being spike-free
+            spike_free_start_ind = spike_start_ind + 1
+
+        # Remove points corresponding to spike
+        self.spike_start_times = np.concatenate((
+            self.spike_start_times[:spike_start_ind],
+            self.spike_start_times[(spike_start_ind + 1):]))
+
+        self.spike_free_start_times = np.concatenate((
+            self.spike_free_start_times[:spike_free_start_ind],
+            self.spike_free_start_times[(spike_free_start_ind + 1):]))
+
+        return
+
     def getSpikeFreeTimeIndices(self, timebase, window_fraction=[0.2, 0.8]):
         '''Get indices of `timebase` falling within `window_fraction` of
         spike-free phases.
