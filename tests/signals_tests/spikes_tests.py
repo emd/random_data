@@ -443,6 +443,110 @@ def test_SpikeHandler__getSpikeFreeTimeWindows():
     return
 
 
+def test_SpikeHandler_addSpike():
+    # SpikeHandler instance for two, single-point peaks:
+    # ==================================================
+    Fs = 1.
+    t0 = 0.
+    x = np.zeros(301)
+    x[101] = 10.
+    x[203] = 10.
+
+    sh = SpikeHandler(x, Fs=Fs, t0=t0)
+
+    # `tlim` should have length 2:
+    # ============================
+    tlim = [10, 20, 30]
+    tools.assert_raises(
+        ValueError,
+        sh.addSpike,
+        *[tlim])
+
+    # Raise a ValueError if `tlim` straddles identified spike(s):
+    # ===========================================================
+
+    # Two, single-point peaks; initial point is spike-free:
+    # -----------------------------------------------------
+    Fs = 1.
+    t0 = 0.
+    x = np.zeros(301)
+    x[101] = 10.
+    x[203] = 10.
+
+    sh = SpikeHandler(x, Fs=Fs, t0=t0)
+
+    tlim = [100, 101]
+    tools.assert_raises(
+        ValueError,
+        sh.addSpike,
+        *[tlim])
+
+    # Three, single-point peaks; initial point is a spike:
+    # ----------------------------------------------------
+    Fs = 1.
+    t0 = 0.
+    x = np.zeros(301)
+    x[0] = 10.
+    x[101] = 10.
+    x[203] = 10.
+
+    sh = SpikeHandler(x, Fs=Fs, t0=t0)
+
+    tlim = [100, 101]
+    tools.assert_raises(
+        ValueError,
+        sh.addSpike,
+        *[tlim])
+
+    # Test a valid insertion:
+    # =======================
+
+    # Two, single-point peaks; initial point is spike-free:
+    # -----------------------------------------------------
+    Fs = 1.
+    t0 = 0.
+    x = np.zeros(301)
+    x[101] = 10.
+    x[203] = 10.
+
+    sh = SpikeHandler(x, Fs=Fs, t0=t0)
+
+    tlim = [150, 155]
+    sh.addSpike(tlim)
+
+    np.testing.assert_equal(
+        sh.spike_start_times,
+        [101, 150, 203])
+
+    np.testing.assert_equal(
+        sh.spike_free_start_times,
+        [0, 102, 156, 204])
+
+    # Three, single-point peaks; initial point is a spike:
+    # ----------------------------------------------------
+    Fs = 1.
+    t0 = 0.
+    x = np.zeros(301)
+    x[0] = 10.
+    x[101] = 10.
+    x[203] = 10.
+
+    sh = SpikeHandler(x, Fs=Fs, t0=t0)
+
+    tlim = [150, 155]
+    sh.addSpike(tlim)
+
+    np.testing.assert_equal(
+        sh.spike_start_times,
+        [0, 101, 150, 203])
+
+    np.testing.assert_equal(
+        sh.spike_free_start_times,
+        [1, 102, 156, 204])
+
+    return
+
+
 def test_SpikeHandler_getSpikeFreeTimeIndices():
     # Generate signal w/ two, single-point peaks for tests:
     # =====================================================
