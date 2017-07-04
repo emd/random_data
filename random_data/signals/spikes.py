@@ -202,6 +202,91 @@ class SpikeHandler(object):
 
         return tstart, tstop
 
+    def addSpike(self, tlim):
+        '''Add spike beginning at `tlim[0]` and ending at `tlim[1]`
+        to list of identified spikes.
+
+        '''
+        if len(tlim) != 2:
+            raise ValueError('`tlim` must have length 2')
+
+        tlim = np.sort(tlim)
+        spike_start_time = tlim[0]
+        spike_free_start_time = tlim[1] + (1. / self._Fs)
+
+        # Determine index for insertion of `spike_start_time` into
+        # `self.spike_start_times`. Note that the indexing of
+        # `self.spike_start_times` is *independent* of whether or not
+        # the first point in the input signal is identified as a spike.
+        spike_insertion_ind = np.searchsorted(
+            self.spike_start_times, spike_start_time)
+
+        # However, the indexing of `self.spike_free_start_times`
+        # relative to that of `self.spike_start_times` depends on
+        # whether or not the first point in the input signal
+        # is identified as being a spike.
+        if len(self.spike_start_times) == len(self.spike_free_start_times):
+            # First point in input signal was identified as a spike
+            spike_free_insertion_ind = spike_insertion_ind
+        else:
+            # First point in input signal was identified as being spike-free
+            spike_free_insertion_ind = spike_insertion_ind + 1
+
+        next_spike_start_time = self.spike_start_times[spike_insertion_ind]
+        prev_spike_free_start_time = self.spike_free_start_times[
+            spike_free_insertion_ind - 1]
+
+        # Ensure spike does not overlap with spikes that have
+        # already been identified
+        if spike_start_time <= prev_spike_free_start_time:
+            raise ValueError('`tlim` overlaps already identified spike(s).')
+        elif spike_free_start_time >= next_spike_start_time:
+            raise ValueError('`tlim` overlaps already identified spike(s).')
+
+        # Insert spike and spike-free start times into respective arrays
+        self.spike_start_times = np.concatenate((
+            self.spike_start_times[:spike_insertion_ind],
+            np.array([spike_start_time]),
+            self.spike_start_times[spike_insertion_ind:]))
+
+        self.spike_free_start_times = np.concatenate((
+            self.spike_free_start_times[:spike_free_insertion_ind],
+            np.array([spike_free_start_time]),
+            self.spike_free_start_times[spike_free_insertion_ind:]))
+
+        return
+
+    def removeSpike(self, t):
+        'Remove spike closest to `t`.'
+        # Determine index for `self.spike_start_times` closest to `t`.
+        # Note that the indexing of `self.spike_start_times` is
+        # *independent* of whether or not the first point in the
+        # input signal is identified as a spike.
+        dt = np.abs(self.spike_start_times - t)
+        spike_start_ind = np.where(dt == np.min(dt))[0][0]
+
+        # However, the indexing of `self.spike_free_start_times`
+        # relative to that of `self.spike_start_times` depends on
+        # whether or not the first point in the input signal
+        # is identified as being a spike.
+        if len(self.spike_start_times) == len(self.spike_free_start_times):
+            # First point in input signal was identified as a spike
+            spike_free_start_ind = spike_start_ind
+        else:
+            # First point in input signal was identified as being spike-free
+            spike_free_start_ind = spike_start_ind + 1
+
+        # Remove points corresponding to spike
+        self.spike_start_times = np.concatenate((
+            self.spike_start_times[:spike_start_ind],
+            self.spike_start_times[(spike_start_ind + 1):]))
+
+        self.spike_free_start_times = np.concatenate((
+            self.spike_free_start_times[:spike_free_start_ind],
+            self.spike_free_start_times[(spike_free_start_ind + 1):]))
+
+        return
+
     def getSpikeFreeTimeIndices(self, timebase, window_fraction=[0.2, 0.8]):
         '''Get indices of `timebase` falling within `window_fraction` of
         spike-free phases.
