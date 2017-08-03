@@ -54,6 +54,30 @@ def test_ArrayStencil_getUniqueCorrelationPairs():
     return
 
 
+def test_ArrayStencil_getSeparationGCD():
+    # No unique correlation pairs
+    stencil = ArrayStencil([1], include_autocorrelations=False)
+    tools.assert_equal(0, stencil.separation_gcd)
+
+    # Single unique (auto)correlation pair
+    stencil = ArrayStencil([1], include_autocorrelations=True)
+    tools.assert_equal(0, stencil.separation_gcd)
+
+    # Uniform grid
+    stencil = ArrayStencil([0, 2, 4])
+    tools.assert_equal(2, stencil.separation_gcd)
+
+    # Non-uniform grid
+    stencil = ArrayStencil([0, 4, 12])
+    tools.assert_equal(4, stencil.separation_gcd)
+
+    # Non-monotonic grid with "negative" separation values
+    stencil = ArrayStencil([2, 3, 1], include_autocorrelations=False)
+    tools.assert_equal(1, stencil.separation_gcd)
+
+    return
+
+
 def test_Array_getSpectralDensities():
     # Sampling properties
     Fs = 200e3

@@ -7,6 +7,7 @@ where an "array" is defined as three or more measurements.
 # Standard library imports
 import numpy as np
 import matplotlib.pyplot as plt
+from fractions import gcd
 
 # Related 3rd-party imports
 from .ensemble import closest_index
@@ -87,6 +88,7 @@ class ArrayStencil(object):
         self.include_autocorrelations = include_autocorrelations
 
         self.getUniqueCorrelationPairs()
+        self.separation_gcd = self.getSeparationGCD()
 
     def getUniqueCorrelationPairs(self):
         'Determine unique correlation pairs in the stencil.'
@@ -136,6 +138,16 @@ class ArrayStencil(object):
         self.yind = self.yind[sind]
 
         return
+
+    def getSeparationGCD(self):
+        '''Get greatest common divisor of `self.separation`.
+
+        If the stencil `self.locations` is a subset of an underlying
+        uniform grid, the greatest common divisor corresponds to the
+        spacing between adjacent points on this uniform grid.
+
+        '''
+        return reduce(gcd, np.abs(self.separation), 0)
 
 
 class Array(object):
