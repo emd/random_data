@@ -81,7 +81,13 @@ class ArrayStencil(object):
         -----------------
         locations - array_like, (`N`,)
             Location of each measurement point in the 1-dimensional
-            stencil.
+            stencil. Note that methods belonging to this class are
+            most robust if `locations` are *integers*; floating point
+            values can lead to round-off errors that lead to strange
+            behavior. If possible, it is recommended to convert
+            convert a floating point stencil into its equivalent
+            integer stencil, e.g. if the stencil is [0.5, 1, 2],
+            an equivalent integer stencil would be [1, 2, 4].
             [locations] = arbitrary units
 
         include_autocorrelations - bool
