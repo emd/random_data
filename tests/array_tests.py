@@ -78,6 +78,22 @@ def test_ArrayStencil_getSeparationGCD():
     return
 
 
+def test_ArrayStencil_getMask():
+    # Uniform grid
+    stencil = ArrayStencil([1, 2, 3])
+    np.testing.assert_equal(stencil.getMask(), [1, 1, 1])
+
+    # Non-uniform grid
+    stencil = ArrayStencil([0.5, 2, 3])
+    np.testing.assert_equal(stencil.getMask(), [1, 0, 0, 1, 0, 1])
+
+    # Non-monotonic, non-uniform grid
+    stencil = ArrayStencil([2, 3, 0.5])
+    np.testing.assert_equal(stencil.getMask(), [1, 0, 0, 1, 0, 1])
+
+    return
+
+
 def test_Array_getSpectralDensities():
     # Sampling properties
     Fs = 200e3

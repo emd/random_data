@@ -149,6 +149,25 @@ class ArrayStencil(object):
         '''
         return reduce(gcd, np.abs(self.separation), 0)
 
+    def getMask(self):
+        '''Get "mask" of stencil points that are on (1) or off (0),
+        assuming that `self.locations` is a subset of an underlying
+        uniform grid.
+
+        '''
+        locations = np.sort(self.locations)
+
+        underlying_grid = np.arange(
+            locations[0],
+            locations[-1] + self.separation_gcd,
+            self.separation_gcd)
+
+        mask = np.zeros(len(underlying_grid))
+        ind_on = np.searchsorted(underlying_grid, locations)
+        mask[ind_on] = 1
+
+        return mask
+
 
 class Array(object):
     '''A class for fitting the cross-phase angles of an array
