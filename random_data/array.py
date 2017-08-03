@@ -168,6 +168,28 @@ class ArrayStencil(object):
 
         return mask
 
+    def plotMask(self):
+        'Plot mask of stencil points in both real and Fourier space.'
+        mask = self.getMask()
+
+        k = 2 * np.pi * np.fft.rfftfreq(len(mask))
+        mask_hat = np.fft.rfft(mask)
+
+        fig, axes = plt.subplots(2, 1)
+
+        axes[0].plot(mask, 'o')
+        axes[0].set_xlabel('underlying uniform grid points')
+        axes[0].set_ylabel('mask')
+
+        axes[1].semilogy(k, np.abs(mask_hat))
+        axes[1].set_xlabel('k [1 / (grid-point spacing)]')
+        axes[1].set_ylabel('|FT(mask)|')
+
+        plt.tight_layout()
+        plt.show()
+
+        return
+
 
 class Array(object):
     '''A class for fitting the cross-phase angles of an array
