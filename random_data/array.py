@@ -14,6 +14,140 @@ from .spectra import CrossSpectralDensity, _plot_image, wrap
 from .errors import cross_phase_std_dev
 
 
+class ArrayStencil(object):
+    '''A class for analyzing the geometric and spectral properties
+    of arbitrary 1-dimensional sampling "stencils". Point sampling
+    is assumed at each stencil point.
+
+    Background:
+    -----------
+    Uniform sampling (e.g. sampling in time with a constant sampling
+    rate) is perhaps the most common stencil, and, as a result, its
+    geometric and spectral properties are "well-known". Non-uniform
+    stencils can have beneficial or deleterious characteristics that
+    result from the underlying geometric structure of the stencil.
+
+    Several of this class's attributes are motivated by and are
+    consistent with the definition of the cross-correlation function
+
+            R_{xy}(delta) = E[x_k(z) * y_k(z + delta)],
+
+    where
+
+        - E[...] is the expectation-value operator,
+
+        - x_k (y_k) is the kth realization of random process {x_k} ({y_k})
+          (i.e. measurement at stencil point x (y)), and
+
+        - delta is the separation between stencil point y and
+          stencil point x.
+
+    Attributes:
+    -----------
+    locations - array_like, (`N`,)
+        Location of each measurement point in the 1-dimensional
+        stencil. Provided during initialization.
+        [locations] = arbitrary units
+
+    include_autocorrelations - bool
+        If True, autocorrelations have been included as unique
+        correlation pairs.
+
+    separation - array_like, (`M`,)
+        The separation between each unique correlation pair
+        in the stencil as determined by
+
+            separation = locations[yind] - locations[xind],
+
+        where `locations`, `yind`, and `xind` are additional
+        attributes of `ArrayStencil`.
+        [separation] = [locations]
+
+    xind (yind) - array_like, (`M`,)
+        The indices of `self.locations` corresponding to the
+        "x" ("y") stencil points in each unique correlation pair.
+        [xind] = [yind] = unitles
+
+    '''
+    def __init__(self, locations, include_autocorrelations=True):
+        '''Create an instance of the `ArrayStencil` class.
+
+        Input parameters:
+        -----------------
+        locations - array_like, (`N`,)
+            Location of each measurement point in the 1-dimensional
+            stencil.
+            [locations] = arbitrary units
+
+        include_autocorrelations - bool
+            If True, include autocorrelations as unique correlation pairs.
+
+        '''
+        self.locations = locations
+        self.include_autocorrelations = include_autocorrelations
+
+    def getUniqueCorrelationPairs(self):
+        'Determine unique correlation pairs in the stencil.'
+        # Number of measurement locations
+        N = self.locations.shape[0]
+
+        # Number of *unique* cross-correlations provided `N` measurements
+        Ncorr = (N * (N - 1)) // 2
+
+        # If desired, also account for autocorrelations
+        if self.include_autocorrelations:
+            Ncorr += N
+
+        # Initialize
+        self.xind = np.zeros(Ncorr, dtype=int)
+        self.yind = np.zeros(Ncorr, dtype=int)
+
+        # Correlating a signal at a given location against itself
+        # (i.e. zero offset in the indexing of `self.locations`)
+        # produces the autocorrelation.
+        if self.include_autocorrelations:
+            minimum_offset = 0
+        else:
+            minimum_offset = 1
+
+        # Determine each *unique* correlation pair
+        cind = 0  # correlation index
+        for x in np.arange(N - 1):
+            for y in np.arange(x + minimum_offset, N):
+                # `xind` and `yind` are the indices of `self.locations` that
+                # correspond to each correlation pair
+                self.xind[cind] = x
+                self.yind[cind] = y
+
+                cind += 1
+
+        # The cross-correlation function R_{xy}(delta) is defined as
+        #
+        #     R_{xy}(delta) = E[x_k(z) * y_k(z + delta)]
+        #
+        # where
+        #
+        # - E[...] is the expectation-value operator,
+        # - x_k is the kth realization of random process {x_k}
+        #   (and similarly for y_k), and
+        # - delta is the separation between stencil point y and
+        #   stencil point x.
+        #
+        # Consistency with the above definition motivates our definition
+        # of `self.separation`.
+        #
+        self.separation = (self.locations[self.yind]
+                           - self.locations[self.xind])
+
+        # Sort correlation pairs based upon their spatial separation
+        sind = np.argsort(self.separation)
+        self.separation = self.separation[sind]
+        self.xind = self.xind[sind]
+        self.yind = self.yind[sind]
+
+        return
+
+
 class Array(object):
     '''A class for fitting the cross-phase angles of an array
     of measurements vs. measurement separation to a linear model
