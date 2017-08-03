@@ -190,6 +190,18 @@ class ArrayStencil(object):
 
         return
 
+    def plotSeparationDistribution(self, bin_width=1):
+        'Plot distribution of separations.'
+        Nbins = (self.separation[-1] - self.separation[0]) // bin_width
+
+        plt.figure()
+        plt.hist(self.separation, bins=Nbins)
+        plt.xlabel('separation')
+        plt.ylabel('count')
+        plt.show()
+
+        return
+
 
 class Array(object):
     '''A class for fitting the cross-phase angles of an array
