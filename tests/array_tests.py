@@ -1,11 +1,12 @@
 from nose import tools
 import numpy as np
 from random_data.spectra import CrossSpectralDensity
-from random_data.array import Array, coefficient_of_determination
+from random_data.array import (
+    Array, ArrayStencil, coefficient_of_determination)
 from random_data.ensemble import closest_index
 
 
-def test_getSpectralDensities():
+def test_Array_getSpectralDensities():
     # Sampling properties
     Fs = 200e3
     t0 = 0
@@ -48,7 +49,7 @@ def test_getSpectralDensities():
     return
 
 
-def test_getSlice():
+def test_Array_getSlice():
     # Sampling properties
     Fs = 200e3
     t0 = 0
@@ -135,7 +136,7 @@ def test_coefficient_of_determination():
     return
 
 
-def test_fitPhaseAngles():
+def test_Array_fitPhaseAngles():
     # Measurement locations
     locations = np.arange(0, 2 * np.pi)
     Nsig = len(locations)
