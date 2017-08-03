@@ -93,6 +93,7 @@ def test_ArrayStencil_getMask():
 
     return
 
+
 def test_ArrayStencil_getUniqueSeparation():
     # Uniform grid
     stencil = ArrayStencil([1, 2, 3])
@@ -111,6 +112,72 @@ def test_ArrayStencil_getUniqueSeparation():
     np.testing.assert_equal(
         stencil.getUniqueSeparation(),
         [-2.5, -1.5, 0.0, 1.0])
+
+    return
+
+
+def test_ArrayStencil_getCrossCorrelation_SineWave():
+    # Sine wave properties
+    f0 = 0.125
+    A = 2.
+
+    def check_error(y, stencil, A, f0):
+        xcorr = stencil.getCrossCorrelation(y)
+
+        # The expected form of the cross correlation is from
+        # Bendat & Piersol's "Random Data", 4th ed., pg. 124,
+        # Table 5.1 -- Special Autocorrelation functions.
+        xcorr_exp = np.cos(2 * np.pi * f0 * stencil.unique_separation)
+        xcorr_exp *= 0.5 * (A ** 2)
+
+        # Compute absolute error
+        delta = np.abs(xcorr - xcorr_exp)
+
+        # According to Bendat & Piersol's "Random Data", 4th ed., pg. 285,
+        # Table 8.1 -- Record lengths and Averages for Basic Estimates,
+        # the random error in the autocorrelation scales ~1 / sqrt(N),
+        # where N is the number of realizations.
+        N = np.zeros(len(stencil.unique_separation))
+
+        for sind, separation in enumerate(stencil.unique_separation):
+            N[sind] = len(np.where(stencil.separation == separation)[0])
+
+        # 3 is a "fudge factor" -- this is more of a semi-quantitative
+        # test rather than a rigorous quantitative test
+        max_error = 5. / np.sqrt(N)
+
+        # The errors at the very end of the computational domain tend
+        # to be larger than `max_error`, so restrict ourselves to, say,
+        # 90% of computational domain
+        sl = slice(0, np.int(0.9 * len(xcorr)))
+
+        np.testing.assert_array_less(
+            delta[sl],
+            max_error[sl])
+
+        return
+
+    # Uniform timebase:
+    # -----------------
+    # Of course, with a large uniform grid, it is much faster
+    # to perform this calculation via the FFT, but we can
+    # check this bounding case to ensure proper performance.
+    #
+    Fs = 1.
+    t0 = 0.
+    T = (20. / f0) - t0
+    t = np.arange(t0, T, 1. / Fs)
+    stencil = ArrayStencil(t)
+    y = A * np.sin(2 * np.pi * f0 * t)
+    check_error(y, stencil, A, f0)
+
+    # Non-uniform timebase:
+    # ---------------------
+    # Randomly sample from `t`
+    tr = t[np.random.rand(len(t)) > 0.5]
+    stencilr = ArrayStencil(tr)
+    yr = A * np.sin(2 * np.pi * f0 * tr)
+    check_error(yr, stencilr, A, f0)
 
     return
 

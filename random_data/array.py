@@ -64,6 +64,10 @@ class ArrayStencil(object):
         attributes of `ArrayStencil`.
         [separation] = [locations]
 
+    unique_separation - array_like, (`L`,)
+        The unique set of values in `self.separation`.
+        [unique_separation] = [locations]
+
     xind (yind) - array_like, (`M`,)
         The indices of `self.locations` corresponding to the
         "x" ("y") stencil points in each unique correlation pair.
@@ -88,6 +92,7 @@ class ArrayStencil(object):
         self.include_autocorrelations = include_autocorrelations
 
         self.getUniqueCorrelationPairs()
+        self.unique_separation = self.getUniqueSeparation()
         self.separation_gcd = self.getSeparationGCD()
 
     def getUniqueCorrelationPairs(self):
@@ -138,6 +143,10 @@ class ArrayStencil(object):
         self.yind = self.yind[sind]
 
         return
+
+    def getUniqueSeparation(self):
+        'Get array of unique values in `self.separation`.'
+        return np.array(list(set(self.separation)))
 
     def getSeparationGCD(self):
         '''Get greatest common divisor of `self.separation`.
@@ -193,6 +202,7 @@ class ArrayStencil(object):
     def plotSeparationDistribution(self, bin_width=1):
         'Plot distribution of separations.'
         Nbins = (self.separation[-1] - self.separation[0]) // bin_width
+        Nbins = np.int(Nbins)
 
         plt.figure()
         plt.hist(self.separation, bins=Nbins)
@@ -202,29 +212,40 @@ class ArrayStencil(object):
 
         return
 
-    def getUniqueSeparation(self):
-        'Get array of unique values in `self.separation`.'
-        return np.array(list(set(self.separation)))
-
-    def getCrossCorrelation(signal, self):
+    def getCrossCorrelation(self, signal):
         '''Get cross correlation of `signal`.
 
         Parameters:
         -----------
         signal - array_like, (`N`,)
-            The 1-dimensional signal to correlate, where `signal[i]`
-            corresponds to a measurement made at `self.locations[i]`.
+            The 1-dimensional signal realization to correlate, where
+            `signal[i]` corresponds to a measurement made at
+            `self.locations[i]`.
+            [signal] = arbitrary units
 
         Returns:
         --------
-        cross_correlation - array_like, (`M`,)
-            Cross correlation...
+        cross_correlation - array_like, (`L`,)
+            Cross correlation of 1-dimensional realization `signal`.
+            Note that this is *not* a statistically consistent definition
+            of the underlying cross-correlation function; to obtain such an
+            estimate, we must compute `cross_correlation` for numerous
+            realizations of `signal` and then average. This is most easily
+            accomplished by calling `getCrossCorrelation(...)` numerous
+            times on independent realizations of `signal`.
+            [cross_correlation] = [signal]^2
 
         '''
-        # # Number of unique separations
-        # Nsep = len(set(self.separation))
-        # cross_correlation = np.zeros(Nsep)
-        return
+        cross_correlation = np.zeros(len(self.unique_separation))
+
+        for sind, separation in enumerate(self.unique_separation):
+            ind = np.where(self.separation == separation)[0]
+
+            cross_correlation[sind] = np.mean(
+                signal[self.xind[ind]] * signal[self.yind[ind]],
+                axis=-1)
+
+        return cross_correlation
 
 
 class Array(object):
