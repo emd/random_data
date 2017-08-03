@@ -301,41 +301,18 @@ class Array(object):
         locations = locations[lind]
         signals = signals[lind, :]
 
-        # Number of measurements
-        N = signals.shape[0]
+        # Determine unique cross-correlation pairs
+        stencil = ArrayStencil(locations, include_autocorrelations=False)
 
-        # Number of *unique* correlations provided `N` measurements
-        Ncorr = (N * (N - 1)) // 2
+        # Parse the unique cross-correlation pairs
+        Ncorr = len(stencil.separation)
+        self.separation = stencil.separation
+        self.xloc = stencil.locations[stencil.xind]
+        self.yloc = stencil.locations[stencil.yind]
 
-        # Initialize
-        self.xloc = np.zeros(Ncorr)
-        self.yloc = np.zeros(Ncorr)
-        xind = np.zeros(Ncorr, dtype=int)
-        yind = np.zeros(Ncorr, dtype=int)
+        # Initialize list to store cross-spectral density instance
+        # for each correlation pair
         self.csd = [None] * Ncorr
-
-        # Determine each *unique* correlation pair
-        cind = 0  # correlation index
-        for x in np.arange(N - 1):
-            for y in np.arange(x + 1, N):
-                # Note physical locations of each correlation pair
-                self.xloc[cind] = locations[x]
-                self.yloc[cind] = locations[y]
-
-                # Note index of each correlation pair
-                xind[cind] = x
-                yind[cind] = y
-
-                cind += 1
-
-        # Sort correlation pairs based upon their spatial separation
-        self.separation = self.yloc - self.xloc
-        sind = np.argsort(self.separation)
-        self.separation = self.separation[sind]
-        self.xloc = self.xloc[sind]
-        self.yloc = self.yloc[sind]
-        xind = xind[sind]
-        yind = yind[sind]
 
         # Compute cross-spectral density of each correlation pair
         for cind in np.arange(len(self.csd)):
@@ -345,10 +322,9 @@ class Array(object):
                 print 'y-loc: %.3f' % self.yloc[cind]
                 print 'separation (y - x): %.3f' % self.separation[cind]
 
-            # Compute cross-spectral density
             self.csd[cind] = CrossSpectralDensity(
-                signals[xind[cind], :],
-                signals[yind[cind], :],
+                signals[stencil.xind[cind], :],
+                signals[stencil.yind[cind], :],
                 **csd_kwargs)
 
         return
