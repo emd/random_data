@@ -83,13 +83,15 @@ class ArrayStencil(object):
             If True, include autocorrelations as unique correlation pairs.
 
         '''
-        self.locations = locations
+        self.locations = np.asarray(locations)
         self.include_autocorrelations = include_autocorrelations
+
+        self.getUniqueCorrelationPairs()
 
     def getUniqueCorrelationPairs(self):
         'Determine unique correlation pairs in the stencil.'
         # Number of measurement locations
-        N = self.locations.shape[0]
+        N = len(self.locations)
 
         # Number of *unique* cross-correlations provided `N` measurements
         Ncorr = (N * (N - 1)) // 2
@@ -112,7 +114,7 @@ class ArrayStencil(object):
 
         # Determine each *unique* correlation pair
         cind = 0  # correlation index
-        for x in np.arange(N - 1):
+        for x in np.arange(N - minimum_offset):
             for y in np.arange(x + minimum_offset, N):
                 # `xind` and `yind` are the indices of `self.locations` that
                 # correspond to each correlation pair
@@ -121,21 +123,9 @@ class ArrayStencil(object):
 
                 cind += 1
 
-        # The cross-correlation function R_{xy}(delta) is defined as
-        #
-        #     R_{xy}(delta) = E[x_k(z) * y_k(z + delta)]
-        #
-        # where
-        #
-        # - E[...] is the expectation-value operator,
-        # - x_k is the kth realization of random process {x_k}
-        #   (and similarly for y_k), and
-        # - delta is the separation between stencil point y and
-        #   stencil point x.
-        #
-        # Consistency with the above definition motivates our definition
-        # of `self.separation`.
-        #
+        # Consistency with definition of the cross-correlation function
+        # (in the Background of the class documentation) motivates our
+        # definition of `self.separation`.
         self.separation = (self.locations[self.yind]
                            - self.locations[self.xind])
 

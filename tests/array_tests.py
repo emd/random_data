@@ -2,8 +2,56 @@ from nose import tools
 import numpy as np
 from random_data.spectra import CrossSpectralDensity
 from random_data.array import (
-    Array, ArrayStencil, coefficient_of_determination)
+    ArrayStencil, Array, coefficient_of_determination)
 from random_data.ensemble import closest_index
+
+
+def test_ArrayStencil_getUniqueCorrelationPairs():
+    # No unique correlation pairs
+    stencil = ArrayStencil([1], include_autocorrelations=False)
+    tools.assert_equal(0, len(stencil.separation))
+    tools.assert_equal(0, len(stencil.xind))
+    tools.assert_equal(0, len(stencil.yind))
+
+    # Single unique (auto)correlation pair
+    stencil = ArrayStencil([1], include_autocorrelations=True)
+    tools.assert_equal(0, stencil.separation[0])
+    tools.assert_equal(0, stencil.xind[0])
+    tools.assert_equal(0, stencil.yind[0])
+
+    # Uniform grid *without* autocorrelation
+    stencil = ArrayStencil([1, 2, 3], include_autocorrelations=False)
+    np.testing.assert_equal(np.array([1, 1, 2]), stencil.separation)
+    np.testing.assert_equal(np.array([0, 1, 0]), stencil.xind)
+    np.testing.assert_equal(np.array([1, 2, 2]), stencil.yind)
+
+    # Uniform grid *with* autocorrelation
+    stencil = ArrayStencil([1, 2, 3], include_autocorrelations=True)
+    np.testing.assert_equal(np.array([0, 0, 0, 1, 1, 2]), stencil.separation)
+    np.testing.assert_equal(np.array([0, 1, 2, 0, 1, 0]), stencil.xind)
+    np.testing.assert_equal(np.array([0, 1, 2, 1, 2, 2]), stencil.yind)
+
+    # Uniform, non-monotonic grid *without* autocorrelation
+    # (a bit less intuitive than a monotonic grid, which is one
+    # reason to avoid non-monotonicity; but should still work)
+    stencil = ArrayStencil([2, 3, 1], include_autocorrelations=False)
+    np.testing.assert_equal(np.array([-2, -1, 1]), stencil.separation)
+    np.testing.assert_equal(np.array([1, 0, 0]), stencil.xind)
+    np.testing.assert_equal(np.array([2, 2, 1]), stencil.yind)
+
+    # Uniform, non-monotonic grid *with* autocorrelation
+    # (a bit less intuitive than a monotonic grid, which is one
+    # reason to avoid non-monotonicity; but should still work)
+    stencil = ArrayStencil([2, 3, 1], include_autocorrelations=True)
+    np.testing.assert_equal(np.array([-2, -1, 0, 0, 0, 1]), stencil.separation)
+    np.testing.assert_equal(np.array([1, 0, 0, 1, 2, 0]), stencil.xind)
+    np.testing.assert_equal(np.array([2, 2, 0, 1, 2, 1]), stencil.yind)
+
+    # Negative, non-integer, and/or non-uniform grids should *not*
+    # provide any novel testing relative to that performed above, so
+    # we can stop here :)
+
+    return
 
 
 def test_Array_getSpectralDensities():
