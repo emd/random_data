@@ -202,6 +202,30 @@ class ArrayStencil(object):
 
         return
 
+    def getUniqueSeparation(self):
+        'Get array of unique values in `self.separation`.'
+        return np.array(list(set(self.separation)))
+
+    def getCrossCorrelation(signal, self):
+        '''Get cross correlation of `signal`.
+
+        Parameters:
+        -----------
+        signal - array_like, (`N`,)
+            The 1-dimensional signal to correlate, where `signal[i]`
+            corresponds to a measurement made at `self.locations[i]`.
+
+        Returns:
+        --------
+        cross_correlation - array_like, (`M`,)
+            Cross correlation...
+
+        '''
+        # # Number of unique separations
+        # Nsep = len(set(self.separation))
+        # cross_correlation = np.zeros(Nsep)
+        return
+
 
 class Array(object):
     '''A class for fitting the cross-phase angles of an array
