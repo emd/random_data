@@ -7,11 +7,251 @@ where an "array" is defined as three or more measurements.
 # Standard library imports
 import numpy as np
 import matplotlib.pyplot as plt
+from fractions import gcd
 
 # Related 3rd-party imports
 from .ensemble import closest_index
 from .spectra import CrossSpectralDensity, _plot_image, wrap
 from .errors import cross_phase_std_dev
+
+
+class ArrayStencil(object):
+    '''A class for analyzing the geometric and spectral properties
+    of arbitrary 1-dimensional sampling "stencils". Point sampling
+    is assumed at each stencil point.
+
+    Background:
+    -----------
+    Uniform sampling (e.g. sampling in time with a constant sampling
+    rate) is perhaps the most common stencil, and, as a result, its
+    geometric and spectral properties are "well-known". Non-uniform
+    stencils can have beneficial or deleterious characteristics that
+    result from the underlying geometric structure of the stencil.
+
+    Several of this class's attributes are motivated by and are
+    consistent with the definition of the cross-correlation function
+
+            R_{xy}(delta) = E[x_k(z) * y_k(z + delta)],
+
+    where
+
+        - E[...] is the expectation-value operator,
+
+        - x_k (y_k) is the kth realization of random process {x_k} ({y_k})
+          (i.e. measurement at stencil point x (y)), and
+
+        - delta is the separation between stencil point y and
+          stencil point x.
+
+    Attributes:
+    -----------
+    locations - array_like, (`N`,)
+        Location of each measurement point in the 1-dimensional
+        stencil. Provided during initialization.
+        [locations] = arbitrary units
+
+    include_autocorrelations - bool
+        If True, autocorrelations have been included as unique
+        correlation pairs.
+
+    separation - array_like, (`M`,)
+        The separation between each unique correlation pair
+        in the stencil as determined by
+
+            separation = locations[yind] - locations[xind],
+
+        where `locations`, `yind`, and `xind` are additional
+        attributes of `ArrayStencil`.
+        [separation] = [locations]
+
+    unique_separation - array_like, (`L`,)
+        The unique set of values in `self.separation`.
+        [unique_separation] = [locations]
+
+    xind (yind) - array_like, (`M`,)
+        The indices of `self.locations` corresponding to the
+        "x" ("y") stencil points in each unique correlation pair.
+        [xind] = [yind] = unitles
+
+    '''
+    def __init__(self, locations, include_autocorrelations=True):
+        '''Create an instance of the `ArrayStencil` class.
+
+        Input parameters:
+        -----------------
+        locations - array_like, (`N`,)
+            Location of each measurement point in the 1-dimensional
+            stencil. Note that methods belonging to this class are
+            most robust if `locations` are *integers*; floating point
+            values can lead to round-off errors that lead to strange
+            behavior. If possible, it is recommended to convert
+            convert a floating point stencil into its equivalent
+            integer stencil, e.g. if the stencil is [0.5, 1, 2],
+            an equivalent integer stencil would be [1, 2, 4].
+            [locations] = arbitrary units
+
+        include_autocorrelations - bool
+            If True, include autocorrelations as unique correlation pairs.
+
+        '''
+        self.locations = np.asarray(locations)
+        self.include_autocorrelations = include_autocorrelations
+
+        self.getUniqueCorrelationPairs()
+        self.unique_separation = self.getUniqueSeparation()
+        self.separation_gcd = self.getSeparationGCD()
+
+    def getUniqueCorrelationPairs(self):
+        'Determine unique correlation pairs in the stencil.'
+        # Number of measurement locations
+        N = len(self.locations)
+
+        # Number of *unique* cross-correlations provided `N` measurements
+        Ncorr = (N * (N - 1)) // 2
+
+        # If desired, also account for autocorrelations
+        if self.include_autocorrelations:
+            Ncorr += N
+
+        # Initialize
+        self.xind = np.zeros(Ncorr, dtype=int)
+        self.yind = np.zeros(Ncorr, dtype=int)
+
+        # Correlating a signal at a given location against itself
+        # (i.e. zero offset in the indexing of `self.locations`)
+        # produces the autocorrelation.
+        if self.include_autocorrelations:
+            minimum_offset = 0
+        else:
+            minimum_offset = 1
+
+        # Determine each *unique* correlation pair
+        cind = 0  # correlation index
+        for x in np.arange(N - minimum_offset):
+            for y in np.arange(x + minimum_offset, N):
+                # `xind` and `yind` are the indices of `self.locations` that
+                # correspond to each correlation pair
+                self.xind[cind] = x
+                self.yind[cind] = y
+
+                cind += 1
+
+        # Consistency with definition of the cross-correlation function
+        # (in the Background of the class documentation) motivates our
+        # definition of `self.separation`.
+        self.separation = (self.locations[self.yind]
+                           - self.locations[self.xind])
+
+        # Sort correlation pairs based upon their spatial separation
+        sind = np.argsort(self.separation)
+        self.separation = self.separation[sind]
+        self.xind = self.xind[sind]
+        self.yind = self.yind[sind]
+
+        return
+
+    def getUniqueSeparation(self):
+        'Get array of unique values in `self.separation`.'
+        return np.array(list(set(self.separation)))
+
+    def getSeparationGCD(self):
+        '''Get greatest common divisor of `self.separation`.
+
+        If the stencil `self.locations` is a subset of an underlying
+        uniform grid, the greatest common divisor corresponds to the
+        spacing between adjacent points on this uniform grid.
+
+        '''
+        return reduce(gcd, np.abs(self.separation), 0)
+
+    def getMask(self):
+        '''Get "mask" of stencil points that are on (1) or off (0),
+        assuming that `self.locations` is a subset of an underlying
+        uniform grid.
+
+        '''
+        locations = np.sort(self.locations)
+
+        underlying_grid = np.arange(
+            locations[0],
+            locations[-1] + self.separation_gcd,
+            self.separation_gcd)
+
+        mask = np.zeros(len(underlying_grid))
+        ind_on = np.searchsorted(underlying_grid, locations)
+        mask[ind_on] = 1
+
+        return mask
+
+    def plotMask(self):
+        'Plot mask of stencil points in both real and Fourier space.'
+        mask = self.getMask()
+
+        k = 2 * np.pi * np.fft.rfftfreq(len(mask))
+        mask_hat = np.fft.rfft(mask)
+
+        fig, axes = plt.subplots(2, 1)
+
+        axes[0].plot(mask, 'o')
+        axes[0].set_xlabel('underlying uniform grid points')
+        axes[0].set_ylabel('mask')
+
+        axes[1].semilogy(k, np.abs(mask_hat))
+        axes[1].set_xlabel('k [1 / (grid-point spacing)]')
+        axes[1].set_ylabel('|FT(mask)|')
+
+        plt.tight_layout()
+        plt.show()
+
+        return
+
+    def plotSeparationDistribution(self, bin_width=1):
+        'Plot distribution of separations.'
+        Nbins = (self.separation[-1] - self.separation[0]) // bin_width
+        Nbins = np.int(Nbins)
+
+        plt.figure()
+        plt.hist(self.separation, bins=Nbins)
+        plt.xlabel('separation')
+        plt.ylabel('count')
+        plt.show()
+
+        return
+
+    def getCrossCorrelation(self, signal):
+        '''Get cross correlation of `signal`.
+
+        Parameters:
+        -----------
+        signal - array_like, (`N`,)
+            The 1-dimensional signal realization to correlate, where
+            `signal[i]` corresponds to a measurement made at
+            `self.locations[i]`.
+            [signal] = arbitrary units
+
+        Returns:
+        --------
+        cross_correlation - array_like, (`L`,)
+            Cross correlation of 1-dimensional realization `signal`.
+            Note that this is *not* a statistically consistent definition
+            of the underlying cross-correlation function; to obtain such an
+            estimate, we must compute `cross_correlation` for numerous
+            realizations of `signal` and then average. This is most easily
+            accomplished by calling `getCrossCorrelation(...)` numerous
+            times on independent realizations of `signal`.
+            [cross_correlation] = [signal]^2
+
+        '''
+        cross_correlation = np.zeros(len(self.unique_separation))
+
+        for sind, separation in enumerate(self.unique_separation):
+            ind = np.where(self.separation == separation)[0]
+
+            cross_correlation[sind] = np.mean(
+                signal[self.xind[ind]] * signal[self.yind[ind]],
+                axis=-1)
+
+        return cross_correlation
 
 
 class Array(object):
@@ -177,41 +417,18 @@ class Array(object):
         locations = locations[lind]
         signals = signals[lind, :]
 
-        # Number of measurements
-        N = signals.shape[0]
+        # Determine unique cross-correlation pairs
+        stencil = ArrayStencil(locations, include_autocorrelations=False)
 
-        # Number of *unique* correlations provided `N` measurements
-        Ncorr = (N * (N - 1)) // 2
+        # Parse the unique cross-correlation pairs
+        Ncorr = len(stencil.separation)
+        self.separation = stencil.separation
+        self.xloc = stencil.locations[stencil.xind]
+        self.yloc = stencil.locations[stencil.yind]
 
-        # Initialize
-        self.xloc = np.zeros(Ncorr)
-        self.yloc = np.zeros(Ncorr)
-        xind = np.zeros(Ncorr, dtype=int)
-        yind = np.zeros(Ncorr, dtype=int)
+        # Initialize list to store cross-spectral density instance
+        # for each correlation pair
         self.csd = [None] * Ncorr
-
-        # Determine each *unique* correlation pair
-        cind = 0  # correlation index
-        for x in np.arange(N - 1):
-            for y in np.arange(x + 1, N):
-                # Note physical locations of each correlation pair
-                self.xloc[cind] = locations[x]
-                self.yloc[cind] = locations[y]
-
-                # Note index of each correlation pair
-                xind[cind] = x
-                yind[cind] = y
-
-                cind += 1
-
-        # Sort correlation pairs based upon their spatial separation
-        self.separation = self.yloc - self.xloc
-        sind = np.argsort(self.separation)
-        self.separation = self.separation[sind]
-        self.xloc = self.xloc[sind]
-        self.yloc = self.yloc[sind]
-        xind = xind[sind]
-        yind = yind[sind]
 
         # Compute cross-spectral density of each correlation pair
         for cind in np.arange(len(self.csd)):
@@ -221,10 +438,9 @@ class Array(object):
                 print 'y-loc: %.3f' % self.yloc[cind]
                 print 'separation (y - x): %.3f' % self.separation[cind]
 
-            # Compute cross-spectral density
             self.csd[cind] = CrossSpectralDensity(
-                signals[xind[cind], :],
-                signals[yind[cind], :],
+                signals[stencil.xind[cind], :],
+                signals[stencil.yind[cind], :],
                 **csd_kwargs)
 
         return
