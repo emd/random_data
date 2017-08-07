@@ -1,5 +1,6 @@
-'''This module defines a class for analyzing an array of measurements,
-where an "array" is defined as three or more measurements.
+'''This module defines several inter-related classes for analyzing
+an array of measurements, where an "array" is defined as three or
+more measurements.
 
 '''
 
@@ -252,6 +253,326 @@ class ArrayStencil(object):
                 axis=-1)
 
         return cross_correlation
+
+
+class CrossSpectralDensityArray(object):
+    '''A class for computing the cross-spectral densities corresponding
+    to unique correlation pairs from an array of measurements. This class
+    forms the base class for several derived classes that characterize
+    the spatial structure of the signals measured by the sensor array.
+
+    Attributes:
+    -----------
+    csd - list, length L
+        A list of :py:class:`CrossSpectralDensity
+        <random_data.spectra.CrossSpectralDensity>` objects, where
+        each cross-spectral density object corresponds to a
+        *unique* correlation pair of the `N` inputs in `signals`
+        (explicitly, there will be "N choose 2" cross-spectral density
+        objects in the list).
+
+        Each cross-spectral density object is given as
+        a function of frequency and time; below
+
+            Nf = len(csd[0].f)  # number of frequency bins, and
+            Nt = len(csd[0].t)  # number of time bins.
+
+        The cross-spectral density objects are ordered
+        sequentially from smallest separation of measurement
+        locations to largest separation of measurement locations.
+        The cross-phase angle vs. measurement separation is
+        then fit to a linear model to determine the corresponding
+        mode number as a function of frequency and time.
+
+    xloc (yloc) - array_like, (`L`,)
+        The measurement location of signal "x" ("y"), from which
+        the cross-spectral density Gxy is computed. As with the
+        cross-spectral density objects, `xloc` (`yloc`) is ordered
+        sequentially from smallest separation of measurement locations
+        to largest separation of measurement locations.
+
+        [xloc] = [yloc]  = [locations], where `locations` is provided
+        at object initialization
+
+    separation - array_like, (`L`,)
+        The separation (yloc - xloc) of measurements y and x,
+        from which the cross-spectral density Gxy is computed.
+        The cross-spectral density objects (`self.csd`) and
+        the corresponding measurement locations (`self.xloc` and
+        `self.yloc`) are ordered sequentially from smallest
+        separation to largest separation of measurement locations.
+
+        [separation] = [locations], where `locations` is provided
+        at object initialization
+
+    Methods:
+    --------
+    Type `help(Array)` in the IPython console for a listing.
+
+    '''
+    def __init__(self, signals, locations,
+                 include_autocorrelations=True,
+                 print_status=True, **csd_kwargs):
+        '''Create an instance of the `CrossSpectralDensityArray` class.
+
+        Input parameters:
+        -----------------
+        signals - array_like, (`N`, `M`)
+            Measurements of length `M` made at `N` locations.
+            [signals] = arbitrary units
+
+        locations - array_like, (`N`,)
+            Location of each measurement in `signals`.
+            [locations] = arbitrary units
+
+        include_autocorrelations - bool
+            If True, also compute autospectral densities corresponding
+            to autocorrelation of each signal against itself.
+
+        print_status - bool
+            If True, print status of computations.
+
+        csd_kwargs - any valid keyword arguments for
+            :py:class:`CrossSpectralDensity
+                <random_data.spectra.CrossSpectralDensity>`.
+
+            For example, use
+
+                    A = Array(signals,..., Fs=200e3, t0=0.)
+
+            to indicate that the measurements in `signals` were
+            sampled at a rate `Fs` beginning at time `t0`.
+
+            Note that the spectral-estimation parameters (such as
+            the number of realizations per ensemble, the fractional
+            overlap between adjacent realizations, etc.) are
+            specified via the keyword packing `csd_kwargs`.
+            See the `CrossSpectralDensity` documentation for
+            further details.
+
+        '''
+        # Ensure that number of signals `N` matches number of locations
+        if signals.shape[0] != locations.shape[0]:
+            raise ValueError(
+                'Number of signals must match number of locations!')
+
+        csd_kwargs['print_params'] = print_status
+        csd_kwargs['print_status'] = print_status
+
+        self.getSpectralDensities(
+            signals, locations,
+            include_autocorrelations=include_autocorrelations,
+            **csd_kwargs)
+
+    def getSpectralDensities(
+            self, signals, locations,
+            include_autocorrelations=True,
+            **csd_kwargs):
+        'Compute cross-spectral density for each unique measurement pairing.'
+        # Sort `locations` in ascending order and shift `signals` accordingly.
+        # Enforcing `locations` to be sorted in ascending order removes
+        # some later complications.
+        #
+        # Note that `lind` is a `numpy.ndarray` of integer type, which
+        # triggers "advanced indexing". Advanced indexing always returns
+        # a copy of the indexed array (rather than a view). Thus, the
+        # below sorting does *not* alter the values of `locations` and
+        # `signals` passed at object initialization.
+        lind = np.argsort(locations)
+        locations = locations[lind]
+        signals = signals[lind, :]
+
+        # Determine unique cross-correlation pairs
+        stencil = ArrayStencil(
+            locations,
+            include_autocorrelations=include_autocorrelations)
+
+        # Parse the unique cross-correlation pairs
+        Ncorr = len(stencil.separation)
+        self.separation = stencil.separation
+        self.xloc = stencil.locations[stencil.xind]
+        self.yloc = stencil.locations[stencil.yind]
+
+        # Initialize list to store cross-spectral density instance
+        # for each correlation pair
+        self.csd = [None] * Ncorr
+
+        # Compute cross-spectral density of each correlation pair.
+        #
+        # Note that the "advanced indexing" of `signals` sends
+        # unique copies of signal "x" and signal "y" to the
+        # cross-spectral density routine such that a true,
+        # complex-valued cross-spectral density is returned,
+        # even if computing an autospectral density. That is,
+        # the underlying :py:function:`_spectral_density
+        # <random_data.spectra._spectral_density>` will only
+        # compute a complex-valued spectral density if signals
+        # "x" and "y" are unique (i.e. do not point to same object).
+        # This is advantageous in the present application,
+        # as the data types of all class attributes will be
+        # the same from one `CrossSpectralDensity` instance
+        # to the next.
+        for cind in np.arange(len(self.csd)):
+            if csd_kwargs['print_status']:
+                print '\npair %i of %i' % (cind + 1, Ncorr)
+                print 'x-loc: %.3f' % self.xloc[cind]
+                print 'y-loc: %.3f' % self.yloc[cind]
+                print 'separation (y - x): %.3f' % self.separation[cind]
+
+            self.csd[cind] = CrossSpectralDensity(
+                signals[stencil.xind[cind], :],
+                signals[stencil.yind[cind], :],
+                **csd_kwargs)
+
+        return
+
+    def _preProcessSliceRequest(
+            self, attr, tind=None, find=None, t=None, f=None):
+        '''Pre-process slice request (a) checking that `attr` is
+        a valid attribute and (b) converting time and frequency
+        values into corresponding indices, if needed.
+
+        '''
+        # Ensure valid attribute has been requested
+        valid_attr = ['Gxy', 'gamma2xy', 'theta_xy']
+
+        if attr not in set(valid_attr):
+            raise ValueError("Valid attributes are %s" % valid_attr)
+
+        # Determine time index for slice, if needed
+        if (t is not None):
+            if tind is not None:
+                print '\nBoth `tind` and `t` specified; slicing at `tind`.'
+            else:
+                tind = closest_index(self.csd[0].t, t)
+
+        # Determine frequency index for slice, if needed
+        if (f is not None):
+            if find is not None:
+                print '\nBoth `find` and `f` specified; slicing at `find`.'
+            else:
+                find = closest_index(self.csd[0].f, f)
+
+        return tind, find
+
+    def getSlice(self, attr, tind=None, find=None, t=None, f=None):
+        '''Get slice of cross-spectral-density attribute `attr`
+        at specified time and frequency.
+
+        Parameters:
+        -----------
+        attr - string
+            Any time-varying spectral attribute of
+
+                :py:class:`CrossSpectralDensity
+                    <random_data.spectra.CrossSpectralDensity>`,
+
+            i.e. {'Gxy', 'gamma2xy', 'theta_xy'}.
+
+        tind - int
+            Time index of requested slice. If both `tind` and `t`
+            are specified, `tind` takes precedent.
+
+        find - int
+            Frequency index of requested slice. If both `find` and `f`
+            are specified, `find` takes precedent.
+
+        t - float
+            The time of requested slice. The returned slice will
+            correspond to the time nearest to `t`. If both `tind`
+            and `t` are specified, `tind` takes precedent.
+            [t] = [self.csd[0].t] = time
+
+        f - float
+            The frequency of requested slice. The returned slice will
+            correspond to the frequency nearest to `f`.  If both `find`
+            and `f` are specified, `find` takes precedent.
+            [f] = [self.csd[0].f] = 1 / time
+
+        Returns:
+        --------
+        slice - array_like, (`N`,)
+            Slice of requested attribute, where `N` is the
+            number of cross-spectral-density objects.
+
+            Note that this slice is *not* a "view" of
+            the underlying cross-spectral-density object --
+            that is, the returned slice is its own distinct
+            object and can be manipulated without influencing
+            the state of the underlying cross-spectral densities.
+
+        '''
+        tind, find = self._preProcessSliceRequest(
+            attr, tind=tind, find=find, t=t, f=f)
+
+        # Initialize
+        dtype = (getattr(self.csd[0], attr)).dtype
+        sl = np.zeros(len(self.csd), dtype=dtype)
+
+        # Loop through each cross-spectral density object
+        for cind in np.arange(len(self.csd)):
+            sl[cind] = getattr(self.csd[cind], attr)[find, tind]
+
+        return sl
+
+    def plotSlice(self, attr, error_bars=True, **getSlice_kwargs):
+        '''Plot slice of cross-spectral-density attribute `attr`
+        at specified time and frequency.
+
+        Parameters:
+        -----------
+        attr - string
+            Any time-varying spectral attribute of
+
+                :py:class:`CrossSpectralDensity
+                    <random_data.spectra.CrossSpectralDensity>`,
+
+            i.e. {'Gxy', 'gamma2xy', 'theta_xy'}.
+
+        error_bars - bool
+            If True, plot error bars corresponding to the
+            random error in estimate of `attr`.
+
+        getSlice_kwargs - any valid keyword arguments for
+            :py:method:`getSlice <random_data.array.Array.getSlice>`.
+
+            For example, use
+
+                self.plotSlice(t=1. f=50e3)
+
+            to plot slice of `attr` at time nearest to `t` and
+            frequency nearest to `f`.
+
+        '''
+        tind, find = self._preProcessSliceRequest(attr, **getSlice_kwargs)
+        sl = self.getSlice(attr, tind=tind, find=find)
+
+        # Error bars only currently implemented for cross-phase
+        if error_bars and (attr is 'theta_xy'):
+            gamma2xy = self.getSlice('gamma2xy', tind=tind, find=find)
+            yerr = cross_phase_std_dev(gamma2xy, self.csd[0].Nreal_per_ens)
+        else:
+            yerr = None
+
+        plt.figure()
+
+        # Plot only real component if complex
+        plt.errorbar(self.separation, np.real(sl), yerr=yerr, fmt='o')
+
+        if attr is 'gamma2xy':
+            # Enforce physical bounds of magnitude-squared coherence
+            plt.ylim([0, 1])
+
+        if attr is 'Gxy':
+            plt.errorbar(self.separation, np.imag(sl), yerr=yerr, fmt='s')
+            plt.legend(['Re', 'Im'], loc='lower right')
+
+        plt.xlabel('measurement separation')
+        plt.ylabel(attr)
+
+        plt.show()
+
+        return
 
 
 class Array(object):
