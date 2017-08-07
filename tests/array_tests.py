@@ -2,7 +2,8 @@ from nose import tools
 import numpy as np
 from random_data.spectra import CrossSpectralDensity
 from random_data.array import (
-    ArrayStencil, CrossSpectralDensityArray, coefficient_of_determination)
+    ArrayStencil, CrossSpectralDensityArray,
+    FittedCrossPhaseArray, coefficient_of_determination)
 from random_data.ensemble import closest_index
 
 
@@ -343,48 +344,49 @@ def test_coefficient_of_determination():
     return
 
 
-# def test_Array_fitPhaseAngles():
-#     # Measurement locations
-#     locations = np.arange(0, 2 * np.pi)
-#     Nsig = len(locations)
-# 
-#     # Signal parameters
-#     Fs = 200e3
-#     t0 = 0.
-#     tf = 0.1
-#     t = np.arange(t0, tf, 1. / Fs)
-#     Npts = len(t)
-#     f0 = 50e3
-# 
-#     # Spectral estimation parameters
-#     Tens = 5e-3
-#     Nreal_per_ens = 10
-# 
-#     # Initialize
-#     signals = np.zeros((Nsig, Npts))
-# 
-#     # True mode number
-#     # (For a uniform spacing of `dzeta` radian between measurement locations,
-#     # the Nyquist mode number is floor(pi / dzeta). For dzeta = 1 radian,
-#     # then, the Nyquist mode number is 3).
-#     n_array = np.array([0, -1, 2, -3])
-# 
-#     for n in n_array:
-#         # Signal generation: use purely coherent modes because
-#         # if mode-number extraction does not work in this ideal case,
-#         # it certainly won't work in the presence of noise
-#         for i in np.arange(Nsig):
-#             signals[i, :] = np.cos(
-#                 (2 * np.pi * f0 * t) + (n * (locations[i] - locations[0])))
-# 
-#         # Perform fit
-#         A = Array(signals, locations, Fs=Fs,
-#                   Tens=Tens, Nreal_per_ens=Nreal_per_ens)
-# 
-#         # Determine index corresponding to coherent frequency, `f0`
-#         find = closest_index(A.csd[0].f, f0)
-# 
-#         # Compare fitted mode number to true mode number
-#         np.testing.assert_allclose(n, A.mode_number[find, :], atol=0.0)
-# 
-#     return
+def test_FittedCrossPhaseArray_fitPhaseAngles():
+    # Measurement locations
+    locations = np.arange(0, 2 * np.pi)
+    Nsig = len(locations)
+
+    # Signal parameters
+    Fs = 200e3
+    t0 = 0.
+    tf = 0.1
+    t = np.arange(t0, tf, 1. / Fs)
+    Npts = len(t)
+    f0 = 50e3
+
+    # Spectral estimation parameters
+    Tens = 5e-3
+    Nreal_per_ens = 10
+
+    # Initialize
+    signals = np.zeros((Nsig, Npts))
+
+    # True mode number
+    # (For a uniform spacing of `dzeta` radian between measurement locations,
+    # the Nyquist mode number is floor(pi / dzeta). For dzeta = 1 radian,
+    # then, the Nyquist mode number is 3).
+    n_array = np.array([0, -1, 2, -3])
+
+    for n in n_array:
+        # Signal generation: use purely coherent modes because
+        # if mode-number extraction does not work in this ideal case,
+        # it certainly won't work in the presence of noise
+        for i in np.arange(Nsig):
+            signals[i, :] = np.cos(
+                (2 * np.pi * f0 * t) + (n * (locations[i] - locations[0])))
+
+        # Perform fit
+        A = FittedCrossPhaseArray(
+            signals, locations, Fs=Fs,
+            Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+
+        # Determine index corresponding to coherent frequency, `f0`
+        find = closest_index(A.csd[0].f, f0)
+
+        # Compare fitted mode number to true mode number
+        np.testing.assert_allclose(n, A.mode_number[find, :], atol=0.0)
+
+    return

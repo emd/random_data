@@ -199,7 +199,7 @@ Spectral calculations on arrays of more than two signals:
 If more than two measurements are available, noise in mode-number
 calculations can be greatly reduced by fitting the cross-phase angles
 of each individual measurement pair to a linear model.
-The `random_data.array.Array` class allows for
+The `random_data.array.FittedCrossPhaseArray` class allows for
 easy fitting and visualization of cross-phase angles
 to obtain the corresponding mode numbers.
 For example, the below code
@@ -217,7 +217,7 @@ initialization of a *single* object.
 For analysis of DIII-D magnetics signals, for example,
 a [simple package](https://github.com/emd/magnetics) exists
 for fetching and organizing the magnetics data in a format
-that is readily compatible with `random_data.array.Array`.)
+that is readily compatible with `random_data.array.FittedCrossPhaseArray`.)
 
 ```python
 import numpy as np
@@ -272,7 +272,7 @@ for i in np.arange(Nsig):
 Tens = 5e-3        # ensemble time, [Tens] = s
 Nreal_per_ens = 4   # number of realizations per ensemble
 
-A = rd.array.Array(
+A = rd.array.FittedCrossPhaseArray(
     signals, locations, Fs=sig.Fs, t0=sig.t0,
     Tens=Tens, Nreal_per_ens=Nreal_per_ens)
 
