@@ -267,9 +267,11 @@ class CrossSpectralDensityArray(object):
         A list of :py:class:`CrossSpectralDensity
         <random_data.spectra.CrossSpectralDensity>` objects, where
         each cross-spectral density object corresponds to a
-        *unique* correlation pair of the `N` inputs in `signals`
-        (explicitly, there will be "N choose 2" cross-spectral density
-        objects in the list).
+        *unique* correlation pair of the `N` inputs in `signals`.
+        Explicitly,
+
+            L = "N choose 2" if autocorrelations are *not* included, and
+            L = "N choose 2" + N if autocorrelations are included.
 
         Each cross-spectral density object is given as
         a function of frequency and time; below
@@ -280,9 +282,6 @@ class CrossSpectralDensityArray(object):
         The cross-spectral density objects are ordered
         sequentially from smallest separation of measurement
         locations to largest separation of measurement locations.
-        The cross-phase angle vs. measurement separation is
-        then fit to a linear model to determine the corresponding
-        mode number as a function of frequency and time.
 
     xloc (yloc) - array_like, (`L`,)
         The measurement location of signal "x" ("y"), from which
