@@ -183,6 +183,46 @@ def test_ArrayStencil_getCrossCorrelation_SineWave():
     return
 
 
+def test_ArrayStencil_getAverageForEachSeparation():
+    # Non-uniform stencil with non-uniform spacing of unique separations
+    stencil = ArrayStencil([0, 1, 5], include_autocorrelations=True)
+
+    # Create complex-valued array
+    Nsep = len(stencil.separation)
+    A = np.arange(Nsep) + (1j * np.arange(Nsep))
+
+    # Compute average of `A` for each separation
+    uniform_separation, A_avg = stencil.getAverageForEachSeparation(A)
+
+    # Expected values
+    uniform_separation_exp = np.array([0, 1, 2, 3, 4, 5])
+    A_avg_exp = np.array([
+        1 + 1j,
+        3 + 3j,
+        np.nan,
+        np.nan,
+        4 + 4j,
+        5 + 5j])
+
+    np.testing.assert_equal(
+        uniform_separation,
+        uniform_separation_exp)
+
+    # Separately test real and imaginary components for equality
+    # because `np.testing.assert_equal` has some unexpected/strange
+    # behavior when the arrays have `np.nan` *and* are complex.
+    # This unexpected behavior does *not* occur with real arrays.
+    np.testing.assert_equal(
+        A_avg.real,
+        A_avg_exp.real)
+
+    np.testing.assert_equal(
+        A_avg.imag,
+        A_avg_exp.imag)
+
+    return
+
+
 def test_CrossSpectralDensityArray_getSpectralDensities():
     # Sampling properties
     Fs = 200e3

@@ -254,6 +254,55 @@ class ArrayStencil(object):
 
         return cross_correlation
 
+    def getAverageForEachSeparation(self, A):
+        '''Get average value of `A` at each `self.unique_separation`.
+
+        Parameters:
+        -----------
+        A - array_like, (`M`, ...)
+            Array to average at each `self.unique_separation`. The
+            first index of `A` should correspond to the separations
+            in `self.separation`.
+            [A] = arbitrary units
+
+        Returns:
+        --------
+        uniform_separation - array_like, (`K`,)
+            The uniform array of separations values that spans
+            `self.unique_separation`.
+            [unique_separation] = [locations]
+
+        A_avg - array_like, (`K`, ...)
+            The average value of input array `A` at each
+            `uniform_separation`. If `A` has no values
+            corresponding to `uniform_separation[i]`, then
+            `A_avg[i, ...] = np.nan`.
+            [A_avg] = [A]
+
+        '''
+        # Create a *uniform* array of separation values that
+        # spans `self.unique_separation`.
+        uniform_separation = np.arange(
+            self.unique_separation[0],
+            self.unique_separation[-1] + self.separation_gcd,
+            self.separation_gcd)
+
+        # Initialize array to hold averages
+        dims = np.concatenate(([len(uniform_separation)], A.shape[1:]))
+        dims = dims.astype('int')
+        A_avg = np.zeros(dims, dtype=A.dtype)
+
+        # Loop through each separation
+        for sind, separation in enumerate(uniform_separation):
+            ind = np.where(separation == self.separation)[0]
+
+            if len(ind) > 0:
+                A_avg[sind, ...] = np.mean(A[ind, ...], axis=0)
+            else:
+                A_avg[sind, ...] = np.nan
+
+        return uniform_separation, A_avg
+
 
 class CrossSpectralDensityArray(object):
     '''A class for computing the cross-spectral densities corresponding
@@ -316,6 +365,10 @@ class CrossSpectralDensityArray(object):
 
         [separation] = [locations], where `locations` is provided
         at object initialization
+
+    stencil - :py:class:`ArrayStencil <random_data.array.ArrayStencil>`
+        The stencil corresponding to the measurement `locations` provided
+        at object initialization.
 
     The additional attributes:
 
@@ -403,15 +456,15 @@ class CrossSpectralDensityArray(object):
         signals = signals[lind, :]
 
         # Determine unique cross-correlation pairs
-        stencil = ArrayStencil(
+        self.stencil = ArrayStencil(
             locations,
             include_autocorrelations=include_autocorrelations)
 
         # Parse the unique cross-correlation pairs
-        Ncorr = len(stencil.separation)
-        self.separation = stencil.separation
-        self.xloc = stencil.locations[stencil.xind]
-        self.yloc = stencil.locations[stencil.yind]
+        Ncorr = len(self.stencil.separation)
+        self.separation = self.stencil.separation
+        self.xloc = self.stencil.locations[self.stencil.xind]
+        self.yloc = self.stencil.locations[self.stencil.yind]
 
         # Compute cross-spectral density of first correlation pair.
         #
@@ -424,8 +477,8 @@ class CrossSpectralDensityArray(object):
             self._printCorrelationParameters(0)
 
         csd = CrossSpectralDensity(
-            signals[stencil.xind[0], :],
-            signals[stencil.yind[0], :],
+            signals[self.stencil.xind[0], :],
+            signals[self.stencil.yind[0], :],
             **csd_kwargs)
 
         # Record important aspects of the computation
@@ -466,8 +519,8 @@ class CrossSpectralDensityArray(object):
                 self._printCorrelationParameters(cind)
 
             csd = CrossSpectralDensity(
-                signals[stencil.xind[cind], :],
-                signals[stencil.yind[cind], :],
+                signals[self.stencil.xind[cind], :],
+                signals[self.stencil.yind[cind], :],
                 **csd_kwargs)
 
             self.Gxy[cind, ...] = csd.Gxy
@@ -583,6 +636,99 @@ class CrossSpectralDensityArray(object):
             return
 
 
+class SpatialCrossCorrelation(CrossSpectralDensityArray):
+    '''A class for computing the complex-valued, spatial cross-correlation
+    function corresponding to an array of measurements.
+
+    This class is derived from :py:class:`CrossSpectralDensityArray
+    <random_data.array.CrossSpectralDensityArray>` and thus shares
+    most of its attributes and methods. Attributes and properties
+    *unique* to this class are discussed below.
+
+    Attributes:
+    -----------
+    Gxy - array_like, (`L`, `Nf`, `Nt`)
+        An array of the average cross-spectral-density estimate
+        as a function of
+
+            - measurement separation (1st index, `L`),
+            - frequency (2nd index, `Nf`), and
+            - time (3rd index, `Nt`),
+
+        where averaging has been done at each measurement separation.
+        The indexing in `L` is such that cross-spectral density estimates
+        are ordered sequentially from smallest separation of measurement
+        locations to largest separation of measurement locations.
+
+        [Gxy] = [signal]^2 / [self.Fs], where `signal` is provided
+            at initialization
+
+    separation - array_like, (`L`,)
+        The separation (yloc - xloc) of measurements y and x,
+        from which the cross-spectral density Gxy is computed.
+
+        [separation] = [locations], where `locations` is provided
+        at object initialization
+
+    '''
+    def __init__(self, signals, locations,
+                 include_autocorrelations=True,
+                 print_status=True, **csd_kwargs):
+        '''Create an instance of the `SpatialCrossCorrelation` class.
+
+        Input parameters:
+        -----------------
+        signals - array_like, (`N`, `M`)
+            Measurements of length `M` made at `N` locations.
+            [signals] = arbitrary units
+
+        locations - array_like, (`N`,)
+            Location of each measurement in `signals`.
+            [locations] = arbitrary units
+
+        include_autocorrelations - bool
+            If True, also compute autospectral densities corresponding
+            to autocorrelation of each signal against itself.
+
+        print_status - bool
+            If True, print status of computations.
+
+        csd_kwargs - any valid keyword arguments for
+            :py:class:`CrossSpectralDensity
+                <random_data.spectra.CrossSpectralDensity>`.
+
+            For example, use
+
+                    A = Array(signals,..., Fs=200e3, t0=0.)
+
+            to indicate that the measurements in `signals` were
+            sampled at a rate `Fs` beginning at time `t0`.
+
+            Note that the spectral-estimation parameters (such as
+            the number of realizations per ensemble, the fractional
+            overlap between adjacent realizations, etc.) are
+            specified via the keyword packing `csd_kwargs`.
+            See the `CrossSpectralDensity` documentation for
+            further details.
+
+        '''
+        # Call base-class initialization
+        CrossSpectralDensityArray.__init__(
+            self, signals, locations,
+            include_autocorrelations=True,
+            print_status=print_status,
+            **csd_kwargs)
+
+        # Compute average autospectral density for each separation
+        res = self.stencil.getAverageForEachSeparation(self.Gxy)
+        self.separation = res[0]
+        self.Gxy = res[1]
+
+        # Remove extraneous variables
+        del (self.xloc, self.yloc,
+             self.gamma2xy, self.theta_xy, self.stencil)
+
+
 class FittedCrossPhaseArray(CrossSpectralDensityArray):
     '''A class for fitting the cross-phase angles of an array
     of measurements vs. measurement separation to a linear model
@@ -591,7 +737,7 @@ class FittedCrossPhaseArray(CrossSpectralDensityArray):
 
     This class is derived from :py:class:`CrossSpectralDensityArray
     <random_data.array.CrossSpectralDensityArray>` and thus shares
-    all of its attributes and methods. Attributes and properties
+    most of its attributes and methods. Attributes and properties
     *unique* to this class are discussed below.
 
     Attributes:
