@@ -290,7 +290,15 @@ class ArrayStencil(object):
         # Initialize array to hold averages
         dims = np.concatenate(([len(uniform_separation)], A.shape[1:]))
         dims = dims.astype('int')
-        A_avg = np.zeros(dims, dtype=A.dtype)
+
+        Adtype = A.dtype
+
+        if np.issubdtype(A.dtype, np.integer):
+            # Integer arrays cannot store `np.nan`, so
+            # convert from integer data type to float
+            Adtype = float
+
+        A_avg = np.zeros(dims, dtype=Adtype)
 
         # Loop through each separation
         for sind, separation in enumerate(uniform_separation):
@@ -299,7 +307,10 @@ class ArrayStencil(object):
             if len(ind) > 0:
                 A_avg[sind, ...] = np.mean(A[ind, ...], axis=0)
             else:
-                A_avg[sind, ...] = np.nan
+                # If `A.dtype` is complex, the `*=` operator ensures
+                # that both the real and imaginary components of
+                # `A_avg` are assigned `np.nan` values.
+                A_avg[sind, ...] *= np.nan
 
         return uniform_separation, A_avg
 
