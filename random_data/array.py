@@ -648,173 +648,6 @@ class CrossSpectralDensityArray(object):
             return
 
 
-class SpatialCrossCorrelation(object):
-    '''A class for computing the complex-valued, spatial cross-correlation
-    function corresponding to an array of measurements.
-
-    Attributes:
-    -----------
-    Gxy - array_like, (`L`, `Nf`)
-        An array of the average cross-spectral-density estimate as a
-        function of:
-
-            - measurement separation (1st index, `L`), and
-            - frequency (2nd index, `Nf`),
-
-        where averaging has been done
-
-            - in time (across the full time domain in the
-              input `signal`), and
-            - at each measurement separation.
-
-        The indexing in `L` is such that cross-spectral density estimates
-        are ordered sequentially from smallest separation of measurement
-        locations to largest separation of measurement locations.
-
-        [Gxy] = [signal]^2 / [Fs], where `signal` and `Fs` are provided
-            at initialization
-
-    separation - array_like, (`L`,)
-        The measurement separation.
-        [separation] = [locations], where `locations` is provided
-        at object initialization
-
-    Nens - int
-        The number of ensembles that `self.Gxy` was averaged over.
-        Note that `self.Nens * self.Nreal_per_ens` gives the total
-        number of realizations averaged over to arrive at the
-        spectral estimate `self.Gxy`.
-
-    The additional attributes:
-
-        {`detrend`, `df`, `dt`, `f`, `Fs`, `Npts_overlap`,
-        `Npts_per_ens`, `Npts_per_real`, `Nreal_per_ens`, `t`}
-
-    are described in the documentation for :py:class:`CrossSpectralDensity
-    <random_data.spectra.CrossSpectralDensity>`.
-
-    Methods:
-    --------
-    Type `help(SpatialCrossCorrelation)` in the IPython console
-    for a listing.
-
-    '''
-    def __init__(self, signals, locations,
-                 print_status=True, **csd_kwargs):
-        '''Create an instance of the `SpatialCrossCorrelation` class.
-
-        Input parameters:
-        -----------------
-        signals - array_like, (`N`, `M`)
-            Measurements of length `M` made at `N` locations.
-            [signals] = arbitrary units
-
-        locations - array_like, (`N`,)
-            Location of each measurement in `signals`.
-            [locations] = arbitrary units
-
-        print_status - bool
-            If True, print status of computations.
-
-        csd_kwargs - any valid keyword arguments for
-            :py:class:`CrossSpectralDensity
-                <random_data.spectra.CrossSpectralDensity>`.
-
-            For example, use
-
-                    A = Array(signals,..., Fs=200e3, t0=0.)
-
-            to indicate that the measurements in `signals` were
-            sampled at a rate `Fs` beginning at time `t0`.
-
-            Note that the spectral-estimation parameters (such as
-            the number of realizations per ensemble, the fractional
-            overlap between adjacent realizations, etc.) are
-            specified via the keyword packing `csd_kwargs`.
-            See the `CrossSpectralDensity` documentation for
-            further details.
-
-        '''
-        # Compute cross-spectral density for each measurement pair
-        csdArray = CrossSpectralDensityArray(
-            signals, locations,
-            include_autocorrelations=True,
-            print_status=print_status,
-            **csd_kwargs)
-
-        # Record important aspects of the computation
-        self.Fs = csdArray.Fs
-
-        self.Npts_per_real = csdArray.Npts_per_real
-        self.Nreal_per_ens = csdArray.Nreal_per_ens
-        self.Npts_overlap = csdArray.Npts_overlap
-        self.Npts_per_ens = csdArray.Npts_per_ens
-
-        self.detrend = csdArray.detrend
-        self.window = csdArray.window
-
-        self.f = csdArray.f
-        self.df = csdArray.df
-
-        # Average over time dimension, noting number of
-        # ensembles averaged over.
-        Gxy = np.mean(csdArray.Gxy, axis=-1)
-        self.t = np.mean(csdArray.t)
-        self.Nens = len(csdArray.t)
-        self.dt = np.nan
-
-        # Note that each *unique* measurement separation
-        # (i.e. `csdArray.stencil.unique_separation`) does
-        # *not* necessarily map to a unique cross-spectral
-        # density, as various correlation pairs may be
-        # separated by the same distance.
-        #
-        # To create a cross-spectral density that is truly
-        # a function of each unique measurement separation,
-        # compute average cross-spectral density at each
-        # unique separation.
-        res = csdArray.stencil.getAverageForEachSeparation(Gxy)
-        self.separation = res[0]
-        self.Gxy = res[1]
-
-    def plotNormalizedCorrelationFunction(
-            self, xlim=None, flim=None, vlim=[-1, 1],
-            cmap='viridis', interpolation='none', fontsize=16,
-            xlabel='$\delta$', ylabel='$f$'):
-        'Plot normalized correlation function, Gxy(delta, f) / Gxy(0, f).'
-        # At each frequency, normalize correlation function
-        # by it's magnitude at zero separation.
-        Gxy_norm = self.Gxy / np.abs(self.Gxy[0, :])
-
-        fig, axes = plt.subplots(
-            2, 1, sharex=True, sharey=True, figsize=(8, 10))
-
-        # Plot real component
-        axes[0] = _plot_image(
-            self.separation[1:], self.f, Gxy_norm[1:, :].T.real,
-            xlim=xlim, ylim=flim, vlim=vlim,
-            norm=None, cmap=cmap, interpolation=interpolation,
-            xlabel='', ylabel=ylabel,
-            cblabel='$\mathrm{Re}[G_{xy}(\delta, f) / G_{xy}(0, f)]$',
-            fontsize=fontsize,
-            ax=axes[0])
-
-        # Plot imaginary component
-        axes[1] = _plot_image(
-            self.separation[1:], self.f, Gxy_norm[1:, :].T.imag,
-            xlim=xlim, ylim=flim, vlim=vlim,
-            norm=None, cmap=cmap, interpolation=interpolation,
-            xlabel=xlabel, ylabel=ylabel,
-            cblabel='$\mathrm{Im}[G_{xy}(\delta, f) / G_{xy}(0, f)]$',
-            fontsize=fontsize,
-            ax=axes[1])
-
-        plt.tight_layout()
-        plt.show()
-
-        return
-
-
 class FittedCrossPhaseArray(CrossSpectralDensityArray):
     '''A class for fitting the cross-phase angles of an array
     of measurements vs. measurement separation to a linear model
@@ -1145,6 +978,173 @@ class FittedCrossPhaseArray(CrossSpectralDensityArray):
             plt.plot(xfit, yfit)
 
         plt.xlim(xlim)
+        plt.show()
+
+        return
+
+
+class SpatialCrossCorrelation(object):
+    '''A class for computing the complex-valued, spatial cross-correlation
+    function corresponding to an array of measurements.
+
+    Attributes:
+    -----------
+    Gxy - array_like, (`L`, `Nf`)
+        An array of the average cross-spectral-density estimate as a
+        function of:
+
+            - measurement separation (1st index, `L`), and
+            - frequency (2nd index, `Nf`),
+
+        where averaging has been done
+
+            - in time (across the full time domain in the
+              input `signal`), and
+            - at each measurement separation.
+
+        The indexing in `L` is such that cross-spectral density estimates
+        are ordered sequentially from smallest separation of measurement
+        locations to largest separation of measurement locations.
+
+        [Gxy] = [signal]^2 / [Fs], where `signal` and `Fs` are provided
+            at initialization
+
+    separation - array_like, (`L`,)
+        The measurement separation.
+        [separation] = [locations], where `locations` is provided
+        at object initialization
+
+    Nens - int
+        The number of ensembles that `self.Gxy` was averaged over.
+        Note that `self.Nens * self.Nreal_per_ens` gives the total
+        number of realizations averaged over to arrive at the
+        spectral estimate `self.Gxy`.
+
+    The additional attributes:
+
+        {`detrend`, `df`, `dt`, `f`, `Fs`, `Npts_overlap`,
+        `Npts_per_ens`, `Npts_per_real`, `Nreal_per_ens`, `t`}
+
+    are described in the documentation for :py:class:`CrossSpectralDensity
+    <random_data.spectra.CrossSpectralDensity>`.
+
+    Methods:
+    --------
+    Type `help(SpatialCrossCorrelation)` in the IPython console
+    for a listing.
+
+    '''
+    def __init__(self, signals, locations,
+                 print_status=True, **csd_kwargs):
+        '''Create an instance of the `SpatialCrossCorrelation` class.
+
+        Input parameters:
+        -----------------
+        signals - array_like, (`N`, `M`)
+            Measurements of length `M` made at `N` locations.
+            [signals] = arbitrary units
+
+        locations - array_like, (`N`,)
+            Location of each measurement in `signals`.
+            [locations] = arbitrary units
+
+        print_status - bool
+            If True, print status of computations.
+
+        csd_kwargs - any valid keyword arguments for
+            :py:class:`CrossSpectralDensity
+                <random_data.spectra.CrossSpectralDensity>`.
+
+            For example, use
+
+                    A = Array(signals,..., Fs=200e3, t0=0.)
+
+            to indicate that the measurements in `signals` were
+            sampled at a rate `Fs` beginning at time `t0`.
+
+            Note that the spectral-estimation parameters (such as
+            the number of realizations per ensemble, the fractional
+            overlap between adjacent realizations, etc.) are
+            specified via the keyword packing `csd_kwargs`.
+            See the `CrossSpectralDensity` documentation for
+            further details.
+
+        '''
+        # Compute cross-spectral density for each measurement pair
+        csdArray = CrossSpectralDensityArray(
+            signals, locations,
+            include_autocorrelations=True,
+            print_status=print_status,
+            **csd_kwargs)
+
+        # Record important aspects of the computation
+        self.Fs = csdArray.Fs
+
+        self.Npts_per_real = csdArray.Npts_per_real
+        self.Nreal_per_ens = csdArray.Nreal_per_ens
+        self.Npts_overlap = csdArray.Npts_overlap
+        self.Npts_per_ens = csdArray.Npts_per_ens
+
+        self.detrend = csdArray.detrend
+        self.window = csdArray.window
+
+        self.f = csdArray.f
+        self.df = csdArray.df
+
+        # Average over time dimension, noting number of
+        # ensembles averaged over.
+        Gxy = np.mean(csdArray.Gxy, axis=-1)
+        self.t = np.mean(csdArray.t)
+        self.Nens = len(csdArray.t)
+        self.dt = np.nan
+
+        # Note that each *unique* measurement separation
+        # (i.e. `csdArray.stencil.unique_separation`) does
+        # *not* necessarily map to a unique cross-spectral
+        # density, as various correlation pairs may be
+        # separated by the same distance.
+        #
+        # To create a cross-spectral density that is truly
+        # a function of each unique measurement separation,
+        # compute average cross-spectral density at each
+        # unique separation.
+        res = csdArray.stencil.getAverageForEachSeparation(Gxy)
+        self.separation = res[0]
+        self.Gxy = res[1]
+
+    def plotNormalizedCorrelationFunction(
+            self, xlim=None, flim=None, vlim=[-1, 1],
+            cmap='viridis', interpolation='none', fontsize=16,
+            xlabel='$\delta$', ylabel='$f$'):
+        'Plot normalized correlation function, Gxy(delta, f) / Gxy(0, f).'
+        # At each frequency, normalize correlation function
+        # by it's magnitude at zero separation.
+        Gxy_norm = self.Gxy / np.abs(self.Gxy[0, :])
+
+        fig, axes = plt.subplots(
+            2, 1, sharex=True, sharey=True, figsize=(8, 10))
+
+        # Plot real component
+        axes[0] = _plot_image(
+            self.separation[1:], self.f, Gxy_norm[1:, :].T.real,
+            xlim=xlim, ylim=flim, vlim=vlim,
+            norm=None, cmap=cmap, interpolation=interpolation,
+            xlabel='', ylabel=ylabel,
+            cblabel='$\mathrm{Re}[G_{xy}(\delta, f) / G_{xy}(0, f)]$',
+            fontsize=fontsize,
+            ax=axes[0])
+
+        # Plot imaginary component
+        axes[1] = _plot_image(
+            self.separation[1:], self.f, Gxy_norm[1:, :].T.imag,
+            xlim=xlim, ylim=flim, vlim=vlim,
+            norm=None, cmap=cmap, interpolation=interpolation,
+            xlabel=xlabel, ylabel=ylabel,
+            cblabel='$\mathrm{Im}[G_{xy}(\delta, f) / G_{xy}(0, f)]$',
+            fontsize=fontsize,
+            ax=axes[1])
+
+        plt.tight_layout()
         plt.show()
 
         return
