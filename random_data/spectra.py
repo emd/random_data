@@ -828,7 +828,8 @@ def _plot_image(x, y, z,
     if vlim is not None:
         vlim = np.sort(vlim)
     else:
-        vlim = [np.min(z[yind, :][:, xind]), np.max(z[yind, :][:, xind])]
+        vlim = [np.nanmin(z[yind, :][:, xind]),
+                np.nanmax(z[yind, :][:, xind])]
 
     if norm == 'log':
         norm = LogNorm()

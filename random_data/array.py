@@ -675,9 +675,7 @@ class SpatialCrossCorrelation(object):
             at initialization
 
     separation - array_like, (`L`,)
-        The separation (yloc - xloc) of measurements y and x,
-        from which the cross-spectral density Gxy is computed.
-
+        The measurement separation.
         [separation] = [locations], where `locations` is provided
         at object initialization
 
@@ -778,6 +776,43 @@ class SpatialCrossCorrelation(object):
         res = csdArray.stencil.getAverageForEachSeparation(Gxy)
         self.separation = res[0]
         self.Gxy = res[1]
+
+    def plotNormalizedCorrelationFunction(
+            self, xlim=None, flim=None, vlim=[-1, 1],
+            cmap='viridis', interpolation='none', fontsize=16,
+            xlabel='$\delta$', ylabel='$f$'):
+        'Plot normalized correlation function, Gxy(delta, f) / Gxy(0, f).'
+        # At each frequency, normalize correlation function
+        # by it's magnitude at zero separation.
+        Gxy_norm = self.Gxy / np.abs(self.Gxy[0, :])
+
+        fig, axes = plt.subplots(
+            2, 1, sharex=True, sharey=True, figsize=(8, 10))
+
+        # Plot real component
+        axes[0] = _plot_image(
+            self.separation[1:], self.f, Gxy_norm[1:, :].T.real,
+            xlim=xlim, ylim=flim, vlim=vlim,
+            norm=None, cmap=cmap, interpolation=interpolation,
+            xlabel='', ylabel=ylabel,
+            cblabel='$\mathrm{Re}[G_{xy}(\delta, f) / G_{xy}(0, f)]$',
+            fontsize=fontsize,
+            ax=axes[0])
+
+        # Plot imaginary component
+        axes[1] = _plot_image(
+            self.separation[1:], self.f, Gxy_norm[1:, :].T.imag,
+            xlim=xlim, ylim=flim, vlim=vlim,
+            norm=None, cmap=cmap, interpolation=interpolation,
+            xlabel=xlabel, ylabel=ylabel,
+            cblabel='$\mathrm{Im}[G_{xy}(\delta, f) / G_{xy}(0, f)]$',
+            fontsize=fontsize,
+            ax=axes[1])
+
+        plt.tight_layout()
+        plt.show()
+
+        return
 
 
 class FittedCrossPhaseArray(CrossSpectralDensityArray):
