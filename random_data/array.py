@@ -391,7 +391,8 @@ class CrossSpectralDensityArray(object):
 
     Methods:
     --------
-    Type `help(Array)` in the IPython console for a listing.
+    Type `help(CrossSpectralDensityArray)` in the IPython console
+    for a listing.
 
     '''
     def __init__(self, signals, locations,
@@ -647,31 +648,30 @@ class CrossSpectralDensityArray(object):
             return
 
 
-class SpatialCrossCorrelation(CrossSpectralDensityArray):
+class SpatialCrossCorrelation(object):
     '''A class for computing the complex-valued, spatial cross-correlation
     function corresponding to an array of measurements.
 
-    This class is derived from :py:class:`CrossSpectralDensityArray
-    <random_data.array.CrossSpectralDensityArray>` and thus shares
-    most of its attributes and methods. Attributes and properties
-    *unique* to this class are discussed below.
-
     Attributes:
     -----------
-    Gxy - array_like, (`L`, `Nf`, `Nt`)
-        An array of the average cross-spectral-density estimate
-        as a function of
+    Gxy - array_like, (`L`, `Nf`)
+        An array of the average cross-spectral-density estimate as a
+        function of:
 
-            - measurement separation (1st index, `L`),
-            - frequency (2nd index, `Nf`), and
-            - time (3rd index, `Nt`),
+            - measurement separation (1st index, `L`), and
+            - frequency (2nd index, `Nf`),
 
-        where averaging has been done at each measurement separation.
+        where averaging has been done
+
+            - in time (across the full time domain in the
+              input `signal`), and
+            - at each measurement separation.
+
         The indexing in `L` is such that cross-spectral density estimates
         are ordered sequentially from smallest separation of measurement
         locations to largest separation of measurement locations.
 
-        [Gxy] = [signal]^2 / [self.Fs], where `signal` is provided
+        [Gxy] = [signal]^2 / [Fs], where `signal` and `Fs` are provided
             at initialization
 
     separation - array_like, (`L`,)
@@ -681,9 +681,27 @@ class SpatialCrossCorrelation(CrossSpectralDensityArray):
         [separation] = [locations], where `locations` is provided
         at object initialization
 
+    Nens - int
+        The number of ensembles that `self.Gxy` was averaged over.
+        Note that `self.Nens * self.Nreal_per_ens` gives the total
+        number of realizations averaged over to arrive at the
+        spectral estimate `self.Gxy`.
+
+    The additional attributes:
+
+        {`detrend`, `df`, `dt`, `f`, `Fs`, `Npts_overlap`,
+        `Npts_per_ens`, `Npts_per_real`, `Nreal_per_ens`, `t`}
+
+    are described in the documentation for :py:class:`CrossSpectralDensity
+    <random_data.spectra.CrossSpectralDensity>`.
+
+    Methods:
+    --------
+    Type `help(SpatialCrossCorrelation)` in the IPython console
+    for a listing.
+
     '''
     def __init__(self, signals, locations,
-                 include_autocorrelations=True,
                  print_status=True, **csd_kwargs):
         '''Create an instance of the `SpatialCrossCorrelation` class.
 
@@ -696,10 +714,6 @@ class SpatialCrossCorrelation(CrossSpectralDensityArray):
         locations - array_like, (`N`,)
             Location of each measurement in `signals`.
             [locations] = arbitrary units
-
-        include_autocorrelations - bool
-            If True, also compute autospectral densities corresponding
-            to autocorrelation of each signal against itself.
 
         print_status - bool
             If True, print status of computations.
@@ -723,21 +737,47 @@ class SpatialCrossCorrelation(CrossSpectralDensityArray):
             further details.
 
         '''
-        # Call base-class initialization
-        CrossSpectralDensityArray.__init__(
-            self, signals, locations,
+        # Compute cross-spectral density for each measurement pair
+        csdArray = CrossSpectralDensityArray(
+            signals, locations,
             include_autocorrelations=True,
             print_status=print_status,
             **csd_kwargs)
 
-        # Compute average autospectral density for each separation
-        res = self.stencil.getAverageForEachSeparation(self.Gxy)
+        # Record important aspects of the computation
+        self.Fs = csdArray.Fs
+
+        self.Npts_per_real = csdArray.Npts_per_real
+        self.Nreal_per_ens = csdArray.Nreal_per_ens
+        self.Npts_overlap = csdArray.Npts_overlap
+        self.Npts_per_ens = csdArray.Npts_per_ens
+
+        self.detrend = csdArray.detrend
+        self.window = csdArray.window
+
+        self.f = csdArray.f
+        self.df = csdArray.df
+
+        # Average over time dimension, noting number of
+        # ensembles averaged over.
+        Gxy = np.mean(csdArray.Gxy, axis=-1)
+        self.t = np.mean(csdArray.t)
+        self.Nens = len(csdArray.t)
+        self.dt = np.nan
+
+        # Note that each *unique* measurement separation
+        # (i.e. `csdArray.stencil.unique_separation`) does
+        # *not* necessarily map to a unique cross-spectral
+        # density, as various correlation pairs may be
+        # separated by the same distance.
+        #
+        # To create a cross-spectral density that is truly
+        # a function of each unique measurement separation,
+        # compute average cross-spectral density at each
+        # unique separation.
+        res = csdArray.stencil.getAverageForEachSeparation(Gxy)
         self.separation = res[0]
         self.Gxy = res[1]
-
-        # Remove extraneous variables
-        del (self.xloc, self.yloc,
-             self.gamma2xy, self.theta_xy, self.stencil)
 
 
 class FittedCrossPhaseArray(CrossSpectralDensityArray):
