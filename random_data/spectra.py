@@ -240,6 +240,7 @@ class AutoSpectralDensity(object):
                             AC_coupled=True,
                             cmap='viridis', interpolation='none', fontsize=16,
                             title=None, xlabel='$t$', ylabel='$f$',
+                            cblabel='$|G_{xx}(f)|$',
                             ax=None, fig=None, geometry=111):
         'Plot magnitude of spectral density on log scale.'
         if flim is None and AC_coupled:
@@ -250,7 +251,7 @@ class AutoSpectralDensity(object):
             self.t, self.f, np.abs(self.Gxx),
             xlim=tlim, ylim=flim, vlim=vlim,
             norm='log', cmap=cmap, interpolation=interpolation,
-            title=title, xlabel=xlabel, ylabel=ylabel, cblabel='$|G_{xx}(f)|$',
+            title=title, xlabel=xlabel, ylabel=ylabel, cblabel=cblabel,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
@@ -541,6 +542,7 @@ class CrossSpectralDensity(object):
                             AC_coupled=True,
                             cmap='viridis', interpolation='none', fontsize=16,
                             title=None, xlabel='$t$', ylabel='$f$',
+                            cblabel='$|G_{xy}(f)|$',
                             ax=None, fig=None, geometry=111):
         'Plot magnitude of spectral density on log scale.'
         if flim is None and AC_coupled:
@@ -551,7 +553,7 @@ class CrossSpectralDensity(object):
             self.t, self.f, np.abs(self.Gxy),
             xlim=tlim, ylim=flim, vlim=vlim,
             norm='log', cmap=cmap, interpolation=interpolation,
-            title=title, xlabel=xlabel, ylabel=ylabel, cblabel='$|G_{xy}(f)|$',
+            title=title, xlabel=xlabel, ylabel=ylabel, cblabel=cblabel,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
