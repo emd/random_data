@@ -12,7 +12,7 @@ from fractions import gcd
 
 # Related 3rd-party imports
 from .ensemble import closest_index
-from .spectra import CrossSpectralDensity, _plot_image, wrap
+from .spectra.nonparametric import CrossSpectralDensity, _plot_image, wrap
 from .errors import cross_phase_std_dev
 
 

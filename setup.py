@@ -6,7 +6,7 @@ except ImportError:
 config = {
     'name': 'random_data',
     'version': '0.33',
-    'packages': ['random_data', 'random_data.signals'],
+    'packages': ['random_data', 'random_data.signals', 'random_data.spectra'],
     'install_requires': ['numpy', 'matplotlib', 'nose'],
     'author': 'Evan M. Davis',
     'author_email': 'emd@mit.edu',

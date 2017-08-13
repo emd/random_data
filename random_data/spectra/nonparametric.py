@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import LogFormatter
 
 # Related 3rd-party imports
-from .ensemble import Ensemble
+from ..ensemble import Ensemble
 
 
 class AutoSpectralDensity(object):
