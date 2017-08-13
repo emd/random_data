@@ -77,10 +77,11 @@ class BurgAutoSpectralDensity(object):
         Input parameters:
         -----------------
         p - int
-            The order of the Burg autoregression. Computational time scales
-            roughly as `p ** 2` for "typical" orders (p < 100, or so) and
-            scales roughly as `p` for larger orders. Larger orders are often
-            subject to numerical artifacts.
+            The order of the Burg autoregression. If `p` is greater than
+            or equal to `len(x)`, a ValueError is raised. Computational
+            time scales roughly as `p ** 2` for "typical" orders (i.e.
+            p < 100, or so) and scales roughly as `p` for larger orders.
+            Larger orders are often subject to numerical artifacts.
             [p] = unitless
 
         x - array_like, (`N`,)
@@ -114,6 +115,9 @@ class BurgAutoSpectralDensity(object):
             the power in signal `x`.
 
         '''
+        if p >= (len(x)):
+            raise ValueError('`p` must be less than `len(x)`')
+
         # Record spectral-estimation parameters
         self.p = p
         self.Fs = np.float(Fs)
@@ -167,6 +171,8 @@ def forward_prediction_error(x, a):
     a - array_like, (`p + 1`,)
         The AR coefficients for the `p`-order forward-prediction
         autoregression. By definition, `a[0]` is unity for all orders.
+        If the length of `a` exceeds the length of `x`, a ValueError
+        is raised.
         [a] = unitless
 
     Returns:
@@ -281,6 +287,8 @@ def next_order_a_pp(x, a):
     a - array_like, (`p`,)
         The AR coefficients for the `p - 1`-order forward-prediction
         autoregression. By definition, `a[0]` is unity for all orders.
+        If the length of `a` is equal to or exceeds the length of `x`,
+        a ValueError is raised.
         [a] = unitless
 
     Returns:
@@ -295,9 +303,16 @@ def next_order_a_pp(x, a):
         [a_pp] = unitless
 
     '''
+    # `forward_prediction_error`, called below, enforces `len(a) <= len(x)`.
+    # However, if `len(a) == len(x)`, we run into the problem that the
+    # below-sliced forward- and backward-prediction errors, `ef` and `eb`,
+    # respectively, are empty.
+    if len(a) >= len(x):
+        raise ValueError('`len(a)` must be less than `len(x)`')
+
     # Obtain forward- and backward-prediction errors from
     # AR model of order `p - 1`, and store only the slices
-    # needed for the computation
+    # needed for the computation.
     ef = forward_prediction_error(x, a)[1:]
     eb = backward_prediction_error(x, a)[:-1]
 

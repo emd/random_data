@@ -96,6 +96,14 @@ def test_total_error_energy():
 
 
 def test_next_order_a_pp():
+    # A ValueError should be raised if `len(a) >= len(x)`
+    x = np.zeros(5)
+    a = np.ones(len(x))
+    tools.assert_raises(
+        ValueError,
+        next_order_a_pp,
+        *[x, a])
+
     # Zero-order AR model produces forward and backwards errors
     # that are equal to the input signal. If the input signal's
     # entries are all equal, then we expect a_pp = -1.
@@ -159,8 +167,16 @@ def test_BurgAutoSpectralDensity():
     A = 1.
     x = A * np.cos(2 * np.pi * f0 * t)
 
-    # Estimate two-sided autospectral density:
-    # ----------------------------------------
+    # Check that ValueError is raised for orders equal to or
+    # exceeding the length of the signal `x`:
+    # --------------------------------------------------------
+    tools.assert_raises(
+        ValueError,
+        BurgAutoSpectralDensity,
+        *[len(x), x])
+
+    # Compute two-sided autospectral density estimates:
+    # -------------------------------------------------
     NFFT = 128
     noverlap = NFFT // 2
     asd_welch, f = mlab.psd(
@@ -169,6 +185,8 @@ def test_BurgAutoSpectralDensity():
         noverlap=noverlap,
         sides='twosided')
 
+    # Order-2 AR autospectral-density estimate sufficient
+    # for a single sinusoidal signal
     Nf = len(f)
     asd_burg = BurgAutoSpectralDensity(
         2, x, Fs=Fs, Nf=Nf, normalize=True)
