@@ -983,7 +983,7 @@ def _test_phase_angle(
 
     '''
     # Create some uncorrelated noise
-    from .signals import RandomSignal
+    from ..signals import RandomSignal
     sig1 = RandomSignal(4e6, 0, 0.1, fc=100e3, pole=2)
     sig2 = RandomSignal(4e6, 0, 0.1, fc=100e3, pole=2)
 
