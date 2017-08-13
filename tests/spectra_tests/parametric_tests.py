@@ -156,8 +156,8 @@ def test_burg_coefficients():
 
 
 def test_BurgAutoSpectralDensity():
-    # Construct timebase and signal:
-    # ------------------------------
+    # Construct timebase and *real* signal (symmetric spectrum):
+    # ==========================================================
     Fs = 1.
     t0 = 0
     T = 1e3
@@ -212,6 +212,36 @@ def test_BurgAutoSpectralDensity():
     # Are peaks at same place?
     maxind_welch = np.where(asd_welch[sl] == np.max(asd_welch[sl]))[0]
     maxind_burg = np.where(asd_burg.Sxx[sl] == np.max(asd_burg.Sxx[sl]))[0]
+    np.testing.assert_equal(maxind_burg, maxind_welch)
+
+    # Do the peaks have approximately the same power?
+    np.testing.assert_almost_equal(
+        asd_burg.Sxx[maxind_burg],
+        asd_welch[maxind_welch])
+
+    # Construct *complex* signal (asymmetric spectrum):
+    # =================================================
+    x = A * np.exp(1j * 2 * np.pi * f0 * t)
+
+    # Compute two-sided autospectral density estimates:
+    # -------------------------------------------------
+    asd_welch, f = mlab.psd(
+        x, NFFT=NFFT, Fs=Fs,
+        window=mlab.window_none,  # No windowing for sharpest resolution
+        noverlap=noverlap,
+        sides='twosided')
+
+    # Order-1 AR autospectral-density estimate sufficient
+    # for a single complex exponential signal
+    Nf = len(f)
+    asd_burg = BurgAutoSpectralDensity(
+        1, x, Fs=Fs, Nf=Nf, normalize=True)
+
+    # Examine position and magnitude of peak:
+    # ---------------------------------------
+   # Are peaks at same place?
+    maxind_welch = np.where(asd_welch == np.max(asd_welch))[0]
+    maxind_burg = np.where(asd_burg.Sxx == np.max(asd_burg.Sxx))[0]
     np.testing.assert_equal(maxind_burg, maxind_welch)
 
     # Do the peaks have approximately the same power?
