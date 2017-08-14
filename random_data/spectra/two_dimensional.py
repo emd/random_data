@@ -146,7 +146,9 @@ class TwoDimensionalAutoSpectralDensity(object):
 
     def _getFourierSpectralDensity(self, corr):
         '''Get 2-d autospectral density estimate by Fourier transforming
-        the complex-valued, spatial correlation function `corr`.
+        the complex-valued, spatial correlation function `corr`. The
+        autospectral density estimate is normalized such that integrating
+        over the full spectrum yields the total power in the raw signal.
 
         '''
         Fs_spatial = 1. / (corr.separation[1] - corr.separation[0])
@@ -187,6 +189,13 @@ class TwoDimensionalAutoSpectralDensity(object):
             Npts, d=(1. / Fs_spatial)))
 
         self.dxi = self.xi[1] - self.xi[0]
+
+        # Normalize spectral density to power in raw signal such that
+        # integrating over all `np.abs(self.Sxx)` yields total power.
+        ind0sep = np.where(corr.separation == 0)[0][0]
+        signal_power = np.sum(np.abs(corr.Gxy[ind0sep, :])) * self.df
+        integrated_power = np.sum(np.abs(self.Sxx)) * self.df * self.dxi
+        self.Sxx *= (signal_power / integrated_power)
 
         return
 
