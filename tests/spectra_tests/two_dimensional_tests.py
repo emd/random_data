@@ -1,6 +1,6 @@
 from nose import tools
 import numpy as np
-from random_data.array import SpatialCrossCorrelation
+import random_data as rd
 from random_data.spectra.two_dimensional import (
     TwoDimensionalAutoSpectralDensity)
 
@@ -38,7 +38,7 @@ x -= np.mean(x)  # avoid low-f, low-xi leakage
 
 # Compute `SpatialCrossCorrelation` object:
 # =========================================
-corr = SpatialCrossCorrelation(
+corr = rd.array.SpatialCrossCorrelation(
     x, z, Fs=Fs, t0=t0,
     Tens=(0.5 * T), Nreal_per_ens=100)
 
@@ -65,6 +65,33 @@ def test_TwoDimensionalAutoSpectralDensity_Fourier():
     asd2d = TwoDimensionalAutoSpectralDensity(
         corr, spatial_method='fourier',
         fourier_params={'window': np.hanning})
+
+    # Test that peak appears in right place:
+    # --------------------------------------
+    peak = np.max(np.abs(asd2d.Sxx))
+    ind = np.where(np.abs(asd2d.Sxx) == peak)
+
+    # Passing implies accuracy within 5%
+    xi_ratio = asd2d.xi[ind[0]] / xi0
+    np.testing.assert_almost_equal(xi_ratio, 1, decimal=1)
+
+    # Passing implies accuracy within 5%
+    f_ratio = asd2d.f[ind[1]] / f0
+    np.testing.assert_almost_equal(f_ratio, 1, decimal=1)
+
+    # Test power conservation:
+    # ------------------------
+    # ???
+
+    return
+
+
+def test_TwoDimensionalAutoSpectralDensity_Burg():
+    # Estimate 2d autospectral density via Burg AR method:
+    # ----------------------------------------------------
+    asd2d = TwoDimensionalAutoSpectralDensity(
+        corr, spatial_method='burg',
+        burg_params={'p': 5, 'Nxi': 101})
 
     # Test that peak appears in right place:
     # --------------------------------------

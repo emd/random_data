@@ -140,7 +140,7 @@ class TwoDimensionalAutoSpectralDensity(object):
 
         # Estimate autospectral density
         if self.spatial_method == 'burg':
-            pass
+            self._getBurgSpectralDensity(corr)
         elif self.spatial_method == 'fourier':
             self._getFourierSpectralDensity(corr)
 
@@ -186,6 +186,70 @@ class TwoDimensionalAutoSpectralDensity(object):
         self.xi = np.fft.fftshift(np.fft.fftfreq(
             Npts, d=(1. / Fs_spatial)))
 
+        self.dxi = self.xi[1] - self.xi[0]
+
+        return
+
+    def _getBurgSpectralDensity(self, corr):
+        '''Get 2-d autospectral density estimate by using a Burg
+        autoregression of  the complex-valued, spatial correlation
+        function `corr`.
+
+        '''
+        # Initialize a real array to hold autospectral-density estimate,
+        # as autospectral density should be real-valued
+        self.Sxx = np.zeros((self.Nxi, len(self.f)))
+
+        # Determine maximum valid separation, `Delta`, of points
+        # in the correlation function
+        separation = corr.separation[corr._valid]
+        Delta = separation[-1] - separation[0]
+
+        # Loop through frequency, estimating spatial autospectral density
+        # at each using Burg autoregression. Note that this is done in a
+        # somewhat round-about way. First, we use the Burg AR to estimate
+        # the autospectral density of the *correlation function*,
+        # S_{corr}(xi), which, by definition, is equal to
+        #
+        #       S_{corr}(xi) = (1 / Delta) * E[|FDFT(corr, Delta)|^2],
+        #
+        # in the limit that the maximum separation `Delta` in the correlation
+        # function goes to infinity. Here, `E[...]` is the expectation-value
+        # operator and `FDFT(x, T)` is the finite duration Fourier transform
+        # of signal x(t); explicitly
+        #
+        #   FDFT(x, T) = \int_{0}^{T} dt [e^{-2j * pi * f * t} * x(t)]
+        #
+        # Note, however, that our desired autospectral density S_{xx}
+        # is simply the Fourier transform of the correlation function, i.e.
+        #
+        #           S_{xx}(xi) = FT[corr(delta)](xi),
+        #
+        # where `FT[x(t)](f)` is the Fourier transform of signal `x(t)`.
+        # Approximating the Fourier transform by the FDFT, we see that
+        #
+        #           S_{xx}(xi)    =    FT[corr(delta)](xi),
+        #                      \approx FDFT(corr, Delta),
+        #                      \approx [Delta * S_{corr}(xi)]^{1/2},
+        #
+        # where we have selected the positive root, as S_{xx}(xi) is
+        # positive semi-definite.
+        for find in np.arange(len(self.f)):
+            # Burg AR spectral-density estimate for correlation function
+            asd_burg = BurgAutoSpectralDensity(
+                self.p,
+                corr.Gxy[corr._valid, find],
+                Fs=self.Fs_spatial,
+                Nf=self.Nxi,
+                normalize=True)
+
+            # Compute corresponding autospectral density of process
+            # underlying the correlation function
+            self.Sxx[:, find] = np.sqrt(Delta * asd_burg.Sxx)
+
+        # Note that xi = (1 / wavelength) such that the
+        # wavenumber k is related to xi via k = 2 * pi * xi.
+        self.xi = asd_burg.f
         self.dxi = self.xi[1] - self.xi[0]
 
         return
