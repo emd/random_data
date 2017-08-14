@@ -3,7 +3,8 @@ import numpy as np
 from random_data.spectra import CrossSpectralDensity
 from random_data.array import (
     ArrayStencil, CrossSpectralDensityArray,
-    FittedCrossPhaseArray, coefficient_of_determination)
+    FittedCrossPhaseArray, coefficient_of_determination,
+    _find_first_nan)
 from random_data.ensemble import closest_index
 
 
@@ -367,5 +368,20 @@ def test_FittedCrossPhaseArray_fitPhaseAngles():
 
         # Compare fitted mode number to true mode number
         np.testing.assert_allclose(n, A.mode_number[find, :], atol=0.0)
+
+    return
+
+
+def test__find_first_nan():
+    # Must be array of floats
+    a = np.arange(10.)
+
+    # Insert `np.nan` into `a`
+    ind = [3, 5, 7]
+    a[ind] = np.nan
+
+    tools.assert_equal(
+        _find_first_nan(a),
+        ind[0])
 
     return

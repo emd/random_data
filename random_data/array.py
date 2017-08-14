@@ -1119,22 +1119,44 @@ class SpatialCrossCorrelation(object):
             np.conj(Gxy_av[1:, ...][::-1, ...]),
             Gxy_av))
 
+        self._valid = self._getValidSlice()
+
+    def _getValidSlice(self):
+        '''Get slice for viewing central, non-nan values of `self.Gxy`.
+        It is assumed that the nans are distributed identically for
+        both positive and negative separations, as required for a
+        stationary random process where
+
+                    R_{xx}(-delta) = conj(R_{xx}(delta)).
+
+        '''
+        ind0sep = np.where(self.separation == 0)[0][0]
+        indnan = _find_first_nan(self.Gxy[ind0sep:, 0])
+
+        return slice(ind0sep - indnan + 1, ind0sep + indnan)
+
     def plotNormalizedCorrelationFunction(
             self, xlim=None, flim=None, vlim=[-1, 1],
             cmap='viridis', interpolation='none', fontsize=16,
-            xlabel='$\delta$', ylabel='$f$'):
+            xlabel='$\delta$', ylabel='$f$', no_nan=False):
         'Plot normalized correlation function, Gxy(delta, f) / Gxy(0, f).'
         # At each frequency, normalize correlation function
         # by it's magnitude at zero separation.
-        ind0sep = np.where(self.separation == 0)[0]
+        ind0sep = np.where(self.separation == 0)[0][0]
         Gxy_norm = self.Gxy / np.abs(self.Gxy[ind0sep, :])
+
+        separation = self.separation.copy()
+
+        if no_nan:
+            separation = separation[self._valid]
+            Gxy_norm = Gxy_norm[self._valid, ...]
 
         fig, axes = plt.subplots(
             2, 1, sharex=True, sharey=True, figsize=(8, 10))
 
         # Plot real component
         axes[0] = _plot_image(
-            self.separation, self.f, Gxy_norm.T.real,
+            separation, self.f, Gxy_norm.T.real,
             xlim=xlim, ylim=flim, vlim=vlim,
             norm=None, cmap=cmap, interpolation=interpolation,
             xlabel='', ylabel=ylabel,
@@ -1144,7 +1166,7 @@ class SpatialCrossCorrelation(object):
 
         # Plot imaginary component
         axes[1] = _plot_image(
-            self.separation, self.f, Gxy_norm.T.imag,
+            separation, self.f, Gxy_norm.T.imag,
             xlim=xlim, ylim=flim, vlim=vlim,
             norm=None, cmap=cmap, interpolation=interpolation,
             xlabel=xlabel, ylabel=ylabel,
@@ -1283,3 +1305,8 @@ def _test_plotModeNumber(
             title='Upper boundary of mode number %i' % np.int(np.floor(n)))
 
     return
+
+
+def _find_first_nan(x):
+    'Find location of first `np.nan` in array `x`.'
+    return np.where(np.isnan(x) == True)[0][0]
