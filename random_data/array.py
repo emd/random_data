@@ -1108,9 +1108,16 @@ class SpatialCrossCorrelation(object):
         # a function of each unique measurement separation,
         # compute average cross-spectral density at each
         # unique separation.
-        res = csdArray.stencil.getAverageForEachSeparation(Gxy)
-        self.separation = res[0]
-        self.Gxy = res[1]
+        sep, Gxy_av = csdArray.stencil.getAverageForEachSeparation(Gxy)
+
+        # Reflect and conjugate `Gxy_av` to obtain correlation function
+        # for both positive and negative separations.
+        self.separation = np.concatenate((
+            -sep[1:][::-1],
+            sep))
+        self.Gxy = np.concatenate((
+            np.conj(Gxy_av[1:, ...][::-1, ...]),
+            Gxy_av))
 
     def plotNormalizedCorrelationFunction(
             self, xlim=None, flim=None, vlim=[-1, 1],
@@ -1119,14 +1126,15 @@ class SpatialCrossCorrelation(object):
         'Plot normalized correlation function, Gxy(delta, f) / Gxy(0, f).'
         # At each frequency, normalize correlation function
         # by it's magnitude at zero separation.
-        Gxy_norm = self.Gxy / np.abs(self.Gxy[0, :])
+        ind0sep = np.where(self.separation == 0)[0]
+        Gxy_norm = self.Gxy / np.abs(self.Gxy[ind0sep, :])
 
         fig, axes = plt.subplots(
             2, 1, sharex=True, sharey=True, figsize=(8, 10))
 
         # Plot real component
         axes[0] = _plot_image(
-            self.separation[1:], self.f, Gxy_norm[1:, :].T.real,
+            self.separation, self.f, Gxy_norm.T.real,
             xlim=xlim, ylim=flim, vlim=vlim,
             norm=None, cmap=cmap, interpolation=interpolation,
             xlabel='', ylabel=ylabel,
@@ -1136,7 +1144,7 @@ class SpatialCrossCorrelation(object):
 
         # Plot imaginary component
         axes[1] = _plot_image(
-            self.separation[1:], self.f, Gxy_norm[1:, :].T.imag,
+            self.separation, self.f, Gxy_norm.T.imag,
             xlim=xlim, ylim=flim, vlim=vlim,
             norm=None, cmap=cmap, interpolation=interpolation,
             xlabel=xlabel, ylabel=ylabel,
