@@ -1133,7 +1133,10 @@ class SpatialCrossCorrelation(object):
         ind0sep = np.where(self.separation == 0)[0][0]
         indnan = _find_first_nan(self.Gxy[ind0sep:, 0])
 
-        return slice(ind0sep - indnan + 1, ind0sep + indnan)
+        if indnan is not None:
+            return slice(ind0sep - indnan + 1, ind0sep + indnan)
+        else:
+            return slice(None, None)
 
     def plotNormalizedCorrelationFunction(
             self, xlim=None, flim=None, vlim=[-1, 1],
@@ -1308,5 +1311,11 @@ def _test_plotModeNumber(
 
 
 def _find_first_nan(x):
-    'Find location of first `np.nan` in array `x`.'
-    return np.where(np.isnan(x) == True)[0][0]
+    '''Find location of first `np.nan` in array `x`; return `None`
+    if there are no `np.nan` values in `x`.
+
+    '''
+    try:
+        return np.where(np.isnan(x) == True)[0][0]
+    except IndexError:
+        return None

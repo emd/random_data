@@ -376,6 +376,11 @@ def test__find_first_nan():
     # Must be array of floats
     a = np.arange(10.)
 
+    # Test case with no `np.nan` in `a`
+    tools.assert_equal(
+        _find_first_nan(a),
+        None)
+
     # Insert `np.nan` into `a`
     ind = [3, 5, 7]
     a[ind] = np.nan
