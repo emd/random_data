@@ -213,7 +213,7 @@ class TwoDimensionalAutoSpectralDensity(object):
         over the full spectrum yields the total power in the raw signal.
 
         '''
-        Npts = len(corr.separation[corr._valid])
+        Npts = len(corr.separation[corr._central_block])
 
         if self.window_spatial is not None:
             w = self.window_spatial(Npts)
@@ -239,9 +239,10 @@ class TwoDimensionalAutoSpectralDensity(object):
         # Fourier analyzed in time, so we only need to
         # Fourier transform in space to obtain the estimated
         # autospectral density.
-        self.Sxx = (1. / self.Fs_spatial) * np.fft.fftshift(
-            np.fft.fft(w[:, np.newaxis] * corr.Gxy[corr._valid], axis=0),
-            axes=0)
+        self.Sxx = (1. / self.Fs_spatial) * np.fft.fft(
+            w[:, np.newaxis] * corr.Gxy[corr._central_block],
+            axis=0)
+        self.Sxx = np.fft.fftshift(self.Sxx, axes=0)
 
         # Construct grid for spatial spectral density.
         # Note that xi = (1 / wavelength) such that the
@@ -269,7 +270,7 @@ class TwoDimensionalAutoSpectralDensity(object):
 
         # Determine maximum valid separation, `Delta`, of points
         # in the correlation function
-        separation = corr.separation[corr._valid]
+        separation = corr.separation[corr._central_block]
         Delta = separation[-1] - separation[0]
 
         # Loop through frequency, estimating spatial autospectral density
@@ -308,7 +309,7 @@ class TwoDimensionalAutoSpectralDensity(object):
             # We will handle normalization externally.
             asd_burg = BurgAutoSpectralDensity(
                 self.p,
-                corr.Gxy[corr._valid, find],
+                corr.Gxy[corr._central_block, find],
                 Fs=self.Fs_spatial,
                 Nf=Nxi,
                 normalize=False)

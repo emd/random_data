@@ -1,8 +1,6 @@
 from nose import tools
 import numpy as np
 import random_data as rd
-from random_data.spectra.two_dimensional import (
-    TwoDimensionalAutoSpectralDensity)
 
 
 # Construct signal from which to initialize `SpatialCrossCorrelation`:
@@ -47,13 +45,13 @@ def test_TwoDimensionalAutoSpectralDensity_ValueError():
     # Must pass `SpatialCrossCorrelation` object, not array
     tools.assert_raises(
         ValueError,
-        TwoDimensionalAutoSpectralDensity,
+        rd.spectra2d.TwoDimensionalAutoSpectralDensity,
         corr.Gxy)
 
     # Must use a method that has been implemented
     tools.assert_raises(
         ValueError,
-        TwoDimensionalAutoSpectralDensity,
+        rd.spectra2d.TwoDimensionalAutoSpectralDensity,
         corr, **{'spatial_method': 'ARMA'})
 
     return
@@ -62,7 +60,7 @@ def test_TwoDimensionalAutoSpectralDensity_ValueError():
 def test_TwoDimensionalAutoSpectralDensity_Fourier():
     # Estimate 2d autospectral density via Fourier method:
     # ----------------------------------------------------
-    asd2d = TwoDimensionalAutoSpectralDensity(
+    asd2d = rd.spectra2d.TwoDimensionalAutoSpectralDensity(
         corr, spatial_method='fourier',
         fourier_params={'window': np.hanning})
 
@@ -93,7 +91,7 @@ def test_TwoDimensionalAutoSpectralDensity_Fourier():
 def test_TwoDimensionalAutoSpectralDensity_Burg():
     # Estimate 2d autospectral density via Burg AR method:
     # ----------------------------------------------------
-    asd2d = TwoDimensionalAutoSpectralDensity(
+    asd2d = rd.spectra2d.TwoDimensionalAutoSpectralDensity(
         corr, spatial_method='burg',
         burg_params={'p': 5, 'Nxi': 101})
 

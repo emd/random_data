@@ -1119,9 +1119,9 @@ class SpatialCrossCorrelation(object):
             np.conj(Gxy_av[1:, ...][::-1, ...]),
             Gxy_av))
 
-        self._valid = self._getValidSlice()
+        self._central_block = self._getCentralBlock()
 
-    def _getValidSlice(self):
+    def _getCentralBlock(self):
         '''Get slice for viewing central, non-nan values of `self.Gxy`.
         It is assumed that the nans are distributed identically for
         both positive and negative separations, as required for a
@@ -1151,8 +1151,8 @@ class SpatialCrossCorrelation(object):
         separation = self.separation.copy()
 
         if no_nan:
-            separation = separation[self._valid]
-            Gxy_norm = Gxy_norm[self._valid, ...]
+            separation = separation[self._central_block]
+            Gxy_norm = Gxy_norm[self._central_block, ...]
 
         fig, axes = plt.subplots(
             2, 1, sharex=True, sharey=True, figsize=(7, 9))
@@ -1318,6 +1318,6 @@ def _find_first_nan(x):
 
     '''
     try:
-        return np.where(np.isnan(x) == True)[0][0]
+        return np.where(np.isnan(x))[0][0]
     except IndexError:
         return None
