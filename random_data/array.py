@@ -1155,7 +1155,7 @@ class SpatialCrossCorrelation(object):
             Gxy_norm = Gxy_norm[self._valid, ...]
 
         fig, axes = plt.subplots(
-            2, 1, sharex=True, sharey=True, figsize=(8, 10))
+            2, 1, sharex=True, sharey=True, figsize=(6, 8))
 
         # Plot real component
         axes[0] = _plot_image(
@@ -1163,6 +1163,7 @@ class SpatialCrossCorrelation(object):
             xlim=xlim, ylim=flim, vlim=vlim,
             norm=None, cmap=cmap, interpolation=interpolation,
             xlabel='', ylabel=ylabel,
+            cbarorientation='vertical',
             cblabel='$\mathrm{Re}[G_{xy}(\delta, f) / G_{xy}(0, f)]$',
             fontsize=fontsize,
             ax=axes[0])
@@ -1173,6 +1174,7 @@ class SpatialCrossCorrelation(object):
             xlim=xlim, ylim=flim, vlim=vlim,
             norm=None, cmap=cmap, interpolation=interpolation,
             xlabel=xlabel, ylabel=ylabel,
+            cbarorientation='vertical',
             cblabel='$\mathrm{Im}[G_{xy}(\delta, f) / G_{xy}(0, f)]$',
             fontsize=fontsize,
             ax=axes[1])
