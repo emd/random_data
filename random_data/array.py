@@ -1155,7 +1155,7 @@ class SpatialCrossCorrelation(object):
             Gxy_norm = Gxy_norm[self._valid, ...]
 
         fig, axes = plt.subplots(
-            2, 1, sharex=True, sharey=True, figsize=(6, 8))
+            2, 1, sharex=True, sharey=True, figsize=(7, 9))
 
         # Plot real component
         axes[0] = _plot_image(
