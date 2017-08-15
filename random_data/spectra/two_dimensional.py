@@ -33,10 +33,72 @@ default_burg_params = {
 class TwoDimensionalAutoSpectralDensity(object):
     '''A class for estimating the 2-dimensional autospectral density
     of a field given the complex-valued spatial correlation function,
-    which e.g. can be computed from an array of measurements.
+    which e.g. can be computed from an array of (potentially nonuniform)
+    measurements.
 
     Attributes:
     -----------
+    Sxx - array_like, (`Nxi`, `Nf`)
+        An array of the estimated autospectral density as a
+        function of:
+
+            - xi = 1 / wavelength (1st index, `Nxi`), and
+            - frequency (2nd index, `Nf`).
+
+        `Sxx` is normalized such that integrating over all of `Sxx`
+        yields the total power in the signal `x`.
+
+        [Sxx] = [x^2] / ([self.Fs] * [self.Fs_spatial]), where
+            `x` is the process who's autospectral density `self.Sxx`
+            has been estimated
+
+    xi - array_like, (`Nxi`,)
+        The inverse-spatial grid. Note that xi = (1 / wavelength) such that
+        the wavenumber k is related to xi via k = (2 * pi * xi).
+        [xi] = [self.Fs_spatial]
+
+    Fs - float
+        The temporal sampling rate.
+        [Fs] = [corr.Fs]
+
+    Fs_spatial - float
+        The "spatial sampling rate", as determined by the spacing between
+        adjacent points in the correlation function `corr`, provided
+        at input.
+        [Fs_spatial] = 1 / [corr.separation]
+
+    dxi - float
+        The spacing of the inverse-spatial grid.
+        [dxi] = [self.Fs_spatial]
+
+    f - array_like, (`Nf`,)
+        The frequency grid.
+        [f] = [self.Fs]
+
+    df - float
+        The spacing of the frequency grid.
+        [df] = [self.Fs]
+
+    spatial_method - string
+        The method used to estimate the spatial content of the
+        autospectral density, `self.Gxx`.
+
+    p - int
+        The order of the Burg AR. Only present if `spatial_method == 'burg'`.
+
+    spatial_window - :py:func, a function of an integer
+        The tapering window applied to the spatial dimension of the
+        correlation function `corr` prior to taking the spatial Fourier
+        transform. Only present (and only applied) if
+        `spatial_method == 'fourier'`.
+
+    The additional attributes:
+
+        {Nens, `Npts_overlap`, `Npts_per_ens`, `Npts_per_real`,
+        `Nreal_per_ens`, `detrend`, `dt`, `t`, `window`}
+
+    are described in the documentation for :py:class:`SpatialCrossCorrelation
+    <random_data.array.SpatialCrossCorrelation>`.
 
     Methods:
     --------
@@ -134,13 +196,13 @@ class TwoDimensionalAutoSpectralDensity(object):
 
         if self.spatial_method == 'burg':
             self.p = burg_params['p']
-            self.Nxi = burg_params['Nxi']
+            Nxi = burg_params['Nxi']
         elif self.spatial_method == 'fourier':
             self.window_spatial = fourier_params['window']
 
         # Estimate autospectral density
         if self.spatial_method == 'burg':
-            self._getBurgSpectralDensity(corr)
+            self._getBurgSpectralDensity(corr, Nxi)
         elif self.spatial_method == 'fourier':
             self._getFourierSpectralDensity(corr)
 
@@ -151,7 +213,6 @@ class TwoDimensionalAutoSpectralDensity(object):
         over the full spectrum yields the total power in the raw signal.
 
         '''
-        Fs_spatial = 1. / (corr.separation[1] - corr.separation[0])
         Npts = len(corr.separation[corr._valid])
 
         if self.window_spatial is not None:
@@ -178,7 +239,7 @@ class TwoDimensionalAutoSpectralDensity(object):
         # Fourier analyzed in time, so we only need to
         # Fourier transform in space to obtain the estimated
         # autospectral density.
-        self.Sxx = (1. / Fs_spatial) * np.fft.fftshift(
+        self.Sxx = (1. / self.Fs_spatial) * np.fft.fftshift(
             np.fft.fft(w[:, np.newaxis] * corr.Gxy[corr._valid], axis=0),
             axes=0)
 
@@ -186,7 +247,7 @@ class TwoDimensionalAutoSpectralDensity(object):
         # Note that xi = (1 / wavelength) such that the
         # wavenumber k is related to xi via k = 2 * pi * xi.
         self.xi = np.fft.fftshift(np.fft.fftfreq(
-            Npts, d=(1. / Fs_spatial)))
+            Npts, d=(1. / self.Fs_spatial)))
 
         self.dxi = self.xi[1] - self.xi[0]
 
@@ -196,7 +257,7 @@ class TwoDimensionalAutoSpectralDensity(object):
 
         return
 
-    def _getBurgSpectralDensity(self, corr):
+    def _getBurgSpectralDensity(self, corr, Nxi):
         '''Get 2-d autospectral density estimate by using a Burg
         autoregression of  the complex-valued, spatial correlation
         function `corr`.
@@ -204,7 +265,7 @@ class TwoDimensionalAutoSpectralDensity(object):
         '''
         # Initialize a real array to hold autospectral-density estimate,
         # as autospectral density should be real-valued
-        self.Sxx = np.zeros((self.Nxi, len(self.f)))
+        self.Sxx = np.zeros((Nxi, len(self.f)))
 
         # Determine maximum valid separation, `Delta`, of points
         # in the correlation function
@@ -249,7 +310,7 @@ class TwoDimensionalAutoSpectralDensity(object):
                 self.p,
                 corr.Gxy[corr._valid, find],
                 Fs=self.Fs_spatial,
-                Nf=self.Nxi,
+                Nf=Nxi,
                 normalize=False)
 
             # Compute corresponding autospectral density of process
