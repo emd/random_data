@@ -1169,6 +1169,56 @@ class SpatialCrossCorrelation(object):
         else:
             return slice(None, None)
 
+    def interpolate(self, max_gap_size):
+        '''Interpolate `self.Gxy` across spatial gaps that are
+        less than or equal to `max_gap_size`. Interpolation is
+        linear and can be undone by calling `self.unInterpolate()`.
+
+        '''
+        # First, make a hidden copy of the original signal, in case
+        # we don't like the interpolation and want to revert to original
+        self._Gxy_original = self.Gxy.copy()
+
+        # Gaps are identified by presence of `np.nan` values in `self.Gxy`.
+        # Because gaps only occur in space, we only need to look at
+        # a slice at a single frequency, e.g. `self.Gxy[:, 0]`.
+        not_nan_ind = np.where(np.logical_not(np.isnan(self.Gxy[:, 0])))[0]
+
+        # Determine size of gaps
+        stencil = ArrayStencil(not_nan_ind)
+        gap_sizes = stencil.getMaskGapSizes()
+
+        # Do not interpolate across gaps exceeding `max_gap_size`
+        interp_ind = np.where(gap_sizes <= max_gap_size)[0]
+
+        # Linearly interpolate in space at each frequency.
+        for find in np.arange(len(self.f)):
+            self.Gxy[interp_ind, find] = np.interp(
+                self.separation[interp_ind],
+                self.separation[not_nan_ind],
+                self.Gxy[not_nan_ind, find])
+
+        # Find new central block, as some `np.nan` values
+        # should have been replaced by interpolated values
+        self._central_block = self._getCentralBlock()
+
+        return
+
+    def unInterpolate(self):
+        '''Inverts the actions of `self.interpolate()`, restoring
+        `self.Gxy` to its value prior to the last `self.interpolate()`
+        call. Thus, if `self.interpolate()` has been called more than
+        once, the restored `self.Gxy` may not correspond to the raw,
+        un-interpolated value.
+
+        '''
+        self.Gxy = self._Gxy_original
+        del self._Gxy_original
+
+        self._central_block = self._getCentralBlock()
+
+        return
+
     def plotNormalizedCorrelationFunction(
             self, xlim=None, flim=None, vlim=[-1, 1],
             cmap='viridis', interpolation='none', fontsize=16,
