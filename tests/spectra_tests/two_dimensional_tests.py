@@ -85,7 +85,7 @@ def test_TwoDimensionalAutoSpectralDensity_Fourier():
     np.testing.assert_almost_equal(
         np.sum(np.abs(asd2d.Sxx)) * asd2d.df * asd2d.dxi,
         np.var(x),
-        decimal=3)
+        decimal=2)
 
     return
 
@@ -116,6 +116,6 @@ def test_TwoDimensionalAutoSpectralDensity_Burg():
     np.testing.assert_almost_equal(
         np.sum(np.abs(asd2d.Sxx)) * asd2d.df * asd2d.dxi,
         np.var(x),
-        decimal=3)
+        decimal=2)
 
     return
