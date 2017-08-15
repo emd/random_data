@@ -1188,15 +1188,33 @@ class SpatialCrossCorrelation(object):
         stencil = ArrayStencil(not_nan_ind)
         gap_sizes = stencil.getMaskGapSizes()
 
-        # Do not interpolate across gaps exceeding `max_gap_size`
-        interp_ind = np.where(gap_sizes <= max_gap_size)[0]
+        # Do not interpolate across gaps exceeding `max_gap_size`, and,
+        # to save some computation, do not interpolate where there are
+        # no gaps
+        interp_ind = np.where(np.logical_and(
+            gap_sizes > 0,
+            gap_sizes <= max_gap_size))[0]
 
         # Linearly interpolate in space at each frequency.
         for find in np.arange(len(self.f)):
-            self.Gxy[interp_ind, find] = np.interp(
-                self.separation[interp_ind],
-                self.separation[not_nan_ind],
-                self.Gxy[not_nan_ind, find])
+            if np.__version__ >= '1.13.1':
+                # `np.interp` works for complex functions
+                self.Gxy[interp_ind, find] = np.interp(
+                    self.separation[interp_ind],
+                    self.separation[not_nan_ind],
+                    self.Gxy[not_nan_ind, find])
+            else:
+                # `np.interp` does *not* work for complex functions,
+                # so perform interpolation individually on real &
+                # imaginary components
+                self.Gxy[interp_ind, find] = np.interp(
+                    self.separation[interp_ind],
+                    self.separation[not_nan_ind],
+                    self.Gxy[not_nan_ind, find].real)
+                self.Gxy[interp_ind, find] += (1j * np.interp(
+                    self.separation[interp_ind],
+                    self.separation[not_nan_ind],
+                    self.Gxy[not_nan_ind, find].imag))
 
         # Find new central block, as some `np.nan` values
         # should have been replaced by interpolated values
