@@ -192,10 +192,7 @@ class TwoDimensionalAutoSpectralDensity(object):
 
         # Normalize spectral density to power in raw signal such that
         # integrating over all `np.abs(self.Sxx)` yields total power.
-        ind0sep = np.where(corr.separation == 0)[0][0]
-        signal_power = np.sum(np.abs(corr.Gxy[ind0sep, :])) * self.df
-        integrated_power = np.sum(np.abs(self.Sxx)) * self.df * self.dxi
-        self.Sxx *= (signal_power / integrated_power)
+        self.Sxx *= self._getNormalizationPrefactor(corr)
 
         return
 
@@ -244,13 +241,16 @@ class TwoDimensionalAutoSpectralDensity(object):
         # where we have selected the positive root, as S_{xx}(xi) is
         # positive semi-definite.
         for find in np.arange(len(self.f)):
-            # Burg AR spectral-density estimate for correlation function
+            # Burg AR spectral-density estimate for correlation function.
+            # Don't waste time with normalization, as it will normalize
+            # to power in the correlation function, not the raw signal.
+            # We will handle normalization externally.
             asd_burg = BurgAutoSpectralDensity(
                 self.p,
                 corr.Gxy[corr._valid, find],
                 Fs=self.Fs_spatial,
                 Nf=self.Nxi,
-                normalize=True)
+                normalize=False)
 
             # Compute corresponding autospectral density of process
             # underlying the correlation function
@@ -261,7 +261,23 @@ class TwoDimensionalAutoSpectralDensity(object):
         self.xi = asd_burg.f
         self.dxi = self.xi[1] - self.xi[0]
 
+        # Normalize spectral density to power in raw signal such that
+        # integrating over all `np.abs(self.Sxx)` yields total power.
+        self.Sxx *= self._getNormalizationPrefactor(corr)
+
         return
+
+    def _getNormalizationPrefactor(self, corr):
+        '''Get multiplicative prefactor for spectral density such that
+        integrating over all of the resulting spectral density yields
+        the total power in the raw signal.
+
+        '''
+        ind0sep = np.where(corr.separation == 0)[0][0]
+        signal_power = np.sum(np.abs(corr.Gxy[ind0sep, :])) * self.df
+        integrated_power = np.sum(np.abs(self.Sxx)) * self.df * self.dxi
+
+        return (signal_power / integrated_power)
 
     def plotSpectralDensity(self, xilim=None, flim=None, vlim=None,
                             cmap='viridis', interpolation='none', fontsize=16,

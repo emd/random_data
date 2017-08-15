@@ -112,6 +112,10 @@ def test_TwoDimensionalAutoSpectralDensity_Burg():
 
     # Test power conservation:
     # ------------------------
-    # ???
+    # Passing implies accuracy of 0.15%
+    np.testing.assert_almost_equal(
+        np.sum(np.abs(asd2d.Sxx)) * asd2d.df * asd2d.dxi,
+        np.var(x),
+        decimal=3)
 
     return
