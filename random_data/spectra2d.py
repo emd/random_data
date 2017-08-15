@@ -15,9 +15,9 @@ import numpy as np
 from matplotlib import mlab
 
 # Intra-package imports
-from .parametric import BurgAutoSpectralDensity
-from .nonparametric import _plot_image
-from ..array import SpatialCrossCorrelation
+from .spectra.parametric import BurgAutoSpectralDensity
+from .spectra.nonparametric import _plot_image
+from .array import SpatialCrossCorrelation
 
 
 default_fourier_params = {
