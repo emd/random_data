@@ -96,6 +96,33 @@ def test_ArrayStencil_getMask():
     return
 
 
+def test_ArrayStencil_getMaskGapSizes():
+    # Uniform grid
+    stencil = ArrayStencil([0, 1, 2])
+    np.testing.assert_equal(stencil.getMaskGapSizes(), [0, 0, 0])
+
+    # Non-uniform grid with a gap size of unity
+    stencil = ArrayStencil([0, 2, 3])
+    np.testing.assert_equal(stencil.getMaskGapSizes(), [0, 1, 0, 0])
+
+    # Non-monotonic, non-uniform grid with gap size of unity
+    stencil = ArrayStencil([2, 3, 0])
+    np.testing.assert_equal(stencil.getMaskGapSizes(), [0, 1, 0, 0])
+
+    # Non-uniform grid with various gap sizes
+    stencil = ArrayStencil([0, 2, 3, 4, 7, 8, 12, 14])
+
+    #        locations = [0, x, 2, 3, 4, x, x, 7, 8, x, x, x, 12, x, 14]
+    #             mask = [1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0,  1, 0,  1]
+    expected_gap_sizes = [0, 1, 0, 0, 0, 2, 2, 0, 0, 3, 3, 3,  0, 1,  0]
+
+    np.testing.assert_equal(
+        stencil.getMaskGapSizes(),
+        expected_gap_sizes)
+
+    return
+
+
 def test_ArrayStencil_getUniqueSeparation():
     # Uniform grid
     stencil = ArrayStencil([1, 2, 3])

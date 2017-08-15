@@ -184,6 +184,37 @@ class ArrayStencil(object):
 
         return mask
 
+    def getMaskGapSizes(self):
+        '''Get size of each gap in the mask returned by `self.getMask()`,
+        where a "gap" is defined as one or more adjacent zero values.
+        The returned array `gap_sizes` will have the same size as `mask`,
+        with `gap_sizes[i]` corresponding to the size of the gap at
+        `mask[i]`. For example, if
+
+                mask      = [1, 0, 0, 1, 1, 1, 0, 1, 1], then
+                gap_sizes = [0, 2, 2, 0, 0, 0, 1, 0, 0]
+
+        '''
+        mask = self.getMask()
+
+        # The start of a gap (i.e. where mask is 0) is preceded by unity
+        gap_start = 1 + np.where(np.logical_and(
+            mask[:-1] == 1,
+            mask[1:] == 0))[0]
+
+        # A gap (i.e. where mask is 0) is terminated by unity
+        gap_stop = 1 + np.where(np.logical_and(
+            mask[:-1] == 0,
+            mask[1:] == 1))[0]
+
+        gap_sizes = np.zeros(len(mask))
+
+        for gap in np.arange(len(gap_start)):
+            sl = slice(gap_start[gap], gap_stop[gap])
+            gap_sizes[sl] = gap_stop[gap] - gap_start[gap]
+
+        return gap_sizes
+
     def plotMask(self):
         'Plot mask of stencil points in both real and Fourier space.'
         mask = self.getMask()
