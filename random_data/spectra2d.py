@@ -161,7 +161,7 @@ class TwoDimensionalAutoSpectralDensity(object):
 
         '''
         # Check that user-provided `corr` is correct type
-        if type(corr) is not SpatialCrossCorrelation:
+        if not isinstance(corr, SpatialCrossCorrelation):
             raise ValueError(
                 '`corr` must be of type %s'
                 % SpatialCrossCorrelation)
