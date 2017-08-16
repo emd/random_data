@@ -1027,15 +1027,14 @@ class SpatialCrossCorrelation(object):
             - measurement separation (1st index, `L`), and
             - frequency (2nd index, `Nf`),
 
-        where averaging has been done
+        where ensemble averaging has been done
 
-            - in time (across the full time domain in the
-              input `signal`), and
-            - at each measurement separation.
+            - in time (i.e. application of ergodic theorem), and
+            - at each measurement *separation*.
 
         The indexing in `L` is such that cross-spectral density estimates
-        are ordered sequentially from smallest separation of measurement
-        locations to largest separation of measurement locations.
+        are ordered sequentially from most-negative separation of measurement
+        locations to most-positive separation of measurement locations.
 
         [Gxy] = [signal]^2 / [Fs], where `signal` and `Fs` are provided
             at initialization
@@ -1044,12 +1043,6 @@ class SpatialCrossCorrelation(object):
         The measurement separation.
         [separation] = [locations], where `locations` is provided
         at object initialization
-
-    Nens - int
-        The number of ensembles that `self.Gxy` was averaged over.
-        Note that `self.Nens * self.Nreal_per_ens` gives the total
-        number of realizations averaged over to arrive at the
-        spectral estimate `self.Gxy`.
 
     The additional attributes:
 
@@ -1065,7 +1058,7 @@ class SpatialCrossCorrelation(object):
     for a listing.
 
     '''
-    def __init__(self, signals, locations,
+    def __init__(self, signals, locations, tlim=None,
                  print_status=True, **csd_kwargs):
         '''Create an instance of the `SpatialCrossCorrelation` class.
 
@@ -1079,6 +1072,11 @@ class SpatialCrossCorrelation(object):
             Location of each measurement in `signals`.
             [locations] = arbitrary units
 
+        tlim - array_like, (2,) or None
+            If not None, then only use the portion of `signals`
+            that sits between `min(tlim)` and `max(tlim)`.
+            [tlim] = 1 / [csd_kwargs['Fs']]
+
         print_status - bool
             If True, print status of computations.
 
@@ -1086,31 +1084,41 @@ class SpatialCrossCorrelation(object):
             :py:class:`CrossSpectralDensity
                 <random_data.spectra.CrossSpectralDensity>`.
 
-            For example, use
+            The signal sample rate `Fs` and initial timestamp `t0`
+            must be specified; spectral-estimation parameters can
+            also be specified. For example, use
 
-                    A = Array(signals,..., Fs=200e3, t0=0.)
+                corr = SpatialCrossCorrelation(
+                    signals, ...,
+                    Fs=200e3, t0=0., Nreal_per_ens=100)
 
             to indicate that the measurements in `signals` were
-            sampled at a rate `Fs` beginning at time `t0`.
+            sampled at a rate `Fs` beginning at time `t0` and that
+            `Nreal_per_ens` realizations should be averaged over
+            to obtain the ensemble spectral estimate.
 
-            Note that the spectral-estimation parameters (such as
-            the number of realizations per ensemble, the fractional
-            overlap between adjacent realizations, etc.) are
-            specified via the keyword packing `csd_kwargs`.
-            See the `CrossSpectralDensity` documentation for
-            further details.
+            Note that additional parameters of relevance to spectral
+            estimation (such as windowing, window overlap, etc.) are
+            specified via the keyword packing `**csd_kwargs`. See the
+            `CrossSpectralDensity` documentation for further details.
 
         '''
+        self.Fs = np.float(csd_kwargs['Fs'])
+
+        # Use `tlim` to determine the size of the ensemble
+        tind = _get_timebase_indices(
+            tlim, self.Fs, csd_kwargs['t0'], signals.shape[-1])
+
+        csd_kwargs['Tens'] = (tind[-1] - tind[0]) / self.Fs
+
         # Compute cross-spectral density for each measurement pair
         csdArray = CrossSpectralDensityArray(
-            signals, locations,
+            signals[..., tind], locations,
             include_autocorrelations=True,
             print_status=print_status,
             **csd_kwargs)
 
         # Record important aspects of the computation
-        self.Fs = csdArray.Fs
-
         self.Npts_per_real = csdArray.Npts_per_real
         self.Nreal_per_ens = csdArray.Nreal_per_ens
         self.Npts_overlap = csdArray.Npts_overlap
@@ -1122,12 +1130,12 @@ class SpatialCrossCorrelation(object):
         self.f = csdArray.f
         self.df = csdArray.df
 
-        # Average over time dimension, noting number of
-        # ensembles averaged over.
-        Gxy = np.mean(csdArray.Gxy, axis=-1)
-        self.t = np.mean(csdArray.t)
-        self.Nens = len(csdArray.t)
-        self.dt = np.nan
+        # There should only be *one* index in the time dimension
+        # corresponding to the midpoint of the single ensemeble;
+        # `dt` gives the ensemble window length (+/-0.5 * `dt`
+        # about the ensemble midpoint `t`).
+        self.t = csdArray.t
+        self.dt = csdArray.dt
 
         # Note that each *unique* measurement separation
         # (i.e. `csdArray.stencil.unique_separation`) does
@@ -1139,7 +1147,11 @@ class SpatialCrossCorrelation(object):
         # a function of each unique measurement separation,
         # compute average cross-spectral density at each
         # unique separation.
-        sep, Gxy_av = csdArray.stencil.getAverageForEachSeparation(Gxy)
+        #
+        # Also, "squeeze" `csdArray.Gxy` to remove the
+        # length-1 time dimension.
+        sep, Gxy_av = csdArray.stencil.getAverageForEachSeparation(
+            np.squeeze(csdArray.Gxy, axis=-1))
 
         # Reflect and conjugate `Gxy_av` to obtain correlation function
         # for both positive and negative separations.
@@ -1420,3 +1432,48 @@ def _find_first_nan(x):
         return np.where(np.isnan(x))[0][0]
     except IndexError:
         return None
+
+
+def _get_timebase_indices(tlim, Fs, t0, Npts):
+    '''For a timebase determined by {Fs, t0, Npts}, get the indices
+    corresponding to `tlim`.
+
+    Input parameters:
+    -----------------
+    tlim - array_like, (2,) or None
+        The initial and final times, respectively. If `None`,
+        return indices corresponding to the full timebase.
+        [tlim] = 1 / [Fs]
+
+    Fs - float
+        The sample rate.
+        [Fs] = arbitrary units
+
+    t0 - float
+        The timestamp of the first point in the timebase.
+        [t0] = 1 / [Fs]
+
+    Npts - int
+        The number of points in the timebase.
+        [Npts] = unitless
+
+    Returns:
+    --------
+    ind - array_like, (`M`,) with `M <= Npts`
+        The indices of the timebase determined by {Fs, t0, Npts} that are
+        both (a) greater than or equal to `min(tlim)` and (b) less than or
+        equal to `min(tlim)`.
+        [ind] = unitless
+
+    '''
+    if tlim is not None:
+        # Construct the timebase of raw signal
+        t = t0 + (np.arange(Npts) / np.float(Fs))
+
+        ind = np.where(np.logical_and(
+            t >= np.min(tlim),
+            t <= np.max(tlim)))[0]
+    else:
+        ind = np.arange(Npts)
+
+    return ind

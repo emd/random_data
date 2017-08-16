@@ -4,7 +4,7 @@ from random_data.spectra import CrossSpectralDensity
 from random_data.array import (
     ArrayStencil, CrossSpectralDensityArray,
     FittedCrossPhaseArray, coefficient_of_determination,
-    _find_first_nan)
+    _find_first_nan, _get_timebase_indices)
 from random_data.ensemble import closest_index
 
 
@@ -415,5 +415,55 @@ def test__find_first_nan():
     tools.assert_equal(
         _find_first_nan(a),
         ind[0])
+
+    return
+
+
+def test__get_timebase_indices():
+    # (a) timebase: 0 <= t <= 9 w/ dt = 1:
+    # ------------------------------------
+    Fs = 1.
+    t0 = 0.
+    Npts = 10
+
+    # `tlim` specifies a subset of timebase
+    tlim = [3, 7]
+    np.testing.assert_equal(
+        _get_timebase_indices(tlim, Fs, t0, Npts),
+        [3, 4, 5, 6, 7])
+
+    # `tlim` specifies full timebase
+    tlim = [0, 9]
+    np.testing.assert_equal(
+        _get_timebase_indices(tlim, Fs, t0, Npts),
+        np.arange(Npts))
+
+    # `tlim` beyond full timebase
+    tlim = [-1, 11]
+    np.testing.assert_equal(
+        _get_timebase_indices(tlim, Fs, t0, Npts),
+        np.arange(Npts))
+
+    # `tlim` is `None`
+    tlim = None
+    np.testing.assert_equal(
+        _get_timebase_indices(tlim, Fs, t0, Npts),
+        np.arange(Npts))
+
+    # (b) timebase: 1 <= t <= 5 w/ dt = 0.5:
+    # --------------------------------------
+    Fs = 2.
+    t0 = 1.
+    Npts = 9
+
+    # The tests in (a) checked that we have appropriate behavior
+    # at the boundary cases. Here, we just want to check that
+    # things work when specifying non-zero `t0` and non-unity `Fs`,
+    # so we'll just perform a single check with `tlim` specifying
+    # a subset of the timebase.
+    tlim = [3, 4]
+    np.testing.assert_equal(
+        _get_timebase_indices(tlim, Fs, t0, Npts),
+        [4, 5, 6])
 
     return

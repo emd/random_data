@@ -38,7 +38,7 @@ x -= np.mean(x)  # avoid low-f, low-xi leakage
 # =========================================
 corr = rd.array.SpatialCrossCorrelation(
     x, z, Fs=Fs, t0=t0,
-    Tens=T, Nreal_per_ens=50)
+    Nreal_per_ens=50)
 
 
 def test_TwoDimensionalAutoSpectralDensity_ValueError():

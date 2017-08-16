@@ -94,7 +94,7 @@ class TwoDimensionalAutoSpectralDensity(object):
 
     The additional attributes:
 
-        {Nens, `Npts_overlap`, `Npts_per_ens`, `Npts_per_real`,
+        {`Npts_overlap`, `Npts_per_ens`, `Npts_per_real`,
         `Nreal_per_ens`, `detrend`, `dt`, `t`, `window`}
 
     are described in the documentation for :py:class:`SpatialCrossCorrelation
@@ -183,7 +183,6 @@ class TwoDimensionalAutoSpectralDensity(object):
         self.Nreal_per_ens = corr.Nreal_per_ens
         self.Npts_overlap = corr.Npts_overlap
         self.Npts_per_ens = corr.Npts_per_ens
-        self.Nens = corr.Nens
 
         self.detrend = corr.detrend
         self.window = corr.window
