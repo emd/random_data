@@ -353,3 +353,5 @@ class TwoDimensionalAutoSpectralDensity(object):
             title=title, xlabel=xlabel, ylabel=ylabel, cblabel=cblabel,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
+
+        return ax
