@@ -165,14 +165,15 @@ class RandomSignal2d(object):
         k = 2 * pi * xi is the wavenumber (xi is the spatial frequency).
         [vph] = [self.Fs] / [self.Fs_spatial]
 
-    Delta - float
-        The mode's "width" in the spatial-frequency domain.
-        [Delta] = [self.Fs_spatial]
+    Lz - float
+        The spatial correlation length, where a Gaussian correlation
+        function has been assumed.
+        [Lz] = 1 / [self.Fs_spatial]
 
     '''
     def __init__(self,
                  Fs=1., t0=0., T=128., fc=0.1, pole=2,
-                 Fs_spatial=1., z0=0., Z=64., vph=1., Delta=0.05,
+                 Fs_spatial=1., z0=0., Z=64., vph=1., Lz=5,
                  amplitude_noise_floor=1e-4):
         '''Create an instance of the `RandomSignal2d` class.
 
@@ -236,9 +237,10 @@ class RandomSignal2d(object):
             k = 2 * pi * xi is the wavenumber (xi is the spatial frequency).
             [vph] = [Fs] / [Fs_spatial]
 
-        Delta - float
-            The mode's "width" in the spatial-frequency domain.
-            [Delta] = [Fs_spatial]
+        Lz - float
+            The spatial correlation length, where a Gaussian correlation
+            function has been assumed.
+            [Lz] = 1 / [Fs_spatial]
 
         amplitude_noise_floor - float
             The amplitude noise floor. Specifying a noise floor ensures
@@ -259,7 +261,7 @@ class RandomSignal2d(object):
         self.Fs_spatial = Fs_spatial
         self.z0 = z0
         self.vph = vph
-        self.Delta = Delta
+        self.Lz = Lz
 
         # Amplitude noise floor
         self._amplitude_noise_floor = amplitude_noise_floor
@@ -342,7 +344,7 @@ class RandomSignal2d(object):
         branch = xixi - (ff / self.vph)
 
         # Shape spectrum
-        xi_shaping = np.exp(-((branch / self.Delta) ** 2))
+        xi_shaping = np.exp(-((np.pi * self.Lz * branch) ** 2))
         f_shaping = (1. / (1 + ((ff / self.fc) ** self.pole)))
         X *= (xi_shaping * f_shaping)
 
@@ -359,7 +361,7 @@ class RandomSignal2d(object):
         which reduces the load on the contour-plotting routines. Thus,
         it is best to create a `RandomSignal2d` instance with small
         `self.Nt` and `self.Nz` with the desired spectral properties
-        (e.g. `self.fc`, `self.pole`, `self.vph`, `self.Delta`) and
+        (e.g. `self.fc`, `self.pole`, `self.vph`, `self.Lz`) and
         then use this plotting routine; if the spectrum looks as
         desired, then create a new `RandomSignal2d` instance with
         the same spectral parameters but with larger `self.Nt` and
