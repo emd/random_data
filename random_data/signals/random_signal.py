@@ -351,7 +351,8 @@ class RandomSignal2d(object):
 
         return xi, f, X
 
-    def plotFourierRepresentation(self, cmap='viridis', Nlev=10):
+    def plotFourierRepresentation(
+            self, amplitude_cmap='viridis', phase_cmap='RdBu', Nlev=10):
         '''Plot contours of Fourier amplitudes and phases of signal.
 
         This works best when `self.Nt` and `self.Nz` are not "too big",
@@ -372,8 +373,10 @@ class RandomSignal2d(object):
         fig, axes = plt.subplots(
             2, 1, sharex=True, sharey=True, figsize=(6, 8))
 
-        cmag = axes[0].contourf(xi, f, np.log10(np.abs(X.T)), Nlev, cmap=cmap)
-        cph = axes[1].contourf(xi, f, np.angle(X.T), Nlev, cmap=cmap)
+        cmag = axes[0].contourf(
+            xi, f, np.log10(np.abs(X.T)), Nlev, cmap=amplitude_cmap)
+        cph = axes[1].contourf(
+            xi, f, np.angle(X.T), Nlev, cmap=phase_cmap)
 
         axes[0].set_ylabel(r'$f$')
         axes[1].set_xlabel(r'$\xi$')
@@ -401,6 +404,28 @@ class RandomSignal2d(object):
 
         '''
         return np.real(np.fft.ifft2(self._X))
+
+    def plotSignal(self, cmap='RdBu', Nlev=10):
+        '''Plot contours of signal `self.x` as a function of
+        space and time.
+
+        This works best when `self.Nt` and `self.Nz` are not "too big",
+        which reduces the load on the contour-plotting routines.
+
+        '''
+        plt.figure()
+
+        c = plt.contourf(self.z(), self.t(), self.x.T, Nlev, cmap=cmap)
+        plt.xlabel(r'$z$')
+        plt.ylabel(r'$t$')
+
+        cb = plt.colorbar(c)
+        cb.set_label(r'$x(z, t)$')
+
+        plt.tight_layout()
+        plt.show()
+
+        return
 
 
 def _uniform_grid(Npts, x0, dx):
