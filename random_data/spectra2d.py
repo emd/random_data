@@ -346,8 +346,10 @@ class TwoDimensionalAutoSpectralDensity(object):
                             cblabel=r'$|G_{xx}(\xi,f)|$',
                             ax=None, fig=None, geometry=111):
         'Plot magnitude of spectral density on log scale.'
+        # Don't plot f = 0 and f = 0.5 * self.Fs, as these tend to
+        # artificially decrease the dynamic range of the plot
         ax = _plot_image(
-            self.xi, self.f, np.abs(self.Sxx.T),
+            self.xi, self.f[1:-1], np.abs(self.Sxx[:, 1:-1]).T,
             xlim=xilim, ylim=flim, vlim=vlim,
             norm='log', cmap=cmap, interpolation=interpolation,
             title=title, xlabel=xlabel, ylabel=ylabel, cblabel=cblabel,
