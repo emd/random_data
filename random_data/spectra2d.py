@@ -343,7 +343,8 @@ class TwoDimensionalAutoSpectralDensity(object):
     def plotSpectralDensity(self, xilim=None, flim=None, vlim=None,
                             cmap='viridis', interpolation='none', fontsize=16,
                             title=None, xlabel=r'$\xi$', ylabel='$f$',
-                            cblabel=r'$|G_{xx}(\xi,f)|$',
+                            cblabel=r'$|S_{xx}(\xi,f)|$',
+                            cbarorientation='horizontal',
                             ax=None, fig=None, geometry=111):
         'Plot magnitude of spectral density on log scale.'
         # Don't plot f = 0 and f = 0.5 * self.Fs, as these tend to
@@ -352,7 +353,8 @@ class TwoDimensionalAutoSpectralDensity(object):
             self.xi, self.f[1:-1], np.abs(self.Sxx[:, 1:-1]).T,
             xlim=xilim, ylim=flim, vlim=vlim,
             norm='log', cmap=cmap, interpolation=interpolation,
-            title=title, xlabel=xlabel, ylabel=ylabel, cblabel=cblabel,
+            title=title, xlabel=xlabel, ylabel=ylabel,
+            cblabel=cblabel, cbarorientation=cbarorientation,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
