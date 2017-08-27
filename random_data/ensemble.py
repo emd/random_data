@@ -173,10 +173,8 @@ class Ensemble(object):
         self.f = self.getFrequencies(Fs)
 
         # Determine resolution in time and frequency, if applicable
-        try:
-            self.dt = self.t[1] - self.t[0]
-        except IndexError:
-            self.dt = np.nan
+        self.dt = self.getTens()
+
         try:
             self.df = self.f[1] - self.f[0]
         except IndexError:
@@ -238,15 +236,22 @@ class Ensemble(object):
         '''
         return np.fft.rfftfreq(self.Npts_per_real, d=(1. / Fs))
 
+    def getTens(self):
+        '''Get temporal length of each ensemble. In general, the
+        ensemble time window will slightly differ from that specified
+        during object initialization; this is to ensure efficient FFT
+        computation. This method returns the true ensemble time length.
+
+        '''
+        # avoid integer division!
+        return self.Npts_per_ens / np.float(self.Fs)
+
     def getTimes(self, x, Fs, t0):
         'Get times corresponding to the midpoint of each ensemble.'
         # The ensemble forms the basic unit/discretization of time
         # for the computed spectral density estimate, so determine
-        # the number of points in an ensemble and the corresponding
-        # time window. In general, this time window will slightly
-        # differ from that specified during object initialization;
-        # this is to ensure efficient FFT computation.
-        Tens = self.Npts_per_ens / np.float(Fs)  # avoid integer division!
+        # ensemble time length.
+        Tens = self.getTens()
 
         # Determine the number of *whole* ensembles in the data record
         # (Disregard fractional ensemble at the end of the data, if present)

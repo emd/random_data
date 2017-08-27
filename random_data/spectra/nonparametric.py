@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import LogFormatter
 
 # Related 3rd-party imports
-from .ensemble import Ensemble
+from ..ensemble import Ensemble
 
 
 class AutoSpectralDensity(object):
@@ -240,6 +240,7 @@ class AutoSpectralDensity(object):
                             AC_coupled=True,
                             cmap='viridis', interpolation='none', fontsize=16,
                             title=None, xlabel='$t$', ylabel='$f$',
+                            cblabel='$|G_{xx}(f)|$',
                             ax=None, fig=None, geometry=111):
         'Plot magnitude of spectral density on log scale.'
         if flim is None and AC_coupled:
@@ -250,7 +251,7 @@ class AutoSpectralDensity(object):
             self.t, self.f, np.abs(self.Gxx),
             xlim=tlim, ylim=flim, vlim=vlim,
             norm='log', cmap=cmap, interpolation=interpolation,
-            title=title, xlabel=xlabel, ylabel=ylabel, cblabel='$|G_{xx}(f)|$',
+            title=title, xlabel=xlabel, ylabel=ylabel, cblabel=cblabel,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
@@ -541,6 +542,7 @@ class CrossSpectralDensity(object):
                             AC_coupled=True,
                             cmap='viridis', interpolation='none', fontsize=16,
                             title=None, xlabel='$t$', ylabel='$f$',
+                            cblabel='$|G_{xy}(f)|$',
                             ax=None, fig=None, geometry=111):
         'Plot magnitude of spectral density on log scale.'
         if flim is None and AC_coupled:
@@ -551,7 +553,7 @@ class CrossSpectralDensity(object):
             self.t, self.f, np.abs(self.Gxy),
             xlim=tlim, ylim=flim, vlim=vlim,
             norm='log', cmap=cmap, interpolation=interpolation,
-            title=title, xlabel=xlabel, ylabel=ylabel, cblabel='$|G_{xy}(f)|$',
+            title=title, xlabel=xlabel, ylabel=ylabel, cblabel=cblabel,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
@@ -712,7 +714,7 @@ def _plot_image(x, y, z,
                 xlim=None, ylim=None, vlim=None,
                 norm=None, cmap='viridis', interpolation='none',
                 title=None, xlabel=None, ylabel=None, fontsize=16,
-                cblabel=None, cbticks=None,
+                cblabel=None, cbticks=None, cbarorientation='horizontal',
                 ax=None, fig=None, geometry=111):
     '''Create an image of z(y, x).
 
@@ -762,6 +764,9 @@ def _plot_image(x, y, z,
 
     title, xlabel, ylabel, cblabel - string
         Titles of respective objects in image.
+
+    cbarorientation - string
+        Orientation of colorbar; may be in {'horizontal', 'vertical'}.
 
     fontsize - int
         Size of font in titles, labels, etc.
@@ -828,7 +833,8 @@ def _plot_image(x, y, z,
     if vlim is not None:
         vlim = np.sort(vlim)
     else:
-        vlim = [np.min(z[yind, :][:, xind]), np.max(z[yind, :][:, xind])]
+        vlim = [np.nanmin(z[yind, :][:, xind]),
+                np.nanmax(z[yind, :][:, xind])]
 
     if norm == 'log':
         norm = LogNorm()
@@ -853,7 +859,7 @@ def _plot_image(x, y, z,
         format = None
 
     cb = plt.colorbar(im, format=format, ticks=cbticks,
-                      ax=ax, orientation='horizontal')
+                      ax=ax, orientation=cbarorientation)
 
     # Labeling
     if title is not None:
@@ -980,7 +986,7 @@ def _test_phase_angle(
 
     '''
     # Create some uncorrelated noise
-    from .signals import RandomSignal
+    from ..signals import RandomSignal
     sig1 = RandomSignal(4e6, 0, 0.1, fc=100e3, pole=2)
     sig2 = RandomSignal(4e6, 0, 0.1, fc=100e3, pole=2)
 

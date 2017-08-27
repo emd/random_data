@@ -35,6 +35,10 @@ In addition, `random_data` provides:
   from an array of measurements to a linear model,
   allowing determination of mode numbers/wavenumbers
   as a function of frequency and time,
+- a class to estimate the complex-valued, spatial cross-correlation function
+  from an array of measurements (the array need not be uniformly spaced),
+- a class to estimate the two-dimensional autospectral density from
+  an array of measurements (the array need not be uniformly spaced),
 - robust methods for visualizing the relevant spectral estimates
   (magnitude, coherence, phase angle, mode number, and quality of fit), and
 - a class for "spike" identification and
@@ -194,12 +198,12 @@ the phase angle zero for all frequencies and times
 in the autospectral density).
 
 
-Spectral calculations on arrays of more than two signals:
----------------------------------------------------------
+Spectral calculations on arrays of more than two spatially *coherent* signals:
+------------------------------------------------------------------------------
 If more than two measurements are available, noise in mode-number
 calculations can be greatly reduced by fitting the cross-phase angles
 of each individual measurement pair to a linear model.
-The `random_data.array.Array` class allows for
+The `random_data.array.FittedCrossPhaseArray` class allows for
 easy fitting and visualization of cross-phase angles
 to obtain the corresponding mode numbers.
 For example, the below code
@@ -217,7 +221,7 @@ initialization of a *single* object.
 For analysis of DIII-D magnetics signals, for example,
 a [simple package](https://github.com/emd/magnetics) exists
 for fetching and organizing the magnetics data in a format
-that is readily compatible with `random_data.array.Array`.)
+that is readily compatible with `random_data.array.FittedCrossPhaseArray`.)
 
 ```python
 import numpy as np
@@ -272,7 +276,7 @@ for i in np.arange(Nsig):
 Tens = 5e-3        # ensemble time, [Tens] = s
 Nreal_per_ens = 4   # number of realizations per ensemble
 
-A = rd.array.Array(
+A = rd.array.FittedCrossPhaseArray(
     signals, locations, Fs=sig.Fs, t0=sig.t0,
     Tens=Tens, Nreal_per_ens=Nreal_per_ens)
 
@@ -309,6 +313,145 @@ Plotting slices of other spectral quantities
 `'gamma2xy'` for magnitude-squared coherence)
 can be similarly created by substituting the appropriate string
 in place of `'theta_xy'`.
+
+
+Spectral calculations on arrays of more than two spatially *broadband* signals:
+-------------------------------------------------------------------------------
+If more than two measurements are available and there is a *broadband* spatial
+component, a two-dimensional autospectral density `S(xi, f)`, where
+`xi` is the spatial frequency and `f` is the temporal frequency,
+can be much more informative that the mode-number spectra above.
+The `random_data.spectra2d.TwoDimensionalAutoSpectralDensity` class
+allows for easy computation and visualization of `S(xi, f)`;
+the `random_data.spectra2d.TwoDimensionalAutoSpectralDensity` class
+takes a complex-valued, spatial cross-correlation function as input, which
+can similarly be easily computed and visualized via the
+`random_data.array.SpatialCrossCorrelation` class.
+For example, the below code computes the two-dimensional complex-valued
+correlation function and the two-dimensional autospectral density of
+a signal with both broadband and coherent components.
+
+(Note that most of the code below is to generate representative
+fake signals, while the spectral computations only involve
+initialization of two objects,
+one for the correlation function and
+one for the two-dimensional autospectral density.
+For analysis of DIII-D PCI signals, for example,
+a [package](https://github.com/emd/mitpci) exists
+for fetching and organizing the PCI data in a format
+that is readily compatible with `random_data.array.SpatialCrossCorrelation`.)
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import random_data as rd
+
+# =============================================================================
+# Spectral-estimation parameters:
+# -------------------------------
+Nreal_per_ens = 100  # number of realizations per ensemble
+
+# Signal parameters:
+# ------------------
+# Temporal-grid parameters
+Fs = 1.         # sample rate, [Fs] = samples / s
+t0 = 0          # initial time, [t0] = s
+T = 10000       # (approximate) temporal record length, [T] = s
+
+# Spatial-grid parameters
+Fs_spatial = 1  # spatial sample rate, [Fs_spatial] = samples / [distance]
+z0 = 0          # initial spatial sample, [z0] = 1 / [Fs_spatial]
+Z = 50          # (approximate) spatial record length, [Z] = 1 / [Fs_spatial]
+
+# Broadband spectral parameters
+fc = 0.1 * Fs   # cutoff frequency
+pole = 2        # strength of cutoff
+vph = 1.0       # phase velocity
+Lz = 5          # correlation length
+
+# Coherent spectral parameters
+A = 0.03                 # amplitude
+f0 = 0.1 * Fs            # frequency
+xi0 = 0.25 * Fs_spatial  # spatial frequency
+
+# Create signal:
+# --------------
+sig_broadband = rd.signals.RandomSignal2d(
+    Fs=Fs, t0=t0, T=T, fc=fc, pole=pole,
+    Fs_spatial=Fs_spatial, z0=z0, Z=Z, vph=vph, Lz=Lz)
+
+# Extract spatial and temporal grid of broadband signal and
+# use to construct a coherent signal
+z = sig_broadband.z()
+t = sig_broadband.t()
+tt = np.outer(np.ones(len(z)), t)
+zz = np.outer(z, np.ones(len(t)))
+x_coherent = A * np.cos(2 * np.pi * ((xi0 * zz) + (f0 * tt)))
+
+# Combine broadband and coherent fluctuations, and
+# remove mean to avoid low-xi, low-f leakage
+x = sig_broadband.x + x_coherent
+x -= np.mean(x)
+# =============================================================================
+
+# =============================================================================
+# Complex-valued, spatial cross-correlation function:
+# ---------------------------------------------------
+corr = rd.array.SpatialCrossCorrelation(
+    x, z, Fs=Fs, t0=t0,
+    Nreal_per_ens=Nreal_per_ens)
+
+corr.plotNormalizedCorrelationFunction()
+plt.show()
+
+# Two-dimensional autospectral density:
+# -------------------------------------
+# ... via Fourier method
+asd2d_fourier = rd.spectra2d.TwoDimensionalAutoSpectralDensity(
+    corr, spatial_method='fourier',
+    fourier_params={'window': np.hanning})
+
+# ... via Burg method
+asd2d_burg = rd.spectra2d.TwoDimensionalAutoSpectralDensity(
+    corr, spatial_method='burg',
+    burg_params={'p': 5, 'Nxi': 100})
+
+# Compare Fourier and Burg methods
+fig, axes = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(12, 5))
+asd2d_fourier.plotSpectralDensity(ax=axes[0], title='Fourier')
+asd2d_burg.plotSpectralDensity(ax=axes[1], title='Burg')
+plt.show()
+# =============================================================================
+
+```
+
+![normalized_correlation_function](https://raw.githubusercontent.com/emd/random_data/master/figs/normalized_correlation_function.png)
+
+Here, contributions from both the broadband and coherent signals are visible.
+Note that this is a plot of the *normalized* complex-valued, spatial
+cross-correlation function. That is, at each freqency `f`,
+the correlation function `Gxy(delta, f)` is normalized to `Gxy(0, f)`
+(i.e. its value at zero separation (`delta = 0`) and frequency `f`).
+This allows for easy visualization of the correlation function's structure
+even if `Gxy(delta, f)` varies by several orders of magnitude as
+the frequency varies.
+
+![2d_spectra](https://raw.githubusercontent.com/emd/random_data/master/figs/2d_spectra.png)
+
+Here, in the two-dimensional autospectral density estimates,
+the contributions from both the broadband and coherent signals
+are clearly visible.
+Note that `f` is the temporal frequency and
+that `xi` is the spatial frequency
+(related to the usual wavenumber `k` via `k = 2 * np.pi * xi`).
+Further, note that the spatial spectral estimates
+can be estimated from the correlation function `corr` via
+a `'fourier'` or `'burg'` method.
+The Burg method can produce superior resolution
+(see e.g. the coherent peak),
+particularly when the number of spatial samples are limited, but
+the Burg method is also subject to "pole splitting", which
+typically becomes more manifest as the pole order `p` is increased.
 
 
 Spike identification and handling:

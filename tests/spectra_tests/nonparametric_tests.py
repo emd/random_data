@@ -1,6 +1,6 @@
 from nose import tools
 import numpy as np
-from random_data.spectra import (
+from random_data.spectra.nonparametric import (
     AutoSpectralDensity, CrossSpectralDensity,
     wrap, phase_angle_bins, _next_largest_divisor_for_integer_quotient)
 
