@@ -4,7 +4,7 @@ from random_data.spectra import CrossSpectralDensity
 from random_data.array import (
     ArrayStencil, CrossSpectralDensityArray,
     FittedCrossPhaseArray, coefficient_of_determination,
-    _find_first_nan, _get_timebase_indices)
+    _find_first_nan, _get_timebase_indices, _equalize)
 from random_data.ensemble import closest_index
 
 
@@ -465,5 +465,34 @@ def test__get_timebase_indices():
     np.testing.assert_equal(
         _get_timebase_indices(tlim, Fs, t0, Npts),
         [4, 5, 6])
+
+    return
+
+
+def test__equalize():
+    # Generate random 2d signal
+    Nz = 100
+    Nt = 10000
+    x = np.random.randn(Nz, Nt)
+
+    # Scale amplitude of all but the last channel linearly
+    # (this way we no the last channel has the maximum power),
+    # but also ensure none of the scaling values are zero
+    # (because no subsequent multiplicative scaling will
+    # bring the channel back to the desired power).
+    amplitude_scaling = 0.25 + (0.5 * (np.arange(Nz - 1) / np.float(Nz - 1)))
+    x[:-1] = amplitude_scaling[:, np.newaxis] * x[:-1]
+
+    # The above scaling ensures that the last channel has the most power
+    Pmax = np.var(x[-1, :])
+
+    # Now, test equalization function, which should equalize
+    # the signals such that they all have power `Pmax`
+    xeq = _equalize(x)
+    Peq = np.var(xeq, axis=-1)
+
+    np.testing.assert_array_almost_equal(
+        Peq,
+        Pmax * np.ones(len(Peq)))
 
     return

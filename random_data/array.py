@@ -412,6 +412,10 @@ class CrossSpectralDensityArray(object):
         The stencil corresponding to the measurement `locations` provided
         at object initialization.
 
+    equalize - bool
+        If True, the powers in the signals provided at initialization
+        were equalized prior to performing any spectral calculations.
+
     The additional attributes:
 
         {`detrend`, `df`, `dt`, `f`, `Fs`, `Npts_overlap`,
@@ -426,7 +430,7 @@ class CrossSpectralDensityArray(object):
     for a listing.
 
     '''
-    def __init__(self, signals, locations,
+    def __init__(self, signals, locations, equalize=False,
                  include_autocorrelations=True,
                  print_status=True, **csd_kwargs):
         '''Create an instance of the `CrossSpectralDensityArray` class.
@@ -440,6 +444,12 @@ class CrossSpectralDensityArray(object):
         locations - array_like, (`N`,)
             Location of each measurement in `signals`.
             [locations] = arbitrary units
+
+        equalize - bool
+            If True, for each location in `locations`, scale the power
+            in `signals` to that of the location with the most power.
+            Note that this may e.g. increase the effective bit noise
+            in channels with initially low power.
 
         include_autocorrelations - bool
             If True, also compute autospectral densities corresponding
@@ -471,6 +481,10 @@ class CrossSpectralDensityArray(object):
         if signals.shape[0] != locations.shape[0]:
             raise ValueError(
                 'Number of signals must match number of locations!')
+
+        self.equalize = equalize
+        if self.equalize:
+            signals = _equalize(signals)
 
         csd_kwargs['print_params'] = print_status
         csd_kwargs['print_status'] = print_status
@@ -735,7 +749,7 @@ class FittedCrossPhaseArray(CrossSpectralDensityArray):
     Type `help(Array)` in the IPython console for a listing.
 
     '''
-    def __init__(self, signals, locations,
+    def __init__(self, signals, locations, equalize=False,
                  gamma2xy_max=0.95, print_status=True, **csd_kwargs):
         '''Create an instance of the `Array` class.
 
@@ -748,6 +762,12 @@ class FittedCrossPhaseArray(CrossSpectralDensityArray):
         locations - array_like, (`N`,)
             Location of each measurement in `signals`.
             [locations] = arbitrary units
+
+        equalize - bool
+            If True, for each location in `locations`, scale the power
+            in `signals` to that of the location with the most power.
+            Note that this may e.g. increase the effective bit noise
+            in channels with initially low power.
 
         gamma2xy_max - float
             Maximum allowed value of magnitude-squared coherence.
@@ -788,7 +808,7 @@ class FittedCrossPhaseArray(CrossSpectralDensityArray):
         # provide no new phase-angle information. To save computational
         # time, don't calculate autospectral densities.
         CrossSpectralDensityArray.__init__(
-            self, signals, locations,
+            self, signals, locations, equalize=equalize,
             include_autocorrelations=False,
             print_status=print_status,
             **csd_kwargs)
@@ -1044,6 +1064,10 @@ class SpatialCrossCorrelation(object):
         [separation] = [locations], where `locations` is provided
         at object initialization
 
+    equalize - bool
+        If True, the powers in the signals provided at initialization
+        were equalized prior to performing any spectral calculations.
+
     The additional attributes:
 
         {`detrend`, `df`, `dt`, `f`, `Fs`, `Npts_overlap`,
@@ -1058,7 +1082,7 @@ class SpatialCrossCorrelation(object):
     for a listing.
 
     '''
-    def __init__(self, signals, locations, tlim=None,
+    def __init__(self, signals, locations, tlim=None, equalize=False,
                  print_status=True, **csd_kwargs):
         '''Create an instance of the `SpatialCrossCorrelation` class.
 
@@ -1076,6 +1100,12 @@ class SpatialCrossCorrelation(object):
             If not None, then only use the portion of `signals`
             that sits between `min(tlim)` and `max(tlim)`.
             [tlim] = 1 / [csd_kwargs['Fs']]
+
+        equalize - bool
+            If True, for each location in `locations`, scale the power
+            in `signals` to that of the location with the most power.
+            Note that this may e.g. increase the effective bit noise
+            in channels with initially low power.
 
         print_status - bool
             If True, print status of computations.
@@ -1113,12 +1143,14 @@ class SpatialCrossCorrelation(object):
 
         # Compute cross-spectral density for each measurement pair
         csdArray = CrossSpectralDensityArray(
-            signals[..., tind], locations,
+            signals[..., tind], locations, equalize=equalize,
             include_autocorrelations=True,
             print_status=print_status,
             **csd_kwargs)
 
         # Record important aspects of the computation
+        self.equalize = csdArray.equalize
+
         self.Npts_per_real = csdArray.Npts_per_real
         self.Nreal_per_ens = csdArray.Nreal_per_ens
         self.Npts_overlap = csdArray.Npts_overlap
@@ -1477,3 +1509,29 @@ def _get_timebase_indices(tlim, Fs, t0, Npts):
         ind = np.arange(Npts)
 
     return ind
+
+
+def _equalize(x):
+    '''Equalize the power in the channels of `x`.
+
+    Input parameters:
+    -----------------
+    x - array_like, (`M`, `N`)
+        A 2-dimensional signal of position/channel (`M`) and time (`N`).
+        [x] = arbitrary units
+
+    Returns:
+    --------
+    xeq - array_like, (`M`, `N`)
+        A channel-equalized representation of `x`. All the channels in `x`
+        are scaled to have the same power as the most powerful channel in `x`.
+        [xeq] = [x]
+
+    '''
+    P = np.var(x, axis=-1)
+
+    maxind = np.where(P == np.max(P))[0]
+    amplitude_scaling = np.sqrt(P[maxind] / P)
+    xeq = amplitude_scaling[:, np.newaxis] * x
+
+    return xeq
