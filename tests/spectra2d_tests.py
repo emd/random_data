@@ -297,7 +297,7 @@ def test_TwoDimensionalAutoSpectralDensity_Burg_with_broadband_signal():
     np.testing.assert_almost_equal(
         Sf_asd2d / asd1d_Gxx_av_broadband,
         np.ones(len(Sf_asd2d)),
-        decimal=0.5)
+        decimal=0)
 
     return
 
@@ -335,6 +335,6 @@ def test_TwoDimensionalAutoSpectralDensity_Burg_with_mixed_signal():
     np.testing.assert_almost_equal(
         Sf_asd2d / asd1d_Gxx_av_mixed,
         np.ones(len(Sf_asd2d)),
-        decimal=0.5)
+        decimal=0)
 
     return
