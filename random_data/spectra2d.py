@@ -42,7 +42,7 @@ class TwoDimensionalAutoSpectralDensity(object):
         An array of the estimated autospectral density as a
         function of:
 
-            - xi = 1 / wavelength (1st index, `Nxi`), and
+            - spatial frequency, xi (i.e. 1 / wavelength; `Nxi`), and
             - frequency (2nd index, `Nf`).
 
         `Sxx` is normalized such that integrating over all of `Sxx`
@@ -53,7 +53,7 @@ class TwoDimensionalAutoSpectralDensity(object):
             has been estimated
 
     xi - array_like, (`Nxi`,)
-        The inverse-spatial grid. Note that xi = (1 / wavelength) such that
+        The spatial-frequency grid. Note that xi = (1 / wavelength) such that
         the wavenumber k is related to xi via k = (2 * pi * xi).
         [xi] = [self.Fs_spatial]
 
@@ -68,7 +68,7 @@ class TwoDimensionalAutoSpectralDensity(object):
         [Fs_spatial] = 1 / [corr.separation]
 
     dxi - float
-        The spacing of the inverse-spatial grid.
+        The spacing of the spatial-frequency grid.
         [dxi] = [self.Fs_spatial]
 
     f - array_like, (`Nf`,)
@@ -137,8 +137,8 @@ class TwoDimensionalAutoSpectralDensity(object):
             are: {'p', 'Nxi'} where
 
             - p: int, order of Burg AR spectral-density estimate,
-            - Nxi: int, number of points in the two-sided *spatial*
-                spectral-density estimate at each frequency.
+            - Nxi: int, number of points in the spatial-frequency grid
+              (note that the spatial spectral estimate is two-sided).
 
             See documentation for :py:class:`BurgAutoSpectralDensity
             <random_data.spectra.parametric.BurgAutoSpectralDensity>`
@@ -244,8 +244,8 @@ class TwoDimensionalAutoSpectralDensity(object):
         self.Sxx = np.fft.fftshift(self.Sxx, axes=0)
 
         # Construct grid for spatial spectral density.
-        # Note that xi = (1 / wavelength) such that the
-        # wavenumber k is related to xi via k = 2 * pi * xi.
+        # Note that xi = (1 / wavelength) is the spatial frequency
+        # such that the wavenumber k is k = 2 * pi * xi.
         self.xi = np.fft.fftshift(np.fft.fftfreq(
             Npts, d=(1. / self.Fs_spatial)))
 
@@ -317,8 +317,8 @@ class TwoDimensionalAutoSpectralDensity(object):
             # underlying the correlation function
             self.Sxx[:, find] = np.sqrt(Delta * asd_burg.Sxx)
 
-        # Note that xi = (1 / wavelength) such that the
-        # wavenumber k is related to xi via k = 2 * pi * xi.
+        # Note that xi = (1 / wavelength) is the spatial frequency
+        # such that the wavenumber k is k = 2 * pi * xi.
         self.xi = asd_burg.f
         self.dxi = self.xi[1] - self.xi[0]
 
