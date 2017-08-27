@@ -1038,6 +1038,17 @@ class SpatialCrossCorrelation(object):
     '''A class for computing the complex-valued, spatial cross-correlation
     function corresponding to an array of measurements.
 
+    Note that this class can analyze signals with both uniform and nonuniform
+    spatial sampling. In both cases, unique correlation pairs are identified,
+    and the corresponding temporal cross-spectral density is computed. If there
+    are `N` spatial samples, there are `N * (N - 1) // 2` unique correlation
+    pairs, requiring computation of O(N^2) cross-spectral densities. If,
+    however, the spatial samples are *uniform*, it will be much more efficient
+    to use FFT methods (O(N * log(N)) in the spatial dimension; such methods
+    are *not* implemented in this class, as non-uniform spatial sampling is
+    the case of immediate concern, but more efficient algorithms for uniform
+    spatial sampling could be implemented in future releases.
+
     Attributes:
     -----------
     Gxy - array_like, (`L`, `Nf`)
