@@ -1317,7 +1317,7 @@ class SpatialCrossCorrelation(object):
             xlim=xlim, ylim=flim, vlim=vlim,
             norm=None, cmap=cmap, interpolation=interpolation,
             xlabel='', ylabel=ylabel,
-            cbarorientation='vertical',
+            cborientation='vertical',
             cblabel='$\mathrm{Re}[G_{xy}(\delta, f) / G_{xy}(0, f)]$',
             fontsize=fontsize,
             ax=axes[0])
@@ -1328,7 +1328,7 @@ class SpatialCrossCorrelation(object):
             xlim=xlim, ylim=flim, vlim=vlim,
             norm=None, cmap=cmap, interpolation=interpolation,
             xlabel=xlabel, ylabel=ylabel,
-            cbarorientation='vertical',
+            cborientation='vertical',
             cblabel='$\mathrm{Im}[G_{xy}(\delta, f) / G_{xy}(0, f)]$',
             fontsize=fontsize,
             ax=axes[1])

@@ -714,7 +714,7 @@ def _plot_image(x, y, z,
                 xlim=None, ylim=None, vlim=None,
                 norm=None, cmap='viridis', interpolation='none',
                 title=None, xlabel=None, ylabel=None, fontsize=16,
-                cblabel=None, cbticks=None, cbarorientation='horizontal',
+                cblabel=None, cbticks=None, cborientation='horizontal',
                 ax=None, fig=None, geometry=111):
     '''Create an image of z(y, x).
 
@@ -765,7 +765,7 @@ def _plot_image(x, y, z,
     title, xlabel, ylabel, cblabel - string
         Titles of respective objects in image.
 
-    cbarorientation - string
+    cborientation - string
         Orientation of colorbar; may be in {'horizontal', 'vertical'}.
 
     fontsize - int
@@ -859,7 +859,7 @@ def _plot_image(x, y, z,
         format = None
 
     cb = plt.colorbar(im, format=format, ticks=cbticks,
-                      ax=ax, orientation=cbarorientation)
+                      ax=ax, orientation=cborientation)
 
     # Labeling
     if title is not None:
