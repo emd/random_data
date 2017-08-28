@@ -344,7 +344,7 @@ class TwoDimensionalAutoSpectralDensity(object):
                             cmap='viridis', interpolation='none', fontsize=16,
                             title=None, xlabel=r'$\xi$', ylabel='$f$',
                             cblabel=r'$|S_{xx}(\xi,f)|$',
-                            cbarorientation='horizontal',
+                            cborientation='horizontal',
                             ax=None, fig=None, geometry=111):
         'Plot magnitude of spectral density on log scale.'
         # Don't plot f = 0 and f = 0.5 * self.Fs, as these tend to
@@ -354,7 +354,7 @@ class TwoDimensionalAutoSpectralDensity(object):
             xlim=xilim, ylim=flim, vlim=vlim,
             norm='log', cmap=cmap, interpolation=interpolation,
             title=title, xlabel=xlabel, ylabel=ylabel,
-            cblabel=cblabel, cbarorientation=cbarorientation,
+            cblabel=cblabel, cborientation=cborientation,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
