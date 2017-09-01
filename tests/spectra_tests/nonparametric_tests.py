@@ -218,8 +218,13 @@ def test__next_largest_divisor_for_integer_quotient():
 
 
 def test_phase_angle_bins():
-    # Use typical `theta_min` of -pi and 0; also, test with "wild" offset
-    theta_min_test_vals = np.array([-np.pi, 0, -10 * np.pi])
+    # Use typical `theta_min` of -pi and 0; also, test with "wild" offsets
+    theta_min_test_vals = np.array([
+        -np.pi,
+        0,
+        -10 * np.pi,
+        np.pi / 2
+    ])
 
     # (1) Test with *even* number of bins when
     #     `dtheta0` divides (2 * pi) into integer number of bins:
@@ -294,6 +299,18 @@ def test_phase_angle_bins():
     np.testing.assert_array_almost_equal(bins, bins_expected)
     tools.assert_equal(dtheta, dtheta0)
 
+    # (3d) [0.4 * pi, 2.4 * pi):
+    # --------------------------
+    theta_min = 0.4 * np.pi
+    theta_max = theta_min + (2 * np.pi)
+    bins_expected = theta_min + (dtheta0 * np.arange(0, 5))
+
+    bins, dtheta = phase_angle_bins(dtheta0, theta_min)
+
+    # Use "almost equal" to avoid errors w/ round-off errors
+    np.testing.assert_array_almost_equal(bins, bins_expected)
+    tools.assert_equal(dtheta, dtheta0)
+
     # (4) Test with *odd* number of bins when
     #     `dtheta0` does *not* divide (2 * pi) into integer number of bins
     #     (note that the odd case requires a bit more care...):
@@ -301,7 +318,7 @@ def test_phase_angle_bins():
     dtheta_expected = (2 * np.pi) / 5
     dtheta0 = 0.99 * dtheta_expected
 
-    # (3a) [-pi, pi):
+    # (4a) [-pi, pi):
     # ---------------
     theta_min = -np.pi
     theta_max = theta_min + (2 * np.pi)
@@ -313,7 +330,7 @@ def test_phase_angle_bins():
     np.testing.assert_array_almost_equal(bins, bins_expected)
     tools.assert_equal(dtheta, dtheta_expected)
 
-    # (3b) [0, 2 * pi):
+    # (4b) [0, 2 * pi):
     # -----------------
     theta_min = 0
     theta_max = theta_min + (2 * np.pi)
@@ -325,9 +342,21 @@ def test_phase_angle_bins():
     np.testing.assert_array_almost_equal(bins, bins_expected)
     tools.assert_equal(dtheta, dtheta_expected)
 
-    # (3c) [-10 * pi, -8 * pi):
+    # (4c) [-10 * pi, -8 * pi):
     # -------------------------
     theta_min = -10 * np.pi  # equivalent to 0 radians
+    theta_max = theta_min + (2 * np.pi)
+    bins_expected = theta_min + (dtheta_expected * np.arange(0, 5))
+
+    bins, dtheta = phase_angle_bins(dtheta0, theta_min)
+
+    # Use "almost equal" to avoid errors w/ round-off errors
+    np.testing.assert_array_almost_equal(bins, bins_expected)
+    tools.assert_equal(dtheta, dtheta_expected)
+
+    # (4d) [0.4 * pi, 2.4 * pi):
+    # --------------------------
+    theta_min = 0.4 * np.pi
     theta_max = theta_min + (2 * np.pi)
     bins_expected = theta_min + (dtheta_expected * np.arange(0, 5))
 
