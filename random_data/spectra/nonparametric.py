@@ -923,39 +923,21 @@ def phase_angle_bins(dtheta0, theta_min):
         an integer number of bins.
 
     '''
-    # Map `theta_min` onto [-pi, pi), recording the `offset`
-    # that must be added to the resulting bins to return
-    # to the original angular coordinate system
-    theta_min0 = theta_min
-    theta_min = wrap(theta_min, -np.pi, np.pi)
-    offset = theta_min0 - theta_min
+    full_domain = 2 * np.pi
 
-    # The phase angle bins will span the full (2 * pi) angular range
-    theta_max = theta_min + (2 * np.pi)
-
-    # Number of bins in full (2 * pi), rounded to the nearest integer value
-    N = np.int(np.round(2 * np.pi / dtheta0))
+    # Number of bins in full domain, rounded to the nearest integer value
+    N = np.int(np.round(full_domain / dtheta0))
 
     # Redefine the angular separation of the bins such that
-    # the bins *exactly* divide (2 * pi) into `N` bins
-    dtheta = (2 * np.pi) / N
+    # the bins *exactly* divide full domain into `N` bins
+    dtheta = full_domain / N
 
-    # Construct the bins such that the phase angle zero
-    # always occupies a bin center point
-    bins_pos = np.arange(0, theta_max, dtheta)  # bins for theta >= 0
+    # Determine phase-angle bins on [0, `full_domain`) domain
+    bins = np.arange(0, full_domain, dtheta)
 
-    # Bins for theta < 0 depend on whether number of bins is even or odd
-    # (Hint: draw diagrams for phase angle bins mapped onto [-pi, pi)
-    # for `N` even and odd to better understand the algorithm below)
-    if N % 2 == 0:
-        bins_neg = np.arange(-dtheta, (theta_min - dtheta), -dtheta)[::-1]
-    else:
-        bins_neg = np.arange(-dtheta, theta_min, -dtheta)[::-1]
-
-    bins = np.concatenate((bins_neg, bins_pos))
-
-    # Account for `offset`, converting bins to original angular range
-    bins += offset
+    # Wrap phase-angle bins onto desired domain and sort
+    bins = wrap(bins, theta_min, full_domain + theta_min)
+    bins = np.sort(bins)
 
     return bins, dtheta
 
