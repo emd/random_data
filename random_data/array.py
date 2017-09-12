@@ -876,8 +876,18 @@ class FittedCrossPhaseArray(CrossSpectralDensityArray):
                 # Solve weighted, linear, least-squares problem A * x = b,
                 # where `A` is the weighted coefficient matrix and
                 # `b` is the weighted cross-phase angles.
-                A = np.dot(np.diag(sigma), A0)
-                b = np.dot(np.diag(sigma), theta_xy)
+                #
+                # Following the discussion here:
+                #
+                #   https://en.wikipedia.org/wiki/Least_squares#Weighted_least_squares
+                #
+                # we see that the "BLUE" fit is obtained when the least-squares
+                # residuals are weighted by the *inverse* of the measurement
+                # variance. However, proceeding with the derivation of the
+                # normal equations, we see that this is equivalent to
+                # weighting `A` and `b` by `diag(1. / sigma)`.
+                A = np.dot(np.diag(1. / sigma), A0)
+                b = np.dot(np.diag(1. / sigma), theta_xy)
                 soln = np.linalg.lstsq(A, b)
 
                 # Unpack solution and relevant metrics
