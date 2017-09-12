@@ -863,10 +863,10 @@ class FittedCrossPhaseArray(CrossSpectralDensityArray):
             for find in np.arange(len(self.f)):
                 # Get cross-phase-angle slice and unwrap to prevent
                 # phase jumps.
-                theta_xy = np.unwrap(self.theta_xy[:, find, tind])
+                theta_xy = np.unwrap(np.squeeze(self.theta_xy[:, find, tind]))
 
                 # Get magnitude-squared coherence, enforcing ceiling
-                gamma2xy = self.gamma2xy[:, find, tind]
+                gamma2xy = np.squeeze(self.gamma2xy[:, find, tind])
                 gamma2xy = np.minimum(gamma2xy, self.gamma2xy_max)
 
                 # Get standard deviation `sigma` of phase-angle estimates
@@ -893,7 +893,7 @@ class FittedCrossPhaseArray(CrossSpectralDensityArray):
                 # Unpack solution and relevant metrics
                 self.mode_number[find, tind] = soln[0][0]
                 self.R2[find, tind] = coefficient_of_determination(
-                    soln[1][0], np.var(theta_xy))
+                    soln[1][0], np.var(b))
 
             # Only print status when moving to a new point in time
             # to avoid excessive printing (which could slow the fitting);
@@ -1413,20 +1413,21 @@ def _test_plotModeNumber(
     Npts = len(s.x)
     t = s.t()
     f0 = 50e3
-    A = 1e-2
+    A0 = 1e-2
+    n0 = 1  # fitting performs poorly when n0 = 0, so use finite mode number
+    omega0_t = 2 * np.pi * f0 * t
 
     # Initialize
     signals = np.zeros((Nsig, Npts))
 
-    # Signal generation: use purely coherent modes because
-    # if mode-number extraction does not work in this ideal case,
-    # it certainly won't work in the presence of noise.
+    # Signal generation
     for i in np.arange(Nsig):
         # Create some uncorrelated noise
         signals[i, :] = (RandomSignal(Fs, t0, T)).x
 
         # Add coherent mode
-        signals[i, :] += A * np.cos(2 * np.pi * f0 * t)
+        dtheta = n0 * (locations[i] - locations[0])
+        signals[i, :] += (A0 * np.cos(omega0_t + dtheta))
 
     # Perform fit
     A = FittedCrossPhaseArray(
