@@ -251,7 +251,7 @@ Npts = len(sig.t())
 signals = np.zeros((Nsig, Npts))
 
 # Coherent signal properties
-A = 1e-3   # amplitude, [A] = [sig1.x]
+A0 = 1e-3  # amplitude, [A0] = [sig1.x]
 f0 = 50e3  # frequency, [f0] = Hz
 n = -3     # mode number
 omega0_t = 2 * np.pi * f0 * sig.t()
@@ -263,7 +263,7 @@ for i in np.arange(Nsig):
     dtheta = n * (locations[i] - locations[0])
 
     # Coherent signal with mode-number dependence
-    signals[i, :] = A * np.cos(omega0_t + dtheta)
+    signals[i, :] = A0 * np.cos(omega0_t + dtheta)
 
     # Uncorrelated noise
     signals[i, :] += (rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)).x
