@@ -1414,6 +1414,8 @@ def _test_plotModeNumber(
     t = s.t()
     f0 = 50e3
     A0 = 1e-2
+    n0 = 1  # fitting performs poorly when n0 = 0, so use finite mode number
+    omega0_t = 2 * np.pi * f0 * t
 
     # Initialize
     signals = np.zeros((Nsig, Npts))
@@ -1424,7 +1426,8 @@ def _test_plotModeNumber(
         signals[i, :] = (RandomSignal(Fs, t0, T)).x
 
         # Add coherent mode
-        signals[i, :] += (A0 * np.cos(2 * np.pi * f0 * t))
+        dtheta = n0 * (locations[i] - locations[0])
+        signals[i, :] += (A0 * np.cos(omega0_t + dtheta))
 
     # Perform fit
     A = FittedCrossPhaseArray(
