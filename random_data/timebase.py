@@ -133,7 +133,7 @@ class TriggerOffset(object):
         '''
         x1, y1, x2, y2 = self._parseSignals(x)
 
-        self.shifts = shifts
+        self.shifts = np.sort(shifts)
         self.gamma2xy_max = gamma2xy_max
         self.Fs = np.float(csd_kwargs['Fs'])
 
