@@ -1,5 +1,5 @@
 '''This module implements a class for estimating the so-called
-"trigger offset" between random-data series.
+"trigger offset" between digital records of a given random process.
 
 '''
 
@@ -15,55 +15,69 @@ from .spectra.nonparametric import _plot_image
 
 
 class TriggerOffset(object):
-    '''
-# Blah blah blah
+    '''A class for estimating the "trigger offset" between digital records
+    of a given random process.
 
     Background:
     -----------
-    For the `(2, N)` case, let `x = np.array([x1, y1])`, where `x1`
-    and `y1` are `N`-length digital samples of random processes
-    {x1} and {y1}, respectively. It is assumed that the true,
-    physical cross phase between {x1} and {y1} is *zero* and that
-    any cross phase between the digital records `x1` and `y1`results
-    from a constant timebase offset (i.e. "trigger offset") between
-    the records. Such trigger offsets may arise if two different
-    types of transducers measure a given field; for example, if a
-    camera and a photodiode both measure light emitted from the
-    same physical location, differing electronics and connections
-    to the digitizer may result in a timebase offset between the
-    camera and photodiode measurements.
+    Accurately estimating spectral quantities of a given random process
+    from a collection of digital records requires (among other things)
+    that the true, physical timebase of the process is well-represented
+    by the nominal timebase of the digital record. If two records `x1`
+    and `y1` have the same nominal time base but, for example,
+    digitization of record `y1` actually begins a finite time `tau` later
+    than the digitization of record `x1`, then naively computed spectral
+    estimates will be biased away from their true, physical values. This
+    class is designed to estimate such *constant* timebase offsets
+    (termed "trigger offsets") between a collection of digital records.
+    Other, more nefarious timebase problems, such as digitization
+    dropouts in one record but not the other, are outside of the scope
+    of this class.
 
-    For the `(4, N)` case, let `x = np.array([x1, y1, x2, y2])`,
-    where `x1`, `y1`, `x2`, and `y2` are `N`-length digital samples
-    of random processes {x1}, {y1}, {x2}, and {y2}, respectively.
-    It is assumed that the true, physical cross phase between
-    {x1} and {y1} is *equal* to that between {y1} and {x2}, which
-    is in turn *equal* to that between {x2} and {y2}; deviations
-    from this assumed structure result from a constant timebase
-    offset (i.e. a "trigger offset") between the measurements
-    made in domain 1 (i.e. `x1` and `y1`) and the measurements
-    made in domain 2 (i.e. `x2` and `y2`). Such trigger offsets
-    arise if four adjacent transducers {t1, t2, t3, t4} measure
-    an isotropic field but digitization is performed with two
-    distinct digitizer "boards", as drawn below
+    The trigger offset is estimated by least-squares minimizing the
+    difference between the record's cross phase and an *assumed* form
+    for the true cross phase. The form of the assumed cross phase depends
+    on whether the digital record `x` provided during initialization has
+    shape `(2, N) or `(4, N)`.
 
-            transducer:         t1 | t2 | t3 | t4
-            ----------------    -----------------
-            digitizer board:       1    |    2
-            ----------------    -----------------
-            digital record:     x1 | y1 | x2 | y2
+    For the `(2, N)` case, let `x = np.array([x1, y1])`, where `x1` and
+    `y1` are `N`-length digital records of random processes {x1} and {y1},
+    respectively. It is assumed that the true, physical cross phase between
+    {x1} and {y1} is *zero* and that any cross phase between the digital
+    records `x1` and `y1`results from a trigger offset between the records.
+    Such trigger offsets may arise if two different types of transducers
+    measure a given field; for example, if a camera and a photodiode both
+    measure light emitted from the same physical location, differing
+    electronics and connections to the digitizer may result in a timebase
+    offset between the camera and photodiode measurements.
 
-    This above is precisely the configuration envisioned for
-    the `(4, N)` case. In particular, `x1` and `y1` should be
-    digitized on the same board (board 1), making any associated
-    trigger offset negligible and allowing an accurate estimate
-    of the true cross phase between {x1} and {y1}; `x2` and `y2`
-    should similarly be digitized on the same board (board 2),
-    allowing an accurate estimate of the cross phase between
-    {x2} and {y2}. If the cross phase between `y1` and `x2`
-    differs from that purely board 1 or purely board 2 estimates,
-    the discrepancy is attributed to a trigger offset between
-    board 1 and board 2.
+    For the `(4, N)` case, let `x = np.array([x1, y1, x2, y2])`, where `x1`,
+    `y1`, `x2`, and `y2` are `N`-length digital records of random processes
+    {x1}, {y1}, {x2}, and {y2}, respectively. It is assumed that the true,
+    physical cross phase between {x1} and {y1} is *equal* to that between
+    {y1} and {x2}, which is in turn *equal* to that between {x2} and {y2};
+    deviations from this assumed structure result from a trigger offset
+    between the measurements made in domain 1 (i.e. `x1` and `y1`) and the
+    measurements made in domain 2 (i.e. `x2` and `y2`). Such trigger offsets
+    arise if four adjacent transducers {t1, t2, t3, t4} measure an isotropic
+    field but digitization is performed with two distinct digitizer "boards",
+    as drawn below
+
+                transducer:         t1 | t2 | t3 | t4
+                ----------------    -----------------
+                digitizer board:       1    |    2
+                ----------------    -----------------
+                digital record:     x1 | y1 | x2 | y2
+
+    The above is precisely the configuration envisioned for the `(4, N)` case.
+    In particular, `x1` and `y1` should be digitized on the same board
+    (board 1), making any associated trigger offset negligible and allowing
+    an accurate estimate of the true cross phase between {x1} and {y1};
+    similarly, `x2` and `y2` should be digitized on the same board (board 2),
+    allowing an accurate estimate of the cross phase between {x2} and {y2}.
+    Then, if the cross phase between `y1` and `x2` differs from that
+    estimated purely from board 1 or purely from board 2, the discrepancy is
+    attributed to a trigger offset between board 1 and board 2.
 
     Attributes:
     -----------
@@ -73,49 +87,57 @@ class TriggerOffset(object):
 
     tau - float
         The estimated trigger offset, as determined by least-squares
-        minimization of the record's cross phase against an assumed
-        form for the true cross phase. The quality of fit can be
-        qualitatively and quickly visualized using the
-        `self.plotLocalCrossPhaseError()` and
-        `self.plotIntegratedCrossPhaseError()` methods.
+        minimization of the record's cross phase against an assumed form
+        for the true cross phase. The quality of fit can be qualitatively
+        and quickly visualized using the `self.plotLocalCrossPhaseError()`
+        and `self.plotSummedCrossPhaseError()` methods.
         [tau] = 1 / [Fs]
 
     shifts - array_like, `(L,)`
-        The number of timestamps by which the digital record `x`
-        was "rolled" through in order to probe the trigger offset.
+        The number of timestamps by which the digital record `x` was
+        "rolled" through in order to probe the trigger offset.
         [shifts] = unitless
 
     f - array_like, `(M,)`
         The frequencies at which spectral estimates are available.
         [f] = [Fs]
 
-    theta_xy - array_like, `(L, M)`
+    dtheta - array_like, `(L, M)`
+        The difference between the digital record's cross phase (which is
+        corrupted by trigger offset `self.tau`) and an assumed form for the
+        true, physical cross phase. The form of the assumed cross phase is
+        discussed in the "Background" section of the class Docstring.
+        [dtheta] = rad
 
-    gamma2xy - array_like, `(L, M)`
-        The magnitude-squared coherence
+    weight - array_like, `(L, M)`
+        The statistical weight of each point in `self.dtheta`, equal to the
+        inverse variance of the cross-phase estimate.
+        [weight] = 1 / (rad ** 2)
 
     gamma2xy_max - float
-        Maximum allowed value of magnitude-squared coherence.
-        The weights used in the least-squares minimization
-        vary as
+        Maximum allowed value of magnitude-squared coherence. The weights
+        used in the least-squares minimization vary as
 
                 [gamma2xy / (1 - gamma2xy)]^{0.5}
 
-        To prevent singular weights, the `gamma2xy_max` ceiling
-        is enforced on the magnitude-squared coherence.
+        Enforcing the ceiling `gamma2xy_max` on the magnitude-squared
+        coherence prevents singular weights.
         [gamma2xy_max] = unitless
 
-    weight - array_like, `(L, M)`
-
     E - array_like, `(L,)`
-        The integrated error as a function of `self.shifts`.
+        The summed error as a function of `self.shifts`.
+        [E] = 1 / rad
 
     Efit - array_like, `(2,)`
-        The parameters that result from least-squares fitting
-        the integrated error `self.E` vs `self.shifts` to a
-        linear model. In particular, `self.Efit[0]` gives the
-        line's slope and `self.Efit[1]` gives the line's
-        y-intercept.
+        The parameters that result from least-squares fitting the summed
+        error `self.E` vs `self.shifts` to a linear model. In particular,
+        `self.Efit[0]` gives the line's slope and `self.Efit[1]` gives the
+        line's y-intercept.
+        [Efit[i]] = 1 / rad, for i in {0, 1}
+
+    Methods:
+    --------
+    Type `help(TriggerOffset)` in the IPython console for a listing.
 
     '''
     def __init__(self, x, shifts=np.arange(-5, 6, 1),
@@ -191,7 +213,7 @@ class TriggerOffset(object):
         else:
             self._getShiftedCrossPhase(y1, x2, **csd_kwargs)
 
-        self._fitTotalCrossPhaseError()
+        self._fitSummedCrossPhaseError()
 
     def _parseSignals(self, x):
         'Check that `x` has acceptable dimensions; if so, parse `x`.'
@@ -268,18 +290,18 @@ class TriggerOffset(object):
         Nshifts = len(self.shifts)
 
         # Initialize
-        self.theta_xy = np.zeros((Nshifts, Nf))
-        self.gamma2xy = np.zeros((Nshifts, Nf))
+        theta_xy = np.zeros((Nshifts, Nf))
+        gamma2xy = np.zeros((Nshifts, Nf))
 
         # Loop through each offset, computing cross phase and coherence
         for i, shift in enumerate(self.shifts):
             csd = CrossSpectralDensity(x, np.roll(y, shift), **csd_kwargs)
 
             # Unwrap from f = 0 to obtain smoothly varying phase
-            self.theta_xy[i, :] = np.unwrap(np.squeeze(csd.theta_xy))
+            theta_xy[i, :] = np.unwrap(np.squeeze(csd.theta_xy))
 
             # Enforce ceiling on values of magnitude-squared coherence
-            self.gamma2xy[i, :] = np.minimum(
+            gamma2xy[i, :] = np.minimum(
                 np.squeeze(csd.gamma2xy),
                 self.gamma2xy_max)
 
@@ -292,27 +314,30 @@ class TriggerOffset(object):
         pos_shift_ind = np.where(self.shifts >= 0)[0]
         neg_shift_ind = np.where(self.shifts <= 0)[0]
 
-        self.theta_xy[pos_shift_ind, :] = np.unwrap(
-            self.theta_xy[pos_shift_ind, :], axis=0)
-        self.theta_xy[neg_shift_ind, :] = np.unwrap(
-            self.theta_xy[neg_shift_ind, :][::-1], axis=0)[::-1]
+        theta_xy[pos_shift_ind, :] = np.unwrap(
+            theta_xy[pos_shift_ind, :], axis=0)
+        theta_xy[neg_shift_ind, :] = np.unwrap(
+            theta_xy[neg_shift_ind, :][::-1], axis=0)[::-1]
+
+        # Compute difference between actual and expected cross phase
+        self.dtheta = theta_xy - self._expected_cross_phase
 
         # Use random error from cross-phase estimates to define
         # a set of weights.
-        sigma = cross_phase_std_dev(self.gamma2xy, self._Nreal_per_ens)
+        sigma = cross_phase_std_dev(gamma2xy, self._Nreal_per_ens)
         self.weight = 1. / (sigma ** 2)
 
         return
 
-    def _fitTotalCrossPhaseError(self):
+    def _fitSummedCrossPhaseError(self):
         '''Fit difference between expected and shifted cross phases via
         weighted, linear least squares.
 
         '''
         # Local error as a function of shift and frequency
-        self._e = self.weight * self.theta_xy
+        self._e = self.weight * self.dtheta
 
-        # Integrate error over frequency to obtain a "total" error
+        # Sum error over frequency to obtain a "total" error
         # at each value in `self.shifts`
         self.E = np.sum(self._e, axis=-1)
 
@@ -351,24 +376,24 @@ class TriggerOffset(object):
 
         return
 
-    def plotIntegratedCrossPhaseError(self):
-        '''Plot cross-phase error (integrated over frequency) and its fit
+    def plotSummedCrossPhaseError(self):
+        '''Plot cross-phase error (summed over frequency) and its fit
         as a function of `self.shifts`.
 
         '''
         plt.figure()
 
-        # Integrated error and fit
+        # Summed error and fit
         plt.plot(self.shifts, self.E, 'o')
         plt.plot(self.shifts, (self.Efit[0] * self.shifts) + self.Efit[1])
 
         # Place crosshair at fit's zero crossing, which indicates
-        # the trigger offset giving minimal integrated error
+        # the trigger offset giving minimal summed error
         plt.axhline(0, c='k')
         plt.axvline(self.tau * self.Fs, c='k')
 
         plt.xlabel('shift')
-        plt.ylabel('integrated error, E')
+        plt.ylabel('summed error, E')
 
         plt.tight_layout()
         plt.show()
@@ -378,7 +403,7 @@ class TriggerOffset(object):
     @property
     def tau(self):
         '''Get trigger offset from linear least-squares fit of
-        total cross-phase error.
+        summed cross-phase error.
 
         '''
         return -self.Efit[1] / self.Efit[0] / self.Fs
