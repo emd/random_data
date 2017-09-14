@@ -48,10 +48,10 @@ def test_TriggerOffset_2signals():
     # Estimate trigger offset
     trig = rd.timebase.TriggerOffset(
         np.array([x1, x2]),
-        Fs=Fs,
-        Nreal_per_ens=Nreal_per_ens,
+        shifts=(np.int(tau * Fs) + shifts),
         gamma2xy_max=gamma2xy_max,
-        shifts=(np.int(tau * Fs) + shifts))
+        Fs=Fs,
+        Nreal_per_ens=Nreal_per_ens)
 
     # Check that estimated trigger offset is within 5% of true offset.
     # (The algorithm often provides estimates that are within a much
@@ -69,10 +69,10 @@ def test_TriggerOffset_2signals():
     # The trigger offset between `x1` and `x2_corrected` should be minimal
     trig_corrected = rd.timebase.TriggerOffset(
         np.array([x1, x2_corrected]),
-        Fs=Fs,
-        Nreal_per_ens=Nreal_per_ens,
+        shifts=shifts,
         gamma2xy_max=gamma2xy_max,
-        shifts=shifts)
+        Fs=Fs,
+        Nreal_per_ens=Nreal_per_ens)
 
     # Trigger offset of corrected signals is at least 200x smaller than
     # original, uncorrected trigger offset
@@ -121,10 +121,10 @@ def test_TriggerOffset_4signals():
     # Estimate trigger offset
     trig = rd.timebase.TriggerOffset(
         np.array([x1, y1, x2, y2]),
-        Fs=Fs,
-        Nreal_per_ens=Nreal_per_ens,
+        shifts=(np.int(tau * Fs) + shifts),
         gamma2xy_max=gamma2xy_max,
-        shifts=(np.int(tau * Fs) + shifts))
+        Fs=Fs,
+        Nreal_per_ens=Nreal_per_ens)
 
     # Check that estimated trigger offset is within 5% of true offset
     # (The algorithm often provides estimates that are within a much
@@ -143,10 +143,10 @@ def test_TriggerOffset_4signals():
     # The trigger offset between 1 and 2 should be minimal
     trig_corrected = rd.timebase.TriggerOffset(
         np.array([x1, y1, x2_corrected, y2_corrected]),
-        Fs=Fs,
-        Nreal_per_ens=Nreal_per_ens,
+        shifts=shifts,
         gamma2xy_max=gamma2xy_max,
-        shifts=shifts)
+        Fs=Fs,
+        Nreal_per_ens=Nreal_per_ens)
 
     # Trigger offset of corrected signals is at least 200x smaller than
     # original, uncorrected trigger offset
