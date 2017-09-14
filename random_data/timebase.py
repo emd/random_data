@@ -16,6 +16,7 @@ from .spectra.nonparametric import _plot_image
 
 class TriggerOffset(object):
     '''
+# Blah blah blah
 
     Background:
     -----------
@@ -66,12 +67,55 @@ class TriggerOffset(object):
 
     Attributes:
     -----------
-    The additional attributes:
+    Fs - float
+        The sample rate of `x` provided at initialization.
+        [Fs] = arbitrary units
 
-        {`f`, `Fs`}
+    tau - float
+        The estimated trigger offset, as determined by least-squares
+        minimization of the record's cross phase against an assumed
+        form for the true cross phase. The quality of fit can be
+        qualitatively and quickly visualized using the
+        `self.plotLocalCrossPhaseError()` and
+        `self.plotIntegratedCrossPhaseError()` methods.
+        [tau] = 1 / [Fs]
 
-    are described in the documentation for :py:class:`CrossSpectralDensity
-    <random_data.spectra.CrossSpectralDensity>`.
+    shifts - array_like, `(L,)`
+        The number of timestamps by which the digital record `x`
+        was "rolled" through in order to probe the trigger offset.
+        [shifts] = unitless
+
+    f - array_like, `(M,)`
+        The frequencies at which spectral estimates are available.
+        [f] = [Fs]
+
+    theta_xy - array_like, `(L, M)`
+
+    gamma2xy - array_like, `(L, M)`
+        The magnitude-squared coherence
+
+    gamma2xy_max - float
+        Maximum allowed value of magnitude-squared coherence.
+        The weights used in the least-squares minimization
+        vary as
+
+                [gamma2xy / (1 - gamma2xy)]^{0.5}
+
+        To prevent singular weights, the `gamma2xy_max` ceiling
+        is enforced on the magnitude-squared coherence.
+        [gamma2xy_max] = unitless
+
+    weight - array_like, `(L, M)`
+
+    E - array_like, `(L,)`
+        The integrated error as a function of `self.shifts`.
+
+    Efit - array_like, `(2,)`
+        The parameters that result from least-squares fitting
+        the integrated error `self.E` vs `self.shifts` to a
+        linear model. In particular, `self.Efit[0]` gives the
+        line's slope and `self.Efit[1]` gives the line's
+        y-intercept.
 
     '''
     def __init__(self, x, shifts=np.arange(-5, 6, 1),
@@ -91,7 +135,7 @@ class TriggerOffset(object):
             a ValueError is raised.
             [x] = arbitrary units
 
-        shifts - array_like, `(M,)`
+        shifts - array_like, `(L,)`
             The number of timestamps by which the digital records should
             be "rolled" relative to one another in order to probe the
             trigger offset.
@@ -196,7 +240,7 @@ class TriggerOffset(object):
 
             # Extract cross phase and magnitude-squared coherence
             theta_xy_1 = np.squeeze(csd1.theta_xy)
-            theta_xy_2 = np.squeeze(csd1.theta_xy)
+            theta_xy_2 = np.squeeze(csd2.theta_xy)
             gamma2xy_1 = np.minimum(
                 np.squeeze(csd1.gamma2xy),
                 self.gamma2xy_max)
