@@ -31,13 +31,15 @@ gamma2xy_max = 0.95             # [gamma2xy_max] = unitless
 
 
 def test_TriggerOffset_2signals():
-    # Generate two digital records that are identical
-    # *except* for timebase offset `tau`
     sig = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
-    t = sig.t()
-    x1 = sig.x.copy()
-    x2 = np.interp(t, t - tau, sig.x)
     N = len(sig.x)
+    t = sig.t()
+
+    # Generate two digital records that are identical *except* for
+    # timebase offset `tau`. Note that `x1[0]` physically occurs at
+    # time `t[0]`, while `x2[0]` physically occurs at time `t[0] + tau`.
+    x1 = sig.x.copy()
+    x2 = np.interp(t + tau, t, sig.x)
 
     # Add uncorrelated noise to generate two distinct signals
     noise_power =  Gnn * (0.5 * Fs)
@@ -64,7 +66,7 @@ def test_TriggerOffset_2signals():
         places=1)
 
     # Now, use estimated value to compensate for trigger offset
-    x2_corrected = np.interp(t - trig.tau, t, x2)
+    x2_corrected = np.interp(t, t + trig.tau, x2)
 
     # The trigger offset between `x1` and `x2_corrected` should be minimal
     trig_corrected = rd.timebase.TriggerOffset(
@@ -87,8 +89,8 @@ def test_TriggerOffset_2signals():
 def test_TriggerOffset_4signals():
     # Common broadband signal
     sig = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
-    t = sig.t()
     N = len(sig.x)
+    t = sig.t()
 
     xhat = np.fft.rfft(sig.x)
     f = np.fft.rfftfreq(len(sig.x), d=(1. / Fs))
@@ -104,11 +106,13 @@ def test_TriggerOffset_4signals():
     x2 = np.real(np.fft.irfft(xhat * np.exp(1j * 2 * theta0)))
     y2 = np.real(np.fft.irfft(xhat * np.exp(1j * 3 * theta0)))
 
-    # Create additional cross phase between correlation pair
-    # `(y1, x2)` by adding a trigger offset `tau` to `x2` and
-    # `y2` relative to `x1` and `y1`
-    x2 = np.interp(t, t - tau, x2)
-    y2 = np.interp(t, t - tau, y2)
+    # Create additional cross phase between correlation pair `(y1, x2)`
+    # by adding a trigger offset `tau` to `x2` and `y2` relative to `x1`
+    # and `y1`. Note that `x1[0]` physically occurs at time `t[0]`, while
+    # `x2[0]` physically occurs at time `t[0] + tau`. The equivalent
+    # statement holds for `y1` and `y2`.
+    x2 = np.interp(t + tau, t, x2)
+    y2 = np.interp(t + tau, t, y2)
 
     # Finally, add uncorrelated noise
     noise_power =  Gnn * (0.5 * Fs)
@@ -137,8 +141,8 @@ def test_TriggerOffset_4signals():
         places=1)
 
     # Now, use estimated value to compensate for trigger offset
-    x2_corrected = np.interp(t - trig.tau, t, x2)
-    y2_corrected = np.interp(t - trig.tau, t, y2)
+    x2_corrected = np.interp(t, t + trig.tau, x2)
+    y2_corrected = np.interp(t, t + trig.tau, y2)
 
     # The trigger offset between 1 and 2 should be minimal
     trig_corrected = rd.timebase.TriggerOffset(
