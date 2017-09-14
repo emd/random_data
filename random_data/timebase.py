@@ -236,9 +236,9 @@ class TriggerOffset(object):
         self._getExpectedCrossPhase(x1, y1, x2, y2, **csd_kwargs)
 
         if (x2 is None) and (y2 is None):
-            self._getShiftedCrossPhase(x1, y1, **csd_kwargs)
+            self._getCrossPhaseError(x1, y1, **csd_kwargs)
         else:
-            self._getShiftedCrossPhase(y1, x2, **csd_kwargs)
+            self._getCrossPhaseError(y1, x2, **csd_kwargs)
 
         self._fitSummedCrossPhaseError()
 
@@ -311,8 +311,8 @@ class TriggerOffset(object):
 
         return
 
-    def _getShiftedCrossPhase(self, x, y, **csd_kwargs):
-        'Get cross phase between `x` and `self.shifts` shifted `y`.'
+    def _getCrossPhaseError(self, x, y, **csd_kwargs):
+        'Get cross phase error between `x` and `self.shifts` rolled `y`.'
         Nf = len(self.f)
         Nshifts = len(self.shifts)
 
