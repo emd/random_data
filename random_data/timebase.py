@@ -102,6 +102,13 @@ class TriggerOffset(object):
         The frequencies at which spectral estimates are available.
         [f] = [Fs]
 
+    flim - array_like, `(2,)` or None
+        If not `None`, only frequencies falling within `flim` have been
+        considered when minimizing the least-squares difference between
+        the record's cross phase and the assumed form of the true,
+        physical cross phase.
+        [flim] = [**csd_kwargs['Fs']]
+
     dtheta - array_like, `(L, M)`
         The difference between the digital record's cross phase (which is
         corrupted by trigger offset `self.tau`) and an assumed form for the
@@ -141,7 +148,7 @@ class TriggerOffset(object):
 
     '''
     def __init__(self, x, shifts=np.arange(-5, 6, 1),
-                 gamma2xy_max=0.95, **csd_kwargs):
+                 gamma2xy_max=0.95, flim=None, **csd_kwargs):
         '''Create an instance of the `TriggerOffset` class.
 
         Input parameters:
@@ -174,6 +181,16 @@ class TriggerOffset(object):
             on the magnitude-squared coherence of `gamma2xy_max`.
             [gamma2xy_max] = unitless
 
+        flim - array_like, `(2,)` or None
+            If not `None`, consider only frequencies falling within
+            `flim` when minimizing the least-squares difference
+            between the record's cross phase and the assumed form
+            of the true, physical cross phase. This can be useful if,
+            for example, there is a source of spurious noise outside
+            of `flim` that would otherwise bias the trigger-offset
+            estimate.
+            [flim] = [**csd_kwargs['Fs']]
+
         csd_kwargs - any valid keyword arguments for
             :py:class:`CrossSpectralDensity
                 <random_data.spectra.CrossSpectralDensity>`.
@@ -201,7 +218,17 @@ class TriggerOffset(object):
 
         self.shifts = np.sort(shifts)
         self.gamma2xy_max = gamma2xy_max
-        self.Fs = np.float(csd_kwargs['Fs'])
+
+        if flim is not None:
+            self.flim = np.sort(flim)
+        else:
+            self.flim = flim
+
+        try:
+            self.Fs = np.float(csd_kwargs['Fs'])
+        except KeyError:
+            raise KeyError(
+                'Sample rate `Fs` must be specified as a keyword argument')
 
         # Treat the full digital record as a single ensemble
         csd_kwargs['Tens'] = len(x1) / self.Fs
@@ -337,14 +364,23 @@ class TriggerOffset(object):
         # Local error as a function of shift and frequency
         self._e = self.weight * self.dtheta
 
+        if self.flim is not None:
+            self._find = np.where(np.logical_and(
+                self.f >= self.flim[0],
+                self.f <= self.flim[1]))[0]
+        else:
+            self._find = slice(None, None)
+
         # Sum error over frequency to obtain a "total" error
         # at each value in `self.shifts`
-        self.E = np.sum(self._e, axis=-1)
+        self.E = np.sum(self._e[:, self._find], axis=-1)
 
         # Put error in standard A * x = b form for least-squares fitting
         A0 = np.array([self.shifts, np.ones(len(self.shifts))]).T
 
-        w = np.sqrt(np.sum(self.weight, axis=-1))  # effective weight per shift
+        # effective weight per shift
+        w = np.sqrt(np.sum(self.weight[:, self._find], axis=-1))
+
         A = np.dot(np.diag(w), A0)
         b = np.dot(np.diag(w), self.E)
 
@@ -360,11 +396,11 @@ class TriggerOffset(object):
             ax=None, fig=None, geometry=111):
         'Plot cross-phase error as a function of shift and frequency.'
         if vlim is None:
-            emax = np.max(np.abs(self._e))
+            emax = np.max(np.abs(self._e[:, self._find]))
             vlim = [-emax, emax]
 
         _plot_image(
-            self.shifts, self.f, self._e.T,
+            self.shifts, self.f[self._find], self._e[:, self._find].T,
             xlim=xlim, ylim=ylim, vlim=vlim,
             norm=norm, cmap=cmap, interpolation=interpolation,
             title=title, xlabel=xlabel, ylabel=ylabel, fontsize=fontsize,
