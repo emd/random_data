@@ -38,7 +38,7 @@ class TriggerOffset(object):
     difference between the record's cross phase and an *assumed* form
     for the true cross phase. The form of the assumed cross phase depends
     on whether the digital record `x` provided during initialization has
-    shape `(2, N) or `(4, N)`.
+    shape `(2, N)` or `(4, N)`.
 
     For the `(2, N)` case, let `x = np.array([x1, y1])`, where `x1` and
     `y1` are `N`-length digital records of random processes {x1} and {y1},
@@ -91,6 +91,30 @@ class TriggerOffset(object):
         for the true cross phase. The quality of fit can be qualitatively
         and quickly visualized using the `self.plotLocalCrossPhaseError()`
         and `self.plotSummedCrossPhaseError()` methods.
+
+        The precise physical interpretation of `tau` depends on whether the
+        digital record `x` provided during initialization has shape `(2, N)`
+        or `(4, N)`.
+
+        For the `(2, N)` case, let `x = np.array([x1, y1])`, where `x1` and
+        `y1` are `N`-length digital records of random processes {x1} and {y1},
+        respectively. Then, for `0 <= i < N`, `y1[i]` corresponds to a true,
+        physical time that is `tau` *larger* than that of `x1[i]`. (Note that
+        `tau` is signed such that a negative value of `tau` indicates that
+        the true, physical time of `y1[i]` actually precedes that of `x1[i]`).
+
+        For the `(4, N)` case, let `x = np.array([x1, y1, x2, y2])`, where
+        `x1`, `y1`, `x2`, and `y2` are `N`-length digital records of random
+        processes {x1}, {y1}, {x2}, and {y2}, respectively. As discussed in
+        the "Background" section, `x1` and `y1` should be digitized on the
+        same board (board 1), and `x2` and `y2` should be digitized on the
+        same board (board 2). Then, the true, physical times corresponding
+        to the board 2 signals `x2` and `y2` are `tau` *larger* than those
+        of the board 1 signals `x1` and `y1`. (Again, note that `tau` is
+        signed such that a negative value of `tau` indicates that the true,
+        physical times corresponding to the board 2 signals actually precede
+        those of the board 1 signals).
+
         [tau] = 1 / [Fs]
 
     shifts - array_like, `(L,)`
