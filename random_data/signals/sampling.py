@@ -9,9 +9,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Intra-package imports
-from .errors import cross_phase_std_dev
-from .spectra import CrossSpectralDensity
-from .spectra.nonparametric import _plot_image
+from ..errors import cross_phase_std_dev
+from ..spectra import CrossSpectralDensity
+from ..spectra.nonparametric import _plot_image
 
 
 class TriggerOffset(object):

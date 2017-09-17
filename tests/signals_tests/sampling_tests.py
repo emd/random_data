@@ -48,7 +48,7 @@ def test_TriggerOffset_2signals():
     x2 += (noise_amplitude * np.random.randn(N))
 
     # Estimate trigger offset
-    trig = rd.timebase.TriggerOffset(
+    trig = rd.signals.TriggerOffset(
         np.array([x1, x2]),
         shifts=(np.int(tau * Fs) + shifts),
         gamma2xy_max=gamma2xy_max,
@@ -69,7 +69,7 @@ def test_TriggerOffset_2signals():
     x2_corrected = np.interp(t, t + trig.tau, x2)
 
     # The trigger offset between `x1` and `x2_corrected` should be minimal
-    trig_corrected = rd.timebase.TriggerOffset(
+    trig_corrected = rd.signals.TriggerOffset(
         np.array([x1, x2_corrected]),
         shifts=shifts,
         gamma2xy_max=gamma2xy_max,
@@ -123,7 +123,7 @@ def test_TriggerOffset_4signals():
     y2 += (noise_amplitude * np.random.randn(N))
 
     # Estimate trigger offset
-    trig = rd.timebase.TriggerOffset(
+    trig = rd.signals.TriggerOffset(
         np.array([x1, y1, x2, y2]),
         shifts=(np.int(tau * Fs) + shifts),
         gamma2xy_max=gamma2xy_max,
@@ -145,7 +145,7 @@ def test_TriggerOffset_4signals():
     y2_corrected = np.interp(t, t + trig.tau, y2)
 
     # The trigger offset between 1 and 2 should be minimal
-    trig_corrected = rd.timebase.TriggerOffset(
+    trig_corrected = rd.signals.TriggerOffset(
         np.array([x1, y1, x2_corrected, y2_corrected]),
         shifts=shifts,
         gamma2xy_max=gamma2xy_max,
