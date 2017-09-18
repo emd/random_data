@@ -471,7 +471,7 @@ class TriggerOffset(object):
 
 
 def circular_resample(x, Fs, tau):
-    '''Circularly resample (i.e. shift) sequence `x` by delay `tau`.
+    '''Circularly resample (i.e. shift) signal `x` by delay `tau`.
 
     The resampling is "circular" in that it uses the FFT, which maps
     a finite `N`-length sequence onto the unit circle with the implicit

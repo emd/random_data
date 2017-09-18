@@ -205,7 +205,7 @@ def test_TriggerOffset_2signals():
     # timebase offset `tau`. Note that `x1[0]` physically occurs at
     # time `t[0]`, while `x2[0]` physically occurs at time `t[0] + tau`.
     x1 = sig.x.copy()
-    x2 = np.interp(t + tau, t, sig.x)
+    x2 = rd.signals.sampling.circular_resample(sig.x, Fs, tau)
 
     # Add uncorrelated noise to generate two distinct signals
     noise_power =  Gnn * (0.5 * Fs)
@@ -232,7 +232,7 @@ def test_TriggerOffset_2signals():
         places=1)
 
     # Now, use estimated value to compensate for trigger offset
-    x2_corrected = np.interp(t, t + trig.tau, x2)
+    x2_corrected = rd.signals.sampling.circular_resample(x2, Fs, -trig.tau)
 
     # The trigger offset between `x1` and `x2_corrected` should be minimal
     trig_corrected = rd.signals.TriggerOffset(
@@ -307,8 +307,8 @@ def test_TriggerOffset_4signals():
     # and `y1`. Note that `x1[0]` physically occurs at time `t[0]`, while
     # `x2[0]` physically occurs at time `t[0] + tau`. The equivalent
     # statement holds for `y1` and `y2`.
-    x2 = np.interp(t + tau, t, x2)
-    y2 = np.interp(t + tau, t, y2)
+    x2 = rd.signals.sampling.circular_resample(x2, Fs, tau)
+    y2 = rd.signals.sampling.circular_resample(y2, Fs, tau)
 
     # Finally, add uncorrelated noise
     noise_power =  Gnn * (0.5 * Fs)
@@ -337,8 +337,8 @@ def test_TriggerOffset_4signals():
         places=1)
 
     # Now, use estimated value to compensate for trigger offset
-    x2_corrected = np.interp(t, t + trig.tau, x2)
-    y2_corrected = np.interp(t, t + trig.tau, y2)
+    x2_corrected = rd.signals.sampling.circular_resample(x2, Fs, -trig.tau)
+    y2_corrected = rd.signals.sampling.circular_resample(y2, Fs, -trig.tau)
 
     # The trigger offset between 1 and 2 should be minimal
     trig_corrected = rd.signals.TriggerOffset(
