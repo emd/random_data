@@ -1,5 +1,6 @@
-'''This module implements a class for estimating the so-called
-"trigger offset" between digital records of a given random process.
+'''This module implements a class for estimating and compensating for
+the so-called "trigger offset" between digital records of a given
+random process.
 
 '''
 
@@ -467,3 +468,60 @@ class TriggerOffset(object):
 
         '''
         return -self.Efit[1] / self.Efit[0] / self.Fs
+
+
+def circular_resample(x, Fs, tau):
+    '''Circularly resample (i.e. shift) sequence `x` by delay `tau`.
+
+    The resampling is "circular" in that it uses the FFT, which maps
+    a finite `N`-length sequence onto the unit circle with the implicit
+    assumption of periodic boundary conditions. Resampling `x` with a
+    time shift `tau` then corresponds to a `Fs * tau`-rotation of the
+    sampling points about the unit circle. Because of the periodicity
+    assumption, this rotation can lead to "wrap-around" artifacts.
+    Accounting for trigger offsets, for example, typically requires
+    small rotations such that the wrap-around effects are negligible.
+    Regardless, wrap-around effects can be minimized by appropriately
+    zero-padding `x` prior to calling this function.
+
+    Input parameters:
+    -----------------
+    x - array_like, `(N,)`
+        The uniformly sampled, real sequence to be circularly resampled.
+        If `x` is not real, a ValueError is raised. (Note that this
+        algorithm could readily be extended to work with complex signals,
+        but the `random_data` package is optimized for real-valued
+        signals in the time domain).
+        [x] = arbitrary units
+
+    Fs - float
+        Sample rate of sequence `x`.
+        [Fs] = arbitrary units
+
+    tau - float
+        If the original sequence `x` has corresponding sample times `t`,
+        then the circularly resampled sequence will correspond to sample
+        times `t + tau`. Thus, positive `tau` corresponds to signal delay,
+        and negative `tau` corresponds to signal advancement. Note that
+        `tau` need *not* be an integer multiple of the sample spacing.
+        [tau] = 1 / [Fs]
+
+    Returns:
+    --------
+    xr - array_like, `(N,)`
+        The circularly resampled, real sequence.
+        [xr] = [x]
+
+    '''
+    if np.iscomplexobj(x):
+        raise ValueError('`x` must be a real-valued array')
+
+    xhat = np.fft.rfft(x)
+    f = np.fft.rfftfreq(len(x), d=(1. / Fs))
+
+    # Apply linear phase rotation corresponding to delay `tau`
+    xhat *= np.exp(1j * 2 * np.pi * f * tau)
+
+    # Per the documentation, `n` must be specified if an odd number
+    # of output points is desired (i.e. if `len(x)` is odd)
+    return np.fft.irfft(xhat, n=len(x))
