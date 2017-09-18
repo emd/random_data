@@ -15,77 +15,183 @@ def test_circular_resample():
     # Null (i.e. no shift):
     # =====================
 
-    # N even:
-    # -------
+    # N even, 5-smooth number:
+    # ------------------------
     N = 10
     x = np.arange(N)
     Fs = 1.
     tau = 0
 
-    np.testing.assert_almost_equal(
-        rd.signals.sampling.circular_resample(x, Fs, tau),
-        x)
+    xr = rd.signals.sampling.circular_resample(
+        x, Fs, tau, pad_to_next_fast_len=True)
 
-    # N odd:
-    # ------
+    np.testing.assert_almost_equal(xr, x)
+
+    # N even, *not* a 5-smooth number:
+    # --------------------------------
+    N = 14
+    x = np.arange(N)
+    Fs = 1.
+    tau = 0
+
+    xr = rd.signals.sampling.circular_resample(
+        x, Fs, tau, pad_to_next_fast_len=True)
+
+    np.testing.assert_almost_equal(xr, x)
+
+    # N odd, 5-smooth number:
+    # -----------------------
+    N = 9
+    x = np.arange(N)
+    Fs = 1.
+    tau = 0
+
+    xr = rd.signals.sampling.circular_resample(
+        x, Fs, tau, pad_to_next_fast_len=True)
+
+    np.testing.assert_almost_equal(xr, x)
+
+    # N odd, *not* a 5-smooth number:
+    # -------------------------------
     N = 11
     x = np.arange(N)
     Fs = 1.
     tau = 0
 
-    np.testing.assert_almost_equal(
-        rd.signals.sampling.circular_resample(x, Fs, tau),
-        x)
+    xr = rd.signals.sampling.circular_resample(
+        x, Fs, tau, pad_to_next_fast_len=True)
+
+    np.testing.assert_almost_equal(xr, x)
 
     # Positive, integer shift:
     # ========================
 
-    # N even:
-    # -------
+    # N even, 5-smooth number:
+    # ------------------------
     N = 10
     x = np.arange(N)
     Fs = 1.
     tau = 1
 
+    # No zero padding of `x`, so simply moves `x[0]` to end of array
+    xr = rd.signals.sampling.circular_resample(
+        x, Fs, tau, pad_to_next_fast_len=True)
+
     np.testing.assert_almost_equal(
-        rd.signals.sampling.circular_resample(x, Fs, tau),
+        xr,
         np.concatenate((x[1:], [x[0]])))
 
-    # N odd:
-    # ------
+    # N even, *not* a 5-smooth number:
+    # --------------------------------
+    N = 14
+    x = np.arange(N)
+    Fs = 1.
+    tau = 1
+
+    # Zero padding of `x` means that `x[0]` is cycled out of the
+    # viewing window and a `0` is cycled into the end of `x`
+    xr = rd.signals.sampling.circular_resample(
+        x, Fs, tau, pad_to_next_fast_len=True)
+
+    np.testing.assert_almost_equal(
+        xr,
+        np.concatenate((x[1:], [0])))
+
+    # N odd, 5-smooth number:
+    # -----------------------
+    N = 9
+    x = np.arange(N)
+    Fs = 1.
+    tau = 1
+
+    # No zero padding of `x`, so simply moves `x[0]` to end of array
+    xr = rd.signals.sampling.circular_resample(
+        x, Fs, tau, pad_to_next_fast_len=True)
+
+    np.testing.assert_almost_equal(
+        xr,
+        np.concatenate((x[1:], [x[0]])))
+
+    # N odd, *not* a 5-smooth number:
+    # -------------------------------
     N = 11
     x = np.arange(N)
     Fs = 1.
     tau = 1
 
+    # Zero padding of `x` means that `x[0]` is cycled out of the
+    # viewing window and a `0` is cycled into the end of `x`
+    xr = rd.signals.sampling.circular_resample(
+        x, Fs, tau, pad_to_next_fast_len=True)
+
     np.testing.assert_almost_equal(
-        rd.signals.sampling.circular_resample(x, Fs, tau),
-        np.concatenate((x[1:], [x[0]])))
+        xr,
+        np.concatenate((x[1:], [0])))
 
     # Negative, integer shift:
     # ========================
 
-    # N even:
-    # -------
+    # N even, 5-smooth number:
+    # ------------------------
     N = 10
     x = np.arange(N)
     Fs = 1.
     tau = -1
 
+    # No zero padding of `x`, so simply moves `x[-1]` to start of array
+    xr = rd.signals.sampling.circular_resample(
+        x, Fs, tau, pad_to_next_fast_len=True)
+
     np.testing.assert_almost_equal(
-        rd.signals.sampling.circular_resample(x, Fs, tau),
+        xr,
         np.concatenate(([x[-1]], x[:-1])))
 
-    # N odd:
-    # ------
+    # N even, *not* a 5-smooth number:
+    # --------------------------------
+    N = 14
+    x = np.arange(N)
+    Fs = 1.
+    tau = -1
+
+    # Zero padding of `x` means that `x[-1]` is cycled out of the
+    # viewing window and a `0` is cycled into the start of `x`
+    xr = rd.signals.sampling.circular_resample(
+        x, Fs, tau, pad_to_next_fast_len=True)
+
+    np.testing.assert_almost_equal(
+        xr,
+        np.concatenate(([0], x[:-1])))
+
+    # N odd, 5-smooth number:
+    # -----------------------
+    N = 9
+    x = np.arange(N)
+    Fs = 1.
+    tau = -1
+
+    # No zero padding of `x`, so simply moves `x[-1]` to start of array
+    xr = rd.signals.sampling.circular_resample(
+        x, Fs, tau, pad_to_next_fast_len=True)
+
+    np.testing.assert_almost_equal(
+        xr,
+        np.concatenate(([x[-1]], x[:-1])))
+
+    # N odd, *not* a 5-smooth number:
+    # -------------------------------
     N = 11
     x = np.arange(N)
     Fs = 1.
     tau = -1
 
+    # Zero padding of `x` means that `x[-1]` is cycled out of the
+    # viewing window and a `0` is cycled into the start of `x`
+    xr = rd.signals.sampling.circular_resample(
+        x, Fs, tau, pad_to_next_fast_len=True)
+
     np.testing.assert_almost_equal(
-        rd.signals.sampling.circular_resample(x, Fs, tau),
-        np.concatenate(([x[-1]], x[:-1])))
+        xr,
+        np.concatenate(([0], x[:-1])))
 
     # Positive, non-integer shift:
     # ============================
@@ -104,8 +210,12 @@ def test_circular_resample():
     # sawtooth signal by a non-integer number of samples.
     #
     # Because of this, it makes more sense to use a simpler signal, such
-    # as a pure sinusoid, to check that `circular_resample` is performing
-    # as expected for non-integer shifts.
+    # as a pure sinusoid with period equal to the sequence length, to check
+    # that `circular_resample` is performing as expected for non-integer
+    # shifts. Note that this test only works well if we do *not* zero pad
+    # the input signal to a 5-smooth number (i.e. `len(x)` needs to already
+    # be a 5-smooth number, or the `pad_to_next_fast_len` keyword argument
+    # must be `False`).
 
     def unity_frequency_sine(t):
         'Get unity frequency sine wave.'
@@ -120,47 +230,59 @@ def test_circular_resample():
 
         return t, Fs, x
 
-    # N even:
-    # -------
-    N = 8
+    # N even, 5-smooth number:
+    # ------------------------
+    N = 10
     t, Fs, x = period_N_sine_wrapper(N)
     tau = 0.5 / Fs
 
+    xr = rd.signals.sampling.circular_resample(
+        x, Fs, tau, pad_to_next_fast_len=True)
+
     np.testing.assert_almost_equal(
-        rd.signals.sampling.circular_resample(x, Fs, tau),
+        xr,
         unity_frequency_sine(t + tau))
 
-    # N odd:
-    # ------
+    # N odd, 5-smooth number:
+    # -----------------------
     N = 9
     t, Fs, x = period_N_sine_wrapper(N)
     tau = 0.5 / Fs
 
+    xr = rd.signals.sampling.circular_resample(
+        x, Fs, tau, pad_to_next_fast_len=True)
+
     np.testing.assert_almost_equal(
-        rd.signals.sampling.circular_resample(x, Fs, tau),
+        xr,
         unity_frequency_sine(t + tau))
 
     # Negative, non-integer shift:
     # ============================
 
-    # N even:
-    # -------
-    N = 8
+    # N even, 5-smooth number:
+    # ------------------------
+    N = 10
     t, Fs, x = period_N_sine_wrapper(N)
     tau = -0.5 / Fs
 
+    xr = rd.signals.sampling.circular_resample(
+        x, Fs, tau, pad_to_next_fast_len=True)
+
     np.testing.assert_almost_equal(
-        rd.signals.sampling.circular_resample(x, Fs, tau),
+        xr,
         unity_frequency_sine(t + tau))
 
-    # N odd:
-    # ------
+    # N odd, 5-smooth number:
+    # -----------------------
     N = 9
     t, Fs, x = period_N_sine_wrapper(N)
     tau = -0.5 / Fs
 
+    xr = rd.signals.sampling.circular_resample(
+        x, Fs, tau, pad_to_next_fast_len=True)
+
     np.testing.assert_almost_equal(
-        rd.signals.sampling.circular_resample(x, Fs, tau),
+        xr,
         unity_frequency_sine(t + tau))
 
     return

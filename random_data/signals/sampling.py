@@ -8,6 +8,7 @@ random process.
 # Standard library imports
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.fftpack import next_fast_len
 
 # Intra-package imports
 from ..errors import cross_phase_std_dev
@@ -470,7 +471,7 @@ class TriggerOffset(object):
         return -self.Efit[1] / self.Efit[0] / self.Fs
 
 
-def circular_resample(x, Fs, tau):
+def circular_resample(x, Fs, tau, pad_to_next_fast_len=True):
     '''Circularly resample (i.e. shift) signal `x` by delay `tau`.
 
     The resampling is "circular" in that it uses the FFT, which maps
@@ -506,6 +507,11 @@ def circular_resample(x, Fs, tau):
         `tau` need *not* be an integer multiple of the sample spacing.
         [tau] = 1 / [Fs]
 
+    pad_to_next_fast_len - bool
+        If True, prior to computing the FFT, pad `x` with zeros up to the
+        next-largest "5-smooth" number, for which Numpy's FFTPACK routines
+        can efficiently compute the FFT.
+
     Returns:
     --------
     xr - array_like, `(N,)`
@@ -516,12 +522,23 @@ def circular_resample(x, Fs, tau):
     if np.iscomplexobj(x):
         raise ValueError('`x` must be a real-valued array')
 
-    xhat = np.fft.rfft(x)
-    f = np.fft.rfftfreq(len(x), d=(1. / Fs))
+    N = len(x)
+
+    if pad_to_next_fast_len:
+        N = next_fast_len(N)
+
+    xhat = np.fft.rfft(x, n=N)
+    f = np.fft.rfftfreq(N, d=(1. / Fs))
 
     # Apply linear phase rotation corresponding to delay `tau`
     xhat *= np.exp(1j * 2 * np.pi * f * tau)
 
     # Per the documentation, `n` must be specified if an odd number
-    # of output points is desired (i.e. if `len(x)` is odd)
-    return np.fft.irfft(xhat, n=len(x))
+    # of output points is desired (i.e. if the `N` used in the forward
+    # FFT computation above is odd)
+    xr = np.fft.irfft(xhat, n=N)
+
+    # Finally, if `x` was zero padded prior to computing the FFT,
+    # the above computed `xr` does *not* have the same length as `x`.
+    # Return only first `len(x)` values of circularly resampled sequence.
+    return xr[:len(x)]
