@@ -1,5 +1,6 @@
 from nose import tools
 import numpy as np
+from scipy.fftpack import next_fast_len
 import random_data as rd
 
 
@@ -284,6 +285,94 @@ def test_circular_resample():
     np.testing.assert_almost_equal(
         xr,
         unity_frequency_sine(t + tau))
+
+    # Spectrum for non-integer shift, N *not* a 5-smooth number:
+    # ==========================================================
+
+    # Construct signal:
+    # -----------------
+    # Desired number of points in signal; *not* a 5-smooth number
+    N = 63331
+    tools.assert_not_equal(
+        N,
+        next_fast_len(N),
+        msg='`N` *is* a 5-smooth number; testing requires non-5-smooth number')
+
+    # Translate `N` into values usable by `random_data` routines
+    N_power_of_2 = np.int(2 ** np.ceil(np.log2(N)))
+    Fs = 1.
+    t0 = 0
+    T = N_power_of_2 / Fs
+
+    # Parameters of broadband spectrum
+    fc = 0.1 * Fs
+    pole = 2
+
+    # Broadband signal, where `len(sig.x)` is a power of 2
+    sig = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
+
+    # Only take the first `N` points of `sig.x`, producing
+    # a signal with a length that is *not* a 5-smooth number
+    x = sig.x[:N]
+    t = sig.t()[:N]
+
+    tools.assert_not_equal(
+        len(x),
+        next_fast_len(len(x)),
+        msg='`len(x)` *is* a 5-smooth number; non-5-smooth number required')
+
+    # Circularly resample signal:
+    # ---------------------------
+    # Integer shift
+    tau_1 = 1. / Fs
+    x_1 = rd.signals.sampling.circular_resample(
+        x, Fs, tau_1, pad_to_next_fast_len=True)
+
+    # Non-integer shift
+    tau_05 = 0.5 / Fs
+    x_05 = rd.signals.sampling.circular_resample(
+        x, Fs, tau_05, pad_to_next_fast_len=True)
+
+    # Compare the spectra of the original and time-shifted signals:
+    # -------------------------------------------------------------
+    # Spectral-estimation parameters
+    Nreal_per_ens = 1000
+    Tens = t[-1] - t[0]  # Define ensemble to be full length of `x`
+
+    # Estimate spectra
+    asd = rd.spectra.AutoSpectralDensity(
+        x, Fs=Fs, t0=t0,
+        Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+    asd_1 = rd.spectra.AutoSpectralDensity(
+        x_1, Fs=Fs, t0=t0,
+        Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+    asd_05 = rd.spectra.AutoSpectralDensity(
+        x_05, Fs=Fs, t0=t0,
+        Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+
+    # Relative error of time-shifted spectra relative to original
+    relerr_1 = np.squeeze((asd_1.Gxx - asd.Gxx) / asd.Gxx)
+    relerr_05 = np.squeeze((asd_05.Gxx - asd.Gxx) / asd.Gxx)
+
+    # Relative random error of an autospectral density estimate
+    # is 1 / sqrt(Nreal_per_ens). Check that the relative errors
+    # of the time-shifted spectra are "not too much larger" than
+    # the random error expected for the unshifted spectral estimate.
+    # The "not too much larger" is quantified by `fudge_factor`.
+    # Note that a fudge factor of 2 is larger than typically needed,
+    # but it ensures robust testing in the presence of rare
+    # statistical events that more severely affect the shift
+    # calculation.
+    fudge_factor = 2.
+    max_relerr = fudge_factor / np.sqrt(Nreal_per_ens)
+
+    tools.assert_less_equal(
+        np.max(np.abs(relerr_1)),
+        max_relerr)
+
+    tools.assert_less_equal(
+        np.max(np.abs(relerr_05)),
+        max_relerr)
 
     return
 
