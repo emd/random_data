@@ -674,6 +674,6 @@ plt.show()
 Note that cross phase computed *after* compensating for the trigger offset
 is in agreement with expectations.
 The large fluctuations in the computed cross phase at high frequencies
-is attributable to the low signal-to-noise ratio (SNR)at these frequencies;
+is attributable to the low signal-to-noise ratio (SNR) at these frequencies;
 the trigger-offset algorithm is weighted such that
 points with low SNR minimally contribute to the offset estimate.
