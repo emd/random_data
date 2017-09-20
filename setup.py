@@ -7,7 +7,7 @@ config = {
     'name': 'random_data',
     'version': '0.4.4',
     'packages': ['random_data', 'random_data.signals', 'random_data.spectra'],
-    'install_requires': ['numpy', 'scipy', 'matplotlib', 'nose'],
+    'install_requires': ['numpy', 'scipy>=0.18.0', 'matplotlib', 'nose'],
     'author': 'Evan M. Davis',
     'author_email': 'emd@mit.edu',
     'url': '',
