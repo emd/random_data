@@ -1304,7 +1304,7 @@ class SpatialCrossCorrelation(object):
 
     def plotNormalizedCorrelationFunction(
             self, xlim=None, flim=None, vlim=[-1, 1],
-            cmap='viridis', interpolation='none', fontsize=16,
+            cmap='RdBu', interpolation='none', fontsize=16,
             xlabel='$\delta$', ylabel='$f$', no_nan=False):
         'Plot normalized correlation function, Gxy(delta, f) / Gxy(0, f).'
         # At each frequency, normalize correlation function
