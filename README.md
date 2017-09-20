@@ -669,7 +669,7 @@ plt.show()
 
 ```
 
-![trigger_offset_correction](https://raw.githubusercontent.com/emd/random_data/trigger_offset/figs/trigger_offset_correction.png)
+![trigger_offset_correction](https://raw.githubusercontent.com/emd/random_data/master/figs/trigger_offset_correction.png)
 
 Note that cross phase computed *after* compensating for the trigger offset
 is in agreement with expectations.
