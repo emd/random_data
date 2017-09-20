@@ -40,9 +40,11 @@ In addition, `random_data` provides:
 - a class to estimate the two-dimensional autospectral density from
   an array of measurements (the array need not be uniformly spaced),
 - robust methods for visualizing the relevant spectral estimates
-  (magnitude, coherence, phase angle, mode number, and quality of fit), and
+  (magnitude, coherence, phase angle, mode number, and quality of fit),
 - a class for "spike" identification and
-  removal from spectral estimates.
+  removal from spectral estimates, and
+- a class for determining the "trigger offset" between a collection
+  of time series.
 
 The installation and use of `random_data` are discussed below.
 
@@ -559,3 +561,119 @@ plt.show()
 ```
 
 ![spike_vs_spikefree_spectra](https://raw.githubusercontent.com/emd/random_data/master/figs/spike_vs_spikefree_spectra.png)
+
+
+Trigger offset: estimation and compensation
+-------------------------------------------
+Accurately estimating spectral quantities of a given random process
+from a collection of digital records requires (among other things)
+that the true, physical timebase of the process is well-represented
+by the nominal timebase of the digital record. If two records `x1`
+and `x2` have the same nominal time base but, for example,
+digitization of record `x2` actually begins a finite time `tau` later
+than the digitization of record `x1`, then naively computed spectral
+estimates will be biased away from their true, physical values.
+
+The `random_data.signals.TriggerOffset` class allows for
+easy estimation of such trigger offsets, as demonstrated below.
+(Note that most of the code below is required
+to generate representative fake signals and
+to visualize the data, while
+estimating the trigger only requires initialization of a *single* object;
+subsequent compensation of the trigger offset
+only requires calling a *single* function).
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import random_data as rd
+
+# =============================================================================
+# Generate some fake data:
+# ------------------------
+# Nominal temporal-grid parameters
+Fs = 1.                         # sample rate, [Fs] = arbitrary units
+t0 = 0                          # nominal trigger time, [t0] = s
+T = 1e5                         # (approximate) record length, [T] = s
+
+# Discrepancy `tau` between timebase of digital record 1 and
+# timebase of digital record 2. Note that, as defined here,
+# `tau` is *not* an integer of the sample spacing; that is,
+# the trigger-offset estimation and compensation works for
+# arbitrary `tau`.
+tau = 0.5 / Fs                  # [tau] = s, nonzero
+
+# Spectral parameters of broadband signal common to digital records 1 & 2
+fc = 0.1 * Fs                   # [fc] = [Fs]
+pole = 2                        # [pole] = unitless
+
+sig = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
+N = len(sig.x)
+t = sig.t()
+
+# Generate two digital records that are identical *except* for
+# timebase offset `tau`. Note that `x1[0]` physically occurs at
+# time `t[0]`, while `x2[0]` physically occurs at time `t[0] + tau`.
+x1 = sig.x.copy()
+x2 = rd.signals.sampling.circular_resample(sig.x, Fs, tau)
+
+# Add uncorrelated noise
+Gnn = 1e-6                      # [Gnn] = [signal]^2 / [Fs]
+noise_power =  Gnn * (0.5 * Fs)
+noise_amplitude = np.sqrt(noise_power)
+x1 += (noise_amplitude * np.random.randn(N))
+x2 += (noise_amplitude * np.random.randn(N))
+# =============================================================================
+
+# =============================================================================
+# Estimate trigger offset and compensate:
+# ---------------------------------------
+# Spectral-estimation parameters
+Tens = t[-1] - t[0]             # [Tens] = [s]; full record is 1 ensemeble
+Nreal_per_ens = 1000            # [Nreal_per_ens] = unitless
+gamma2xy_max = 0.95             # [gamma2xy_max] = unitless
+
+# Estimate trigger offset
+trig = rd.signals.TriggerOffset(
+    np.array([x1, x2]),
+    gamma2xy_max=gamma2xy_max,
+    Fs=Fs,
+    Nreal_per_ens=Nreal_per_ens)
+
+print '\ntrue trigger offset: %f' % tau
+print 'estimated trigger offset: %f' % trig.tau
+
+# Now, use estimated value to compensate for trigger offset
+x2_corrected = rd.signals.sampling.circular_resample(x2, Fs, -trig.tau)
+# =============================================================================
+
+# =============================================================================
+# Examine cross phase between for uncorrected and corrected records:
+# ------------------------------------------------------------------
+csd_uncorr = rd.spectra.CrossSpectralDensity(
+    x1, x2, Fs=Fs, t0=t0,
+    Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+csd_corr = rd.spectra.CrossSpectralDensity(
+    x1, x2_corrected, Fs=Fs, t0=t0,
+    Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+
+plt.figure()
+plt.axhline(0, c='k', label='expected')
+plt.plot(csd_uncorr.f, np.squeeze(csd_uncorr.theta_xy), label='uncorrected')
+plt.plot(csd_corr.f, np.squeeze(csd_corr.theta_xy), label='corrected')
+plt.xlabel('f [Fs]')
+plt.ylabel('cross phase [rad]')
+plt.legend(loc='best')
+plt.show()
+# =============================================================================
+
+```
+
+![trigger_offset_correction](https://raw.githubusercontent.com/emd/random_data/trigger_offset/figs/trigger_offset_correction.png)
+
+Note that cross phase computed *after* compensating for the trigger offset
+is in agreement with expectations.
+The large fluctuations in the computed cross phase at high frequencies
+is attributable to the low signal-to-noise ratio (SNR)at these frequencies;
+the trigger-offset algorithm is weighted such that
+points with low SNR minimally contribute to the offset estimate.
