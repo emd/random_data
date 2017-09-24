@@ -815,11 +815,12 @@ def _plot_image(x, y, z,
         yind = np.arange(len(y))
 
     dx = x[1] - x[0]
+    dy = y[1] - y[0]
 
     extent = (x[xind[0]] - (0.5 * dx),
               x[xind[-1]] + (0.5 * dx),
-              y[yind[0]],
-              y[yind[-1]])
+              y[yind[0]] - (0.5 * dy),
+              y[yind[-1]] + (0.5 * dy))
 
     # If an axis instance is not provided, create one
     if ax is None:
