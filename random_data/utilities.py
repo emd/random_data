@@ -33,8 +33,8 @@ def val2ind(val, grid, valid_index=True):
 
     Input parameters:
     -----------------
-    val - float
-        The value to be mapped to the "index space" of `grid`.
+    val - array_like, `(M,)`
+        The value(s) to be mapped to the "index space" of `grid`.
         [val] = arbitrary units
 
     grid - array_like, `(N,)`
@@ -43,26 +43,30 @@ def val2ind(val, grid, valid_index=True):
         [grid] = [val]
 
     valid_index - bool
-        If True, the returned index is constrained to be a valid index
+        If True, the returned indices are constrained to be a valid indices
         of `grid`; that is, `grid[ind]` will *not* raise an `IndexError`.
 
     Returns:
     --------
-    ind - int if `valid_index` is True; float otherwise
-        The "index" of `val` relative to `grid`. Note that `ind` can
+    ind - array_like, `(M,)`, where the data type is int if `valid_index`
+            is True; float otherwise
+        The "indices" of `val` relative to `grid`. Note that `ind` can
         only be used to index `grid` *if* `valid_index` is True.
         [ind] = unitless
 
     '''
     grid_spacing = get_uniform_spacing(grid)
-
-    delta = val - grid
-    ind = np.where(np.abs(delta) == np.min(np.abs(delta)))[0][0]
+    ind = (val - grid[0]) / grid_spacing
 
     if valid_index:
-        return ind
-    else:
-        return ind + (delta[ind] / grid_spacing)
+        # Enforce floor and ceiling of valid indices for `grid`
+        ind = np.maximum(ind, 0)
+        ind = np.minimum(ind, len(grid) - 1)
+
+        # Round to nearest integer
+        ind = (np.round(ind)).astype('int')
+
+    return ind
 
 
 def ind2val(ind, grid):

@@ -27,8 +27,8 @@ def test_val2ind():
     # Valid indices:
     # ==============
 
-    # In domain:
-    # ----------
+    # In domain, scalar value:
+    # ------------------------
     np.testing.assert_equal(
         rd.utilities.val2ind(4, grid, valid_index=True),
         4 - offset)
@@ -41,8 +41,22 @@ def test_val2ind():
         rd.utilities.val2ind(4.75, grid, valid_index=True),
         5 - offset)
 
-    # Out of domain:
-    # --------------
+    # In domain, array value:
+    # ------------------------
+    np.testing.assert_equal(
+        rd.utilities.val2ind(np.array([4, 5]), grid, valid_index=True),
+        np.array([4, 5]) - offset)
+
+    np.testing.assert_equal(
+        rd.utilities.val2ind(np.array([4.25, 5.25]), grid, valid_index=True),
+        np.array([4, 5]) - offset)
+
+    np.testing.assert_equal(
+        rd.utilities.val2ind(np.array([4.75, 5.75]), grid, valid_index=True),
+        np.array([5, 6]) - offset)
+
+    # Out of domain, scalar value:
+    # ----------------------------
     np.testing.assert_equal(
         rd.utilities.val2ind(-1, grid, valid_index=True),
         0)
@@ -51,11 +65,21 @@ def test_val2ind():
         rd.utilities.val2ind(11, grid, valid_index=True),
         9)
 
+    # Out of domain, array value:
+    # ---------------------------
+    np.testing.assert_equal(
+        rd.utilities.val2ind(np.array([-2, -1]), grid, valid_index=True),
+        np.array([0, 0]))
+
+    np.testing.assert_equal(
+        rd.utilities.val2ind(np.array([11, 12]), grid, valid_index=True),
+        np.array([9, 9]))
+
     # Generalized indices:
     # ===================
 
-    # In domain:
-    # ----------
+    # In domain, scalar value:
+    # ------------------------
     np.testing.assert_equal(
         rd.utilities.val2ind(4, grid, valid_index=False),
         4 - offset)
@@ -68,8 +92,22 @@ def test_val2ind():
         rd.utilities.val2ind(4.75, grid, valid_index=False),
         4.75 - offset)
 
-    # Out of domain:
-    # --------------
+    # In domain, array value:
+    # ------------------------
+    np.testing.assert_equal(
+        rd.utilities.val2ind(np.array([4, 5]), grid, valid_index=False),
+        np.array([4, 5]) - offset)
+
+    np.testing.assert_equal(
+        rd.utilities.val2ind(np.array([4.25, 5.25]), grid, valid_index=False),
+        np.array([4.25, 5.25]) - offset)
+
+    np.testing.assert_equal(
+        rd.utilities.val2ind(np.array([4.75, 5.75]), grid, valid_index=False),
+        np.array([4.75, 5.75]) - offset)
+
+    # Out of domain, scalar value:
+    # ----------------------------
     np.testing.assert_equal(
         rd.utilities.val2ind(-1, grid, valid_index=False),
         -1 - offset)
@@ -93,6 +131,32 @@ def test_val2ind():
     np.testing.assert_equal(
         rd.utilities.val2ind(11.75, grid, valid_index=False),
         11.75 - offset)
+
+    # Out of domain, array value:
+    # ---------------------------
+    np.testing.assert_equal(
+        rd.utilities.val2ind(np.array([-2, -1]), grid, valid_index=False),
+        np.array([-2, -1]) - offset)
+
+    np.testing.assert_equal(
+        rd.utilities.val2ind(np.array([-2.2, -1.2]), grid, valid_index=False),
+        np.array([-2.2, -1.2]) - offset)
+
+    np.testing.assert_equal(
+        rd.utilities.val2ind(np.array([-2.7, -1.7]), grid, valid_index=False),
+        np.array([-2.7, -1.7]) - offset)
+
+    np.testing.assert_equal(
+        rd.utilities.val2ind(np.array([11, 12]), grid, valid_index=False),
+        np.array([11, 12]) - offset)
+
+    np.testing.assert_equal(
+        rd.utilities.val2ind(np.array([11.2, 12.2]), grid, valid_index=False),
+        np.array([11.2, 12.2]) - offset)
+
+    np.testing.assert_equal(
+        rd.utilities.val2ind(np.array([11.7, 12.7]), grid, valid_index=False),
+        np.array([11.7, 12.7]) - offset)
 
     return
 
