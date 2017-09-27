@@ -74,12 +74,12 @@ def ind2val(ind, grid):
 
     Input parameters:
     -----------------
-    ind - float
-        The generalized index that should be mapped to its corresponding
-        value on `grid`. Note that `ind` is a "generalized index" in that
+    ind - array_like, `(M,)`
+        The generalized indices that should be mapped to their corresponding
+        values on `grid`. Note that `ind` are "generalized indices" in that
         `grid[ind]` may raise an `IndexError`; however, as `grid` must
         be uniformly spaced, linear interpolation or extrapolation yields
-        the correct value of `grid` at generalized index `ind`.
+        the correct values of `grid` at generalized indices `ind`.
         [ind] = unitless
 
     grid - array_like, `(N,)`
@@ -89,8 +89,8 @@ def ind2val(ind, grid):
 
     Returns:
     --------
-    val - float
-        The value of `grid` corresponding to generalized index `ind`.
+    val - array_like, `(M,)`
+        The values of `grid` corresponding to generalized indices `ind`.
         [val] = [grid]
 
     '''

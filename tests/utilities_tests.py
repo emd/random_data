@@ -165,8 +165,8 @@ def test_ind2val():
     offset = 1
     grid = offset + np.arange(10)
 
-    # In domain:
-    # ----------
+    # In domain, scalar value:
+    # ------------------------
     np.testing.assert_equal(
         rd.utilities.ind2val(4, grid),
         4 + offset)
@@ -179,8 +179,22 @@ def test_ind2val():
         rd.utilities.ind2val(4.75, grid),
         4.75 + offset)
 
-    # Out of domain:
-    # --------------
+    # In domain, array value:
+    # ------------------------
+    np.testing.assert_equal(
+        rd.utilities.ind2val(np.array([4, 5]), grid),
+        np.array([4, 5]) + offset)
+
+    np.testing.assert_equal(
+        rd.utilities.ind2val(np.array([4.25, 5.25]), grid),
+        np.array([4.25, 5.25]) + offset)
+
+    np.testing.assert_equal(
+        rd.utilities.ind2val(np.array([4.75, 5.75]), grid),
+        np.array([4.75, 5.75]) + offset)
+
+    # Out of domain, scalar value:
+    # ----------------------------
     np.testing.assert_equal(
         rd.utilities.ind2val(-1, grid),
         -1 + offset)
@@ -204,5 +218,31 @@ def test_ind2val():
     np.testing.assert_equal(
         rd.utilities.ind2val(10.75, grid),
         10.75 + offset)
+
+    # Out of domain, array value:
+    # ---------------------------
+    np.testing.assert_equal(
+        rd.utilities.ind2val(np.array([-2, -1]), grid),
+        np.array([-2, -1]) + offset)
+
+    np.testing.assert_equal(
+        rd.utilities.ind2val(np.array([-2.25, -1.25]), grid),
+        np.array([-2.25, -1.25]) + offset)
+
+    np.testing.assert_equal(
+        rd.utilities.ind2val(np.array([-2.75, -1.75]), grid),
+        np.array([-2.75, -1.75]) + offset)
+
+    np.testing.assert_equal(
+        rd.utilities.ind2val(np.array([10, 11]), grid),
+        np.array([10, 11]) + offset)
+
+    np.testing.assert_equal(
+        rd.utilities.ind2val(np.array([10.25, 11.25]), grid),
+        np.array([10.25, 11.25]) + offset)
+
+    np.testing.assert_equal(
+        rd.utilities.ind2val(np.array([10.75, 11.75]), grid),
+        np.array([10.75, 11.75]) + offset)
 
     return
