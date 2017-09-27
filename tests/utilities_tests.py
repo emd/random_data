@@ -248,3 +248,135 @@ def test_ind2coord():
         np.array([10.75, 11.75]) + offset)
 
     return
+
+
+def test_line_profile_coordinates():
+    # Specifying both `lwr` and `lwc` should raise a ValueError:
+    # ----------------------------------------------------------
+    src = [0, 0]
+    dst = [10, 10]
+    N = 11
+    lwr = 1.
+    lwc = 1.
+    L = 5
+
+    tools.assert_raises(
+        ValueError,
+        rd.utilities.line_profile_coordinates,
+        *[src, dst],
+        **{'N':N, 'lwr':lwr, 'lwc':lwc, 'L':L})
+
+    # Single 1:1 line:
+    # ----------------
+    src = [0, 0]
+    dst = [10, 10]
+    N = 11
+
+    lines = rd.utilities.line_profile_coordinates(
+        src, dst, N=N)
+
+    np.testing.assert_equal(
+        np.squeeze(lines[0, ...]),
+        np.linspace(src[0], dst[0], N))
+    np.testing.assert_equal(
+        np.squeeze(lines[1, ...]),
+        np.linspace(src[1], dst[1], N))
+
+    # Single 2:1 line:
+    # ----------------
+    src = [0, 0]
+    dst = [20, 10]
+    N = 11
+
+    lines = rd.utilities.line_profile_coordinates(
+        src, dst, N=N)
+
+    np.testing.assert_equal(
+        np.squeeze(lines[0, ...]),
+        np.linspace(src[0], dst[0], N))
+    np.testing.assert_equal(
+        np.squeeze(lines[1, ...]),
+        np.linspace(src[1], dst[1], N))
+
+    # Odd number of lines, spread in row-space:
+    # -----------------------------------------
+    src = [0, 0]
+    dst = [10, 10]
+    N = 11
+    lwr = 1.
+    L = 5
+    offsets = np.array([-0.5, -0.25, 0, 0.25, 0.5])
+
+    lines = rd.utilities.line_profile_coordinates(
+        src, dst, N=N, lwr=lwr, L=L)
+
+    for lind in np.arange(lines.shape[-1]):
+        np.testing.assert_almost_equal(  # `almost` needed for roundoff errors
+            np.squeeze(lines[0, :, lind]),
+            np.linspace(src[0], dst[0], N) + offsets[lind])
+        np.testing.assert_equal(
+            np.squeeze(lines[1, :, lind]),
+            np.linspace(src[1], dst[1], N))
+
+    # Even number of lines, spread in row-space:
+    # ------------------------------------------
+    src = [0, 0]
+    dst = [10, 10]
+    N = 11
+    lwr = 1.
+    L = 6
+    offsets = np.array([-0.5, -0.3, -0.1, 0.1, 0.3, 0.5])
+
+    lines = rd.utilities.line_profile_coordinates(
+        src, dst, N=N, lwr=lwr, L=L)
+
+    for lind in np.arange(lines.shape[-1]):
+        print lind
+        np.testing.assert_almost_equal(  # `almost` needed for roundoff errors
+            np.squeeze(lines[0, :, lind]),
+            np.linspace(src[0], dst[0], N) + offsets[lind])
+        np.testing.assert_equal(
+            np.squeeze(lines[1, :, lind]),
+            np.linspace(src[1], dst[1], N))
+
+    # Odd number of lines, spread in column-space:
+    # --------------------------------------------
+    src = [0, 0]
+    dst = [10, 10]
+    N = 11
+    lwc = 1.
+    L = 5
+    offsets = np.array([-0.5, -0.25, 0, 0.25, 0.5])
+
+    lines = rd.utilities.line_profile_coordinates(
+        src, dst, N=N, lwc=lwc, L=L)
+
+    for lind in np.arange(lines.shape[-1]):
+        np.testing.assert_equal(
+            np.squeeze(lines[0, :, lind]),
+            np.linspace(src[0], dst[0], N))
+        np.testing.assert_almost_equal(  # `almost` needed for roundoff errors
+            np.squeeze(lines[1, :, lind]),
+            np.linspace(src[1], dst[1], N) + offsets[lind])
+
+    # Even number of lines, spread in row-space:
+    # ------------------------------------------
+    src = [0, 0]
+    dst = [10, 10]
+    N = 11
+    lwc = 1.
+    L = 6
+    offsets = np.array([-0.5, -0.3, -0.1, 0.1, 0.3, 0.5])
+
+    lines = rd.utilities.line_profile_coordinates(
+        src, dst, N=N, lwc=lwc, L=L)
+
+    for lind in np.arange(lines.shape[-1]):
+        np.testing.assert_equal(
+            np.squeeze(lines[0, :, lind]),
+            np.linspace(src[0], dst[0], N))
+        np.testing.assert_almost_equal(  # `almost` needed for roundoff errors
+            np.squeeze(lines[1, :, lind]),
+            np.linspace(src[1], dst[1], N) + offsets[lind])
+
+    return

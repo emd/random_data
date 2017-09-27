@@ -98,6 +98,90 @@ def ind2coord(ind, grid):
     return grid[0] + (ind * grid_spacing)
 
 
+def line_profile_coordinates(src, dst, N=100, lwr=None, lwc=None, L=5):
+    '''Get coordinates of image profile along specified scan line.
+
+    Input parameters:
+    -----------------
+    src - array_like, (2,)
+        The starting point (i.e. source) of the scan line.
+        [src[0]] = arbitrary units
+        [src[1]] = arbitrary units
+
+    dst - array_like, (2,)
+        The end point (i.e. destination) of the scan line.
+        [dst[0]] = [src[0]]
+        [dst[1]] = [src[1]]
+
+    N - int
+        The number of points along the scan line.
+
+    lwr - float or None
+        If not `None`, return coordinates for `L` lines parallel to the
+        specified scan line spanning row-coordinate linewidth `lwr` and
+        centered on the specified scan line. Note that `lwr` and `lwc`
+        *cannot* both be simultaneously specified.
+        [lwr] = [src[0]]
+
+    lwc - float or None
+        If not `None`, return coordinates for `L` lines parallel to the
+        specified scan line spanning column-coordinate linewidth `lwc` and
+        centered on the specified scan line. Note that `lwr` and `lwc`
+        *cannot* both be simultaneously specified.
+        [lwc] = [src[1]]
+
+    L - int
+        The number of lines to return coordinates for if `lwr` or `lwc`
+        is *not* None.
+
+    Returns:
+    --------
+    coords - array_like, `(2, N, L)`
+        The coordinates of image profile along the specified scan line(s).
+        `coords[0, ...]` gives the row coordinates, and `coords[1, ...]`
+        gives the column coordinates. `N` is the number of points in the
+        profile, as specified during input. Finally, if `lwr` or `lwc` is
+        *not* None, `L` corresponds to the number of scan lines specified
+        during input; if `lwr` and `lwc` are both None, then `L = 1` and
+        the single returned line begins at `src` and ends at `dst`.
+
+    Note:
+    -----
+    This routine is inspired by scikit-image's
+
+        :py:function:`skimage.measure.profile._line_profile_coordinates`
+
+    However, as that function is *internal* to scikit-image, subject to
+    change without notice, it seemed unwise to rely on it for our needs
+    here. Thus, we've written a similar function for our own needs.
+
+    '''
+    # Get row and column components of scan line connecting `src` to `dst`
+    line_row = np.linspace(src[0], dst[0], N)
+    line_col = np.linspace(src[1], dst[1], N)
+
+    if (lwr is not None) and (lwc is not None):
+        raise ValueError('`lwr` and `lwc` *cannot* both be specified')
+    if (lwr is not None) or (lwc is not None):
+        # Initialize
+        line_rows = np.zeros(line_row.shape + (L,))
+        line_cols = np.zeros(line_col.shape + (L,))
+
+        if lwr is not None:
+            for lind, delta in enumerate(lwr * np.linspace(-0.5, 0.5, L)):
+                line_rows[..., lind] = line_row + delta
+                line_cols[..., lind] = line_col
+        else:
+            for lind, delta in enumerate(lwc * np.linspace(-0.5, 0.5, L)):
+                line_rows[..., lind] = line_row
+                line_cols[..., lind] = line_col + delta
+    else:
+        line_rows = line_row[..., np.newaxis]
+        line_cols = line_col[..., np.newaxis]
+
+    return np.array([line_rows, line_cols])
+
+
 def profile_line(z, row, col, start, stop, lwr=None, lwc=None, **profile_kwargs):
     '''Get profile of `z` along specified line.
 
