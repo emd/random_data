@@ -1,5 +1,5 @@
 import numpy as np
-import skimage.measure
+import scipy.ndimage as ndi
 
 
 def get_uniform_spacing(x):
@@ -182,122 +182,94 @@ def line_profile_coordinates(src, dst, N=100, lwr=None, lwc=None, L=5):
     return np.array([line_rows, line_cols])
 
 
-def profile_line(z, row, col, start, stop, lwr=None, lwc=None, **profile_kwargs):
-    '''Get profile of `z` along specified line.
+def line_profile(img, row, col, src, dst, lpc_kwargs={}, mc_kwargs={}):
+    '''Get profile of `img` along line specified by `src` and `dst`.
 
     Input parameters:
     -----------------
-    z - array_like, `(M, N)`
-        The array to be profiled along the specified line.
-        [z] = arbitrary units
+    img - array_like, `(M, K)`
+        The image to be profiled along the specified line.
+        [img] = arbitrary units
 
-    row - array_like, `(M,)`
-        The coordinates corresponding to the rows of `z`.
+    row -array_like, `(M,)`
+        The coordinates corresponding to the rows of `img`.
         [row] = arbitrary units
 
-    col - array_like, `(N,)`
-        The coordinates corresponding to the columns of `z`.
+    col - array_like, `(K,)`
+        The coordinates corresponding to the columns of `img`.
         [col] = arbitrary units
 
-    start - 2-tuple of floats
-        The start point of the line scan.
-        [start[0]] = [row], [start[1]] = [col]
+    src - array_like, `(2,)`
+        The coordinates of the starting point (i.e. the source)
+        of the line scan.
+        [src[0]] = [row]
+        [src[1]] = [col]
 
-    stop - 2-tuple of floats
-        The end point of the line scan.
-        [stop[0]] = [row], [stop[1]] = [col]
+    dst - array_like, `(2,)`
+        The coordinates of the ending point (i.e. the destination)
+        of the line scan.
+        [dst[0]] = [row]
+        [dst[1]] = [col]
 
-    lwr - float or None
-        If not `None`, average the line scan over `lwr` in row-direction.
-        Note that `lwr` and `lwc` *cannot* both be simultaneously specified
-        as non-None.
-        [lwr] = [row]
-
-    lwc - float or None
-        If not `None`, average the line scan over `lwc` in column-direction.
-        Note that `lwr` and `lwc` *cannot* both be simultaneously specified
-        as non-None.
-        [lwc] = [col]
-
-    profile_kwargs - any valid keyword arguments for
-        :py:function:`profile_line <skimage.measure.profile_line>`
+    lpc_kwargs - dictionary, where keys are any valid keyword arguments for
+            :py:func:`random_data.utilities.line_profile_coordinates`
 
         For example, use
 
-                rd.utilities.profile_line(..., order=3)
+                prof = line_profile(..., lpc_kwargs={'lwr': 5, 'L': 7})
 
-        to use a 3rd order spline interpolation to compute image values
-        at non-integer coordinates.
+        to indicate that the line profile should be averaged over `L`
+        equispaced lines parallel to the line specified by `src` and
+        `dst` with the total point-to-point span of the parallel lines
+        corresponding to `lwr` units in the row-coordinate direction.
+
+    mc_kwargs - dictionary, where keys are any valid keyword arguments for
+            :py:func:`scipy.ndimage.map_coordinates`
+
+        For example, use
+
+                prof = line_profile(..., mc_kwargs={'order': 3})
+
+        to indicate that the line profile should be obtained by using
+        an order-3 spline interpolation of the image's pixels.
 
     Returns:
     --------
-    (zp, xp, yp, bnd_lines) - tuple, where
+    (img_prof, row_prof, col_prof) - tuple, where
 
-    zp - array_like, `(L,)`
-        The (potentially averaged) profile of `z` along the specified line.
-        [zp] = [z]
+    img_prof - array_like, `(N,)`
+        The (potentially averaged) profile of `img` along the specified line.
+        [img_prof] = [img]
 
-    rp - array_like, `(L,)`
-        The `row`-like coordinates corresponding to profile `zp`
-        [rp] = [row]
+    row_prof - array_like, `(N,)`
+        The `row`-like coordinates corresponding to profile `img_prof`
+        [row_prof] = [row]
 
-    cp - array_like, `(L,)`
-        The `col`-like coordinates corresponding to profile `zp`
-        [cp] = [col]
-
-    bnd_lines - array_like, `(2, L, a)` where `a in {1, 2}`
+    col_prof - array_like, `(N,)`
+        The `col`-like coordinates corresponding to profile `img_prof`
+        [col_prof] = [col]
 
     '''
-    # Map `start` and `stop` to index space
-    r1ind = val2ind(start[0], row, valid_index=False)
-    r2ind = val2ind(stop[0], row, valid_index=False)
-    c1ind = val2ind(start[1], col, valid_index=False)
-    c2ind = val2ind(stop[1], col, valid_index=False)
+    # Obtain lines in coordinate space
+    coord_lines = line_profile_coordinates(src, dst, **lpc_kwargs)
 
-    src = np.array([r1ind, c1ind])
-    dst = np.array([r2ind, c2ind])
+    # Initialize array to hold index-space representation of lines
+    ind_lines = np.zeros(coord_lines.shape)
 
-    # Determine `linewidth` parameter
-    if (lwr is not None) and (lwc is not None):
-        raise ValueError('`lwr` and `lwc` *cannot* both be specified')
-    elif (lwr is not None) or (lwc is not None):
-        theta = np.arctan2(dst[1] - src[1], dst[0] - src[0])
+    # Loop through each line, converting from the coordinate space
+    # to index space
+    for lind in np.arange(coord_lines.shape[-1]):
+        ind_lines[0, :, lind] = coord2ind(
+            coord_lines[0, :, lind], row, valid_index=False)
+        ind_lines[1, :, lind] = coord2ind(
+            coord_lines[1, :, lind], col, valid_index=False)
 
-        if lwr is not None:
-            ilwr = val2ind(lwr, row, valid_index=False)
-            linewidth = np.int(np.abs(ilwr * np.sin(theta)))
-        else:
-            ilwc = val2ind(lwc, col, valid_index=False)
-            linewidth = np.int(np.abs(ilwc * np.cos(theta)))
+    # Get average profile of `img` along lines
+    img_prof = np.mean(ndi.map_coordinates(
+        img, ind_lines, **mc_kwargs), axis=-1)
 
-        # Enforce minimum linewidth
-        if linewidth < 1:
-            linewidth = 1
-    else:
-        linewidth = 1
+    # Get values of `row` and `col` corresponding to profile image profile
+    row_prof = np.mean(coord_lines[0, ...], axis=-1)
+    col_prof = np.mean(coord_lines[1, ...], axis=-1)
 
-    # Get profile of `z`
-    zp = skimage.measure.profile_line(
-        z, src, dst, linewidth=linewidth, **profile_kwargs)
-
-    # Get values of `x` and `y` corresponding to profile `zp`
-    rind = np.linspace(r1ind, r2ind, len(zp))
-    cind = np.linspace(c1ind, c2ind, len(zp))
-
-    rp = ind2val(rind, row)
-    cp = ind2val(cind, col)
-
-    # Finally, get bounding lines
-    lines = skimage.measure.profile._line_profile_coordinates(
-        src, dst, linewidth=linewidth)
-
-    bnd_rows = np.array([
-        ind2val(lines[0, :, 0], row),
-        ind2val(lines[0, :, -1], row)])
-    bnd_cols = np.array([
-        ind2val(lines[1, :, 0], col),
-        ind2val(lines[1, :, -1], col)])
-
-    bnd_lines = np.array([bnd_rows.T, bnd_cols.T])
-
-    return zp, rp, cp, bnd_lines
+    return img_prof, row_prof, col_prof

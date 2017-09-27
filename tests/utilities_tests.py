@@ -1,6 +1,7 @@
 from nose import tools
 import numpy as np
 import random_data as rd
+import scipy as sp
 
 
 def test_get_uniform_spacing():
@@ -378,5 +379,86 @@ def test_line_profile_coordinates():
         np.testing.assert_almost_equal(  # `almost` needed for roundoff errors
             np.squeeze(lines[1, :, lind]),
             np.linspace(src[1], dst[1], N) + offsets[lind])
+
+    return
+
+
+def test_line_profile():
+    # Construct grid and banded matrix:
+    # =================================
+
+    # (Non-trivial) grid parameters, to stress test algorithm:
+    # --------------------------------------------------------
+    Nr = 10
+    dr = 2.
+    r0 = 10
+
+    Nc = 13
+    dc = 3.
+    c0 = -5
+
+    # Construct grid:
+    # ---------------
+    row = r0 + (dr * np.arange(Nr))
+    col = c0 + (dc * np.arange(Nc))
+
+    # Construct banded, non-square matrix:
+    # ------------------------------------
+    ind_offset = 2  # positive offset requires working w/ columns below
+    diagonal = np.ones(Nr)
+    img = sp.sparse.diags(
+        diagonal, offsets=ind_offset, shape=(Nr, Nc)).toarray()
+
+    # Measure various average profiles:
+    # =================================
+    mc_kwargs = {'order': 0}  # Nearest-neighbor interp. -> easy comparisons
+
+    # Minimize boundary effects by taking points "well away" from boundaries
+    ind = 2
+
+    r1 = row[ind]
+    r2 = row[-ind]
+
+    r1ind = rd.utilities.coord2ind(r1, row, valid_index=False)
+    r2ind = rd.utilities.coord2ind(r2, row, valid_index=False)
+
+    c1 = col[0] + (dc * (ind + ind_offset))
+    c2 = c1 + (dc * (r2ind - r1ind))
+
+    src = (r1, c1)
+    dst = (r2, c2)
+
+    # Single line passing through `src` and `dst`:
+    # --------------------------------------------
+    N = 10
+    lpc_kwargs = {'N': N, 'lwr': None, 'lwc': None, 'L': 1}
+    img_prof, row_prof, col_prof = rd.utilities.line_profile(
+        img, row, col, src, dst,
+        lpc_kwargs=lpc_kwargs,
+        mc_kwargs=mc_kwargs)
+
+    np.testing.assert_equal(img_prof, np.ones(N))
+
+    # Two lines passing *outside* of non-zero region:
+    # -----------------------------------------------
+    N = 10
+    lpc_kwargs = {'N': N, 'lwr': 2 * dr, 'lwc': None, 'L': 2}
+    img_prof, row_prof, col_prof = rd.utilities.line_profile(
+        img, row, col, src, dst,
+        lpc_kwargs=lpc_kwargs,
+        mc_kwargs=mc_kwargs)
+
+    np.testing.assert_equal(img_prof, np.zeros(N))
+
+    # Three lines with only central line passing through non-zero region:
+    # -------------------------------------------------------------------
+    N = 10
+    lpc_kwargs = {'N': N, 'lwr': 2 * dr, 'lwc': None, 'L': 3}
+    img_prof, row_prof, col_prof = rd.utilities.line_profile(
+        img, row, col, src, dst,
+        lpc_kwargs=lpc_kwargs,
+        mc_kwargs=mc_kwargs)
+
+    np.testing.assert_almost_equal(img_prof, np.ones(N) / 3.)
 
     return
