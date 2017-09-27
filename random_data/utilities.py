@@ -28,19 +28,19 @@ def get_uniform_spacing(x):
         raise ValueError('`x` must be uniformly spaced')
 
 
-def val2ind(val, grid, valid_index=True):
-    '''Map value `val` to the "index space" of `grid`.
+def coord2ind(coord, grid, valid_index=True):
+    '''Map coordinates `coord` to the "index space" of `grid`.
 
     Input parameters:
     -----------------
-    val - array_like, `(M,)`
-        The value(s) to be mapped to the "index space" of `grid`.
-        [val] = arbitrary units
+    coord - array_like, `(M,)`
+        The coordinate(s) to be mapped to the "index space" of `grid`.
+        [coord] = arbitrary units
 
     grid - array_like, `(N,)`
-        The grid against which `val` is indexed. A `ValueError` is raised
+        The grid against which `coord` is indexed. A `ValueError` is raised
         if `grid` is *not* uniformly spaced.
-        [grid] = [val]
+        [grid] = [coord]
 
     valid_index - bool
         If True, the returned indices are constrained to be a valid indices
@@ -50,13 +50,13 @@ def val2ind(val, grid, valid_index=True):
     --------
     ind - array_like, `(M,)`, where the data type is int if `valid_index`
             is True; float otherwise
-        The "indices" of `val` relative to `grid`. Note that `ind` can
+        The "indices" of `coord` relative to `grid`. Note that `ind` can
         only be used to index `grid` *if* `valid_index` is True.
         [ind] = unitless
 
     '''
     grid_spacing = get_uniform_spacing(grid)
-    ind = (val - grid[0]) / grid_spacing
+    ind = (coord - grid[0]) / grid_spacing
 
     if valid_index:
         # Enforce floor and ceiling of valid indices for `grid`
@@ -69,17 +69,17 @@ def val2ind(val, grid, valid_index=True):
     return ind
 
 
-def ind2val(ind, grid):
-    '''Map generalized index `ind` to corresponding value on `grid`.
+def ind2coord(ind, grid):
+    '''Map generalized index `ind` to corresponding coordinate on `grid`.
 
     Input parameters:
     -----------------
     ind - array_like, `(M,)`
         The generalized indices that should be mapped to their corresponding
-        values on `grid`. Note that `ind` are "generalized indices" in that
-        `grid[ind]` may raise an `IndexError`; however, as `grid` must
+        coordinates on `grid`. Note that `ind` are "generalized indices" in
+        that `grid[ind]` may raise an `IndexError`; however, as `grid` must
         be uniformly spaced, linear interpolation or extrapolation yields
-        the correct values of `grid` at generalized indices `ind`.
+        the correct coordinates of `grid` at generalized indices `ind`.
         [ind] = unitless
 
     grid - array_like, `(N,)`
@@ -89,9 +89,9 @@ def ind2val(ind, grid):
 
     Returns:
     --------
-    val - array_like, `(M,)`
-        The values of `grid` corresponding to generalized indices `ind`.
-        [val] = [grid]
+    coord - array_like, `(M,)`
+        The coordinates of `grid` corresponding to generalized indices `ind`.
+        [coord] = [grid]
 
     '''
     grid_spacing = get_uniform_spacing(grid)
