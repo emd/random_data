@@ -332,9 +332,12 @@ class Bispectrum(object):
                 term2 = Yk[i, ...]
                 term3 = Yk[j, ...]
 
-                term1 = np.squeeze(term1)
-                term2 = np.squeeze(term2)
-                term3 = np.squeeze(term3)
+                # Ensemble dimension (along axis 0) should have 1 element;
+                # remove this dimension, as it causes problems with some
+                # older versions of NumPy
+                term1 = np.squeeze(term1, axis=0)
+                term2 = np.squeeze(term2, axis=0)
+                term3 = np.squeeze(term3, axis=0)
 
                 self.Bxy[i + i0, j] = np.mean(
                     term1 * term2 * term3,
@@ -361,9 +364,12 @@ class Bispectrum(object):
 
                 term3 = Yk[j, ...]
 
-                term1 = np.squeeze(term1)
-                term2 = np.squeeze(term2)
-                term3 = np.squeeze(term3)
+                # Ensemble dimension (along axis 0) should have 1 element;
+                # remove this dimension, as it causes problems with some
+                # older versions of NumPy
+                term1 = np.squeeze(term1, axis=0)
+                term2 = np.squeeze(term2, axis=0)
+                term3 = np.squeeze(term3, axis=0)
 
                 self.Bxy[i + i0, j] = np.mean(
                     term1 * term2 * term3,
@@ -408,8 +414,11 @@ class Bispectrum(object):
                     (np.abs(Yk[i, ...] * Yk[j, ...])) ** 2,
                     axis=-1)
 
-                denX = np.squeeze(denX)
-                denY = np.squeeze(denY)
+                # Ensemble dimension (along axis 0) should have 1 element;
+                # remove this dimension, as it causes problems with some
+                # older versions of NumPy
+                denX = np.squeeze(denX, axis=0)
+                denY = np.squeeze(denY, axis=0)
 
                 self.b2xy[i + i0, j] = num / (denX * denY)
 
@@ -438,8 +447,11 @@ class Bispectrum(object):
                     (np.abs(np.conj(Yk[np.abs(i), ...]) * Yk[j, ...])) ** 2,
                     axis=-1)
 
-                denX = np.squeeze(denX)
-                denY = np.squeeze(denY)
+                # Ensemble dimension (along axis 0) should have 1 element;
+                # remove this dimension, as it causes problems with some
+                # older versions of NumPy
+                denX = np.squeeze(denX, axis=0)
+                denY = np.squeeze(denY, axis=0)
 
                 self.b2xy[i + i0, j] = num / (denX * denY)
 
