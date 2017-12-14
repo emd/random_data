@@ -22,7 +22,7 @@ def test_CrossSpectralDensity_signal_input():
 
     # Complex signals should fail
     xc = x.astype('complex128')
-    yc = y.astype('complex128')
+    yc = y[:-1].astype('complex128')
     tools.assert_raises(ValueError, CrossSpectralDensity, xc, y)
     tools.assert_raises(ValueError, CrossSpectralDensity, x, yc)
     tools.assert_raises(ValueError, CrossSpectralDensity, xc, yc)
