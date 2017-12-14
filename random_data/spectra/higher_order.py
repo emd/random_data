@@ -417,3 +417,68 @@ class Bispectrum(object):
             print ''
 
         return
+
+    def plotBispectrum(self, fnorm=1, vlim=None, cmap='viridis',
+                       interpolation='none', fontsize=12,
+                       title=None,
+                       xlabel=r'$\mathregular{f_1}$',
+                       ylabel=r'$\mathregular{f_2}$',
+                       cblabel='$\mathregular{|B_{xy}(f_1, f_2)|}$',
+                       cbticks=None,
+                       cborientation='vertical',
+                       ax=None, fig=None):
+        'Plot bispectrum on a logarithmic scale.'
+
+        if (ax is None) and (fig is None):
+            fig = plt.figure(figsize=(6, 6))
+            ax = plt.gca()
+
+        # Only consider regions with finite (i.e. non-zero) bispectrum;
+        # those with zero value are outside of the computation domain.
+        Bxy_mag = np.abs(self.Bxy)
+        Bxy_mag = np.ma.masked_where(Bxy_mag <= 0, Bxy_mag, copy=False)
+
+        ax = _plot_image(
+            self.fcol / fnorm, self.frow / fnorm, Bxy_mag,
+            xlim=None, ylim=None, vlim=vlim,
+            norm='log', cmap=cmap, interpolation=interpolation,
+            title=title, xlabel=xlabel, ylabel=ylabel, fontsize=fontsize,
+            cblabel=cblabel, cbticks=None, cborientation=cborientation,
+            ax=ax, fig=fig)
+
+        ax.set_aspect('equal')
+        plt.tight_layout()
+
+        return ax
+
+    def plotSquaredBicoherence(self, fnorm=1, vlim=None, cmap='viridis',
+                               interpolation='none', fontsize=12,
+                               title=None,
+                               xlabel=r'$\mathregular{f_1}$',
+                               ylabel=r'$\mathregular{f_2}$',
+                               cblabel='$\mathregular{b^2_{xy}(f_1, f_2)}$',
+                               cbticks=None,
+                               cborientation='vertical',
+                               ax=None, fig=None):
+        'Plot bispectrum on a logarithmic scale.'
+
+        if (ax is None) and (fig is None):
+            fig = plt.figure(figsize=(6, 6))
+            ax = plt.gca()
+
+        # Only consider regions with finite (i.e. non-zero) bicoherence;
+        # those with zero value are outside of the computation domain.
+        b2xy = np.ma.masked_where(self.b2xy <= 0, self.b2xy)
+
+        ax = _plot_image(
+            self.fcol / fnorm, self.frow / fnorm, b2xy,
+            xlim=None, ylim=None, vlim=vlim,
+            norm=None, cmap=cmap, interpolation=interpolation,
+            title=title, xlabel=xlabel, ylabel=ylabel, fontsize=fontsize,
+            cblabel=cblabel, cbticks=None, cborientation=cborientation,
+            ax=ax, fig=fig)
+
+        ax.set_aspect('equal')
+        plt.tight_layout()
+
+        return ax
