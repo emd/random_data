@@ -219,9 +219,18 @@ class Bispectrum(object):
         tind = get_timebase_indices(tlim, Fs, t0, len(x))
         Tens = (tind[-1] - tind[0]) / Fs
 
+        # Hereafter, the value of `t0` corresponds to first timestamp
+        # of the ensemble. (Note that `tlim[0]` may not be *exactly*
+        # equal to the first timestamp of the ensemble, but we're
+        # only going to be using this as an identification label,
+        # so this is sufficiently accurate).
+        if tlim is not None:
+            if tlim[0] > t0:
+                t0 = tlim[0]
+
         # Determine properties for ensemble averaging
         ens = Ensemble(
-            x, Fs=Fs, t0=t0, Tens=Tens,
+            x[tind], Fs=Fs, t0=t0, Tens=Tens,
             Nreal_per_ens=Nreal_per_ens, fraction_overlap=fraction_overlap,
             Npts_per_real=Npts_per_real, Npts_overlap=Npts_overlap)
 
@@ -262,10 +271,16 @@ class Bispectrum(object):
         del self.f
 
         # Get FFTs
-        Xk = ens.getFFTs(x, detrend=self.detrend, window=self.window)
+        Xk = ens.getFFTs(
+            x[tind],
+            detrend=self.detrend,
+            window=self.window)
 
         if not self.same_data:
-            Yk = ens.getFFTs(y, detrend=self.detrend, window=self.window)
+            Yk = ens.getFFTs(
+                y[tind],
+                detrend=self.detrend,
+                window=self.window)
         else:
             Yk = Xk
 
