@@ -12,6 +12,7 @@ from matplotlib import mlab
 # Related 3rd-party imports
 from ..ensemble import Ensemble
 from ..utilities import get_timebase_indices
+from .nonparametric import _plot_image
 
 
 class Bispectrum(object):
@@ -126,7 +127,7 @@ class Bispectrum(object):
                  tlim=None, Nreal_per_ens=10, fraction_overlap=0.5,
                  Npts_per_real=None, Npts_overlap=None,
                  detrend=None, window=mlab.window_hanning,
-                 print_params=True):
+                 print_params=True, print_status=True):
         '''Create an instance of the `Bispectrum` class.
 
         Input Parameters:
@@ -202,6 +203,10 @@ class Bispectrum(object):
         print_params - bool
             If True, print relevant spectral parameters to screen.
 
+        print_status - bool
+            If True, print percentage of bispectrum and squared bicoherence
+            computation complete.
+
         '''
         # Only real-valued signals are expected/supported at the moment
         if np.iscomplexobj(x) or np.iscomplexobj(y):
@@ -265,8 +270,8 @@ class Bispectrum(object):
             Yk = Xk
 
         # Estimate bispectral quantities
-        self._getBispectrum(Xk, Yk)
-        self._getSquaredBicoherence(Xk, Yk)
+        self._getBispectrum(Xk, Yk, print_status=print_status)
+        self._getSquaredBicoherence(Xk, Yk, print_status=print_status)
 
     def printSpectralParams(self):
         print '\ndt: %.6g' % self.dt
@@ -280,7 +285,7 @@ class Bispectrum(object):
 
         return
 
-    def _getBispectrum(self, Xk, Yk):
+    def _getBispectrum(self, Xk, Yk, print_status=False):
         'Get bispectrum estimate.'
         # Get number of frequencies in computed one-sided FFTs.
         # When `self.Npts_per_real` is 2^N with integer N (as it is
@@ -296,9 +301,18 @@ class Bispectrum(object):
         # corresponds to array index `i0`
         i0 = Nf - 1
 
+        if print_status:
+            print ''
+            Np = (shape[0] * shape[1]) // 2
+            p = 0.
+
         # Compute over region A from Fig. 1(a) of Kim & Powers
         for i in np.arange(0, (Nf // 2) + 1):  # i >= 0
             for j in np.arange(i, Nf - i):     # j >= 0
+                if print_status:
+                    print 'Bxy percent complete: %.1f \r' % (100 * (p / Np)),
+                    p += 1.
+
                 term1 = np.conj(Xk[i + j, ...])
                 term2 = Yk[i, ...]
                 term3 = Yk[j, ...]
@@ -309,6 +323,15 @@ class Bispectrum(object):
         # Compute over region B from Fig. 1(a) of Kim & Powers
         for i in np.arange(-Nf + 1, 1):  # i <= 0
             for j in np.arange(-i, Nf):  # j >= 0 as i <= 0; |j| >= |i|
+                # Need to account for boundary effects
+                # to get accurate status, but let's just
+                # enforce p <= Np and accept a few
+                # fractions of a percent error in
+                # the status message...
+                if print_status and (p <= Np):
+                    print 'Bxy percent complete: %.1f \r' % (100 * (p / Np)),
+                    p += 1.
+
                 # Note that Xk[i + j] = Xk[j - |i|] for i <= 0
                 term1 = np.conj(Xk[j - np.abs(i), ...])
 
@@ -324,7 +347,7 @@ class Bispectrum(object):
 
         return
 
-    def _getSquaredBicoherence(self, Xk, Yk):
+    def _getSquaredBicoherence(self, Xk, Yk, print_status=False):
         'Get squared-bicoherence estimate.'
         # Get number of frequencies in computed one-sided FFTs.
         # When `self.Npts_per_real` is 2^N with integer N (as it is
@@ -340,9 +363,18 @@ class Bispectrum(object):
         # corresponds to array index `i0`
         i0 = Nf - 1
 
+        if print_status:
+            print ''
+            Np = (shape[0] * shape[1]) // 2
+            p = 0.
+
         # Compute over region A from Fig. 1(a) of Kim & Powers
         for i in np.arange(0, (Nf // 2) + 1):  # i >= 0
             for j in np.arange(i, Nf - i):     # j >= 0
+                if print_status:
+                    print 'b2xy percent complete: %.1f \r' % (100 * (p / Np)),
+                    p += 1.
+
                 num = (np.abs(self.Bxy[i + i0, j])) ** 2
 
                 denX = np.mean(
@@ -357,6 +389,15 @@ class Bispectrum(object):
         # Compute over region B from Fig. 1(a) of Kim & Powers
         for i in np.arange(-Nf + 1, 1):  # i <= 0
             for j in np.arange(-i, Nf):  # j >= 0 as i <= 0; |j| >= |i|
+                # Need to account for boundary effects
+                # to get accurate status, but let's just
+                # enforce p <= Np and accept a few
+                # fractions of a percent error in
+                # the status message...
+                if print_status and (p <= Np):
+                    print 'b2xy percent complete: %.1f \r' % (100 * (p / Np)),
+                    p += 1.
+
                 num = (np.abs(self.Bxy[i + i0, j])) ** 2
 
                 # Note that Xk[i + j] = Xk[j - |i|] for i <= 0
@@ -371,5 +412,8 @@ class Bispectrum(object):
                     axis=-1)
 
                 self.b2xy[i + i0, j] = num / (denX * denY)
+
+        if print_status:
+            print ''
 
         return
