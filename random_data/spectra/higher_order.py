@@ -17,8 +17,105 @@ from ..utilities import get_timebase_indices
 class Bispectrum(object):
     '''A class for bispectrum estimation.
 
+    This class employs the methodology outlined in:
+
+        Kim & Powers, "Digital bispectral analysis and
+        its applications to nonlinear wave interactions",
+        IEEE Trans. Plasma Sci. PS-7, 120 (1979);
+
+    inquisitive readers are directed there for further details.
+
+    For stationary signals `x` and `y`, the cross bispectrum `Bxy`
+    is defined as
+
+        Bxy(i, j) = E[ (X_{i + j})* Y_i Y_j]
+
+    where X and Y are the FFTs of the kth realization of signals
+    `x` and `y`, respectively, * denotes complex conjugation, and
+    E[...] denotes the expectation value operator.
+
+    For real-valued signals `x` and `y`, the following symmetry
+    results from X_{-k} = (X_k)*:
+
+        Bxy(i, j) = Bxy(j, i) = [Bxy(-i, -j)]*
+
+    (i.e. see Eq. (15) from Kim & Powers; note that symmetry
+    relation Eq. (16) only holds if x = y, however). Because
+    only symmetry relation Eq. (15) holds, in general, the
+    bispectrum needs to be computed over region A & B of
+    Fig. 1(a) in Kim & Powers (i.e. the region defined by
+    Eqs. (24a) and (24b) of Kim & Powers).
+
     Attributes:
     -----------
+    Below, `x` and `y` refer to the signals for which the bispectrum
+    is computed, and `Fs` is the signal sampling rate.
+
+    Bxy - array_like, (`Nfr`, `Nfc`)
+        The bispectrum estimate. Note that this corresponds to
+        the "discrete bispectrum" rather than the bispectral
+        density; the discrete bispectrum can be converted
+        to the bispectral density via normalization by a
+        a scalar factor related to the sampling rate and
+        the number of points per realization.
+        [Bxy] = [x] [y]^2
+
+    b2xy - array_like, (`Nfr`, `Nfc`)
+        The squared bicoherence estimate (defined by Eq. (19)
+        of Kim & Powers). Note that 0 <= b2xy <= 1 and that
+        larger values of b2xy indicate a larger degree of
+        nonlinear (quadratic) coupling between the waves.
+        [b2xy] = unitless
+
+    Fs - float
+        The signal sampling rate, as specified at initialization.
+        [Fs] = arbitrary units
+
+    frow - array_like, (`Nfr`,)
+        The frequencies corresponding to the rows of `self.Bxy`
+        and `self.b2xy`.
+        [frow] = [Fs]
+
+    fcol - array_like, (`Nfr`,)
+        The frequencies corresponding to the columns of `self.Bxy`
+        and `self.b2xy`.
+        [frow] = [Fs]
+
+    df - float
+        The spacing of frequencies `self.frow` and `self.fcol`.
+        [df] = [Fs]
+
+    t - float
+        The midpoint of the ensemble.
+        [t] = 1 / [Fs]
+
+    dt - float
+        The temporal length of the ensemble.
+        [dt] = 1 / [Fs]
+
+    same_data - bool
+        If True, the signals `x` and `y` provided at initialization
+        were identical.
+
+    Nreal_per_ens - int
+        The number of realizations per ensemble used in the
+        computation of the spectral estimates. The random error
+        (i.e. variance) in both `Bxy` and `b2xy` decreases as
+        ~ 1 / `Nreal_per_ens` (Eqs. (28) & (31) of Kim & Powers).
+
+    Npts_per_real - int
+        The number of sample points per realization used in the
+        computation of the spectral estimates.
+
+    Npts_overlap - int
+        The number of overlapping points between adjacent realizations
+        in the computation of the spectral estimates.
+
+    detrend - string
+        The function applied to each realization before taking the FFT.
+
+    window - callable or ndarray
+        The window applied to each realization before taking the FFT.
 
     Methods:
     --------
@@ -29,16 +126,21 @@ class Bispectrum(object):
                  tlim=None, Nreal_per_ens=10, fraction_overlap=0.5,
                  Npts_per_real=None, Npts_overlap=None,
                  detrend=None, window=mlab.window_hanning,
-                 print_params=True, print_status=True):
+                 print_params=True):
         '''Create an instance of the `Bispectrum` class.
 
         Input Parameters:
         -----------------
         x, y - array_like, (`N`,)
-            The signals for which the bispectrum will be computed.
-            A ValueError is raised if `x` and `y` contain a different number
-            of samples. Note that `x` and `y` must be sampled at the *same*
-            rate, `Fs`.
+            The signals for which the bispectrum `Bxy` and
+            the squared bicoherence `b2xy` will be computed.
+
+            A ValueError is raised if `x` or `y` are complex.
+            A ValueError is raised if `x` and `y` contain a
+            different number of samples. Obviously,`x` and `y`
+            must be sampled at the *same* rate, `Fs`, to obtain
+            sensible results.
+
             [x] = arbitrary units
             [y] = arbitrary units, potentially different than [x]
 
@@ -54,14 +156,15 @@ class Bispectrum(object):
 
         tlim - array_like, (2,) or None
             If not None, then only use the portion of `x` and `y`
-            that sit between `min(tlim)` and `max(tlim)`.
+            that sit between `min(tlim)` and `max(tlim)`, with
+            the ensemble time defined as `Tens = tlim[1] - tlim[0]`.
             [tlim] = 1 / [Fs]
 
         Nreal_per_ens - int
-            The number of realizations per ensemble. The random error in the
-            bispectrum estimate decreases as ~ 1 /Nreal_per_ens.
-            The frequency resolution `df` of the bispectrum estimate
-            is linearly related to the number of realizations.
+            The number of realizations per ensemble used in the
+            computation of the spectral estimates. The random error
+            (i.e. variance) in both `Bxy` and `b2xy` decreases as
+            ~ 1 / `Nreal_per_ens` (Eqs. (28) & (31) of Kim & Powers).
             A ValueError is raised if not a positive integer.
 
         fraction_overlap - float
@@ -98,10 +201,6 @@ class Bispectrum(object):
 
         print_params - bool
             If True, print relevant spectral parameters to screen.
-
-        print_status - bool
-            If True, print percentage of ensembles whose spectra
-            have been computed.
 
         '''
         # Only real-valued signals are expected/supported at the moment
@@ -143,8 +242,31 @@ class Bispectrum(object):
         if print_params:
             self.printSpectralParams()
 
-        # Perform spectral calculations
-        self._getBispectra(x, y, ens)
+        # Compute frequencies for cross-bispectrum estimate noting that
+        # the dimensions must span:
+        #
+        #   row:   -f_{Ny} <= f <= (0.5 * f_{Ny}), and
+        #   column:      0 <= f <= f_{Ny},
+        #
+        # where f_{Ny} = (0.5 * `self.Fs`) is the Nyquist frequency.
+        Nf = len(self.f)
+        self.frow = np.concatenate((
+            -self.f[::-1],
+            self.f[1:((Nf // 2) + 1)]))
+        self.fcol = self.f
+        del self.f
+
+        # Get FFTs
+        Xk = ens.getFFTs(x, detrend=self.detrend, window=self.window)
+
+        if not self.same_data:
+            Yk = ens.getFFTs(y, detrend=ens.detrend, window=ens.window)
+        else:
+            Yk = Xk
+
+        # Estimate bispectral quantities
+        self._getBispectrum(Xk, Yk)
+        self._getSquaredBicoherence(Xk, Yk)
 
     def printSpectralParams(self):
         print '\ndt: %.6g' % self.dt
@@ -158,42 +280,96 @@ class Bispectrum(object):
 
         return
 
-    def _getBispectra(self, x, y, ens):
+    def _getBispectrum(self, Xk, Yk):
         'Get bispectrum estimate.'
-        X = ens.getFFTs(x, detrend=self.detrend, window=self.window)
+        # Get number of frequencies in computed one-sided FFTs.
+        # When `self.Npts_per_real` is 2^N with integer N (as it is
+        # constrained to be when simply specifying `Tens` at input),
+        # then `Nf` is (2^{N - 1} + 1)
+        Nf = len(self.fcol)
 
-        if not self.same_data:
-            Y = ens.getFFTs(y, detrend=ens.detrend, window=ens.window)
-        else:
-            Y = X
-
-        # Initialize bispectrum array
-        Nf = len(ens.f)
-        shape = (Nf // 2, Nf)
+        # Initialize the bispectrum array
+        shape = (len(self.frow), len(self.fcol))
         self.Bxy = np.zeros(shape, dtype='complex')
 
-        # Compute bispectrum
-        for j in np.arange(Nf // 2):
-            for k in np.arange(j, Nf - j):
-                self.Bxy[j, k] = np.mean(
-                    np.conj(X[j + k, ...]) * Y[j, ...] * Y[k, ...],
+        # The row of `self.Bxy` corresponding to zero frequency
+        # corresponds to array index `i0`
+        i0 = Nf - 1
+
+        # Compute over region A from Fig. 1(a) of Kim & Powers
+        for i in np.arange(0, (Nf // 2) + 1):  # i >= 0
+            for j in np.arange(i, Nf - i):     # j >= 0
+                term1 = np.conj(Xk[i + j, ...])
+                term2 = Yk[i, ...]
+                term3 = Yk[j, ...]
+                self.Bxy[i + i0, j] = np.mean(
+                    term1 * term2 * term3,
                     axis=-1)
 
-        # Initialize squared-bicoherence array
+        # Compute over region B from Fig. 1(a) of Kim & Powers
+        for i in np.arange(-Nf + 1, 1):  # i <= 0
+            for j in np.arange(-i, Nf):  # j >= 0 as i <= 0; |j| >= |i|
+                # Note that Xk[i + j] = Xk[j - |i|] for i <= 0
+                term1 = np.conj(Xk[j - np.abs(i), ...])
+
+                # Note that Yk[i] = Yk[-|i|] = (Yk[|i|])* for i <= 0,
+                # where z* indicates the complex conjugate of z
+                term2 = np.conj(Yk[np.abs(i), ...])
+
+                term3 = Yk[j, ...]
+
+                self.Bxy[i + i0, j] = np.mean(
+                    term1 * term2 * term3,
+                    axis=-1)
+
+        return
+
+    def _getSquaredBicoherence(self, Xk, Yk):
+        'Get squared-bicoherence estimate.'
+        # Get number of frequencies in computed one-sided FFTs.
+        # When `self.Npts_per_real` is 2^N with integer N (as it is
+        # constrained to be when simply specifying `Tens` at input),
+        # then `Nf` is (2^{N - 1} + 1)
+        Nf = len(self.fcol)
+
+        # Initialize the bicoherence array
+        shape = (len(self.frow), len(self.fcol))
         self.b2xy = np.zeros(shape)
 
-        # Compute bicoherence
-        for j in np.arange(Nf // 2):
-            for k in np.arange(j, Nf - j):
-                num = (np.abs(self.Bxy[j, k])) ** 2
+        # The row of `self.Bxy` corresponding to zero frequency
+        # corresponds to array index `i0`
+        i0 = Nf - 1
+
+        # Compute over region A from Fig. 1(a) of Kim & Powers
+        for i in np.arange(0, (Nf // 2) + 1):  # i >= 0
+            for j in np.arange(i, Nf - i):     # j >= 0
+                num = (np.abs(self.Bxy[i + i0, j])) ** 2
 
                 denX = np.mean(
-                    (np.abs(X[j + k, ...])) ** 2,
+                    (np.abs(Xk[i + j, ...])) ** 2,
                     axis=-1)
                 denY = np.mean(
-                    (np.abs(Y[j, ...] * Y[k, ...])) ** 2,
+                    (np.abs(Yk[i, ...] * Yk[j, ...])) ** 2,
                     axis=-1)
 
-                self.b2xy[j, k] = num / (denX * denY)
+                self.b2xy[i + i0, j] = num / (denX * denY)
+
+        # Compute over region B from Fig. 1(a) of Kim & Powers
+        for i in np.arange(-Nf + 1, 1):  # i <= 0
+            for j in np.arange(-i, Nf):  # j >= 0 as i <= 0; |j| >= |i|
+                num = (np.abs(self.Bxy[i + i0, j])) ** 2
+
+                # Note that Xk[i + j] = Xk[j - |i|] for i <= 0
+                denX = np.mean(
+                    (np.abs(Xk[j - np.abs(i), ...])) ** 2,
+                    axis=-1)
+
+                # Note that Yk[i] = Yk[-|i|] = (Yk[|i|])* for i <= 0,
+                # where z* indicates the complex conjugate of z
+                denY = np.mean(
+                    (np.abs(np.conj(Yk[np.abs(i), ...]) * Yk[j, ...])) ** 2,
+                    axis=-1)
+
+                self.b2xy[i + i0, j] = num / (denX * denY)
 
         return
