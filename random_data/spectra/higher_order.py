@@ -316,6 +316,11 @@ class Bispectrum(object):
                 term1 = np.conj(Xk[i + j, ...])
                 term2 = Yk[i, ...]
                 term3 = Yk[j, ...]
+
+                term1 = np.squeeze(term1)
+                term2 = np.squeeze(term2)
+                term3 = np.squeeze(term3)
+
                 self.Bxy[i + i0, j] = np.mean(
                     term1 * term2 * term3,
                     axis=-1)
@@ -340,6 +345,10 @@ class Bispectrum(object):
                 term2 = np.conj(Yk[np.abs(i), ...])
 
                 term3 = Yk[j, ...]
+
+                term1 = np.squeeze(term1)
+                term2 = np.squeeze(term2)
+                term3 = np.squeeze(term3)
 
                 self.Bxy[i + i0, j] = np.mean(
                     term1 * term2 * term3,
@@ -384,6 +393,9 @@ class Bispectrum(object):
                     (np.abs(Yk[i, ...] * Yk[j, ...])) ** 2,
                     axis=-1)
 
+                denX = np.squeeze(denX)
+                denY = np.squeeze(denY)
+
                 self.b2xy[i + i0, j] = num / (denX * denY)
 
         # Compute over region B from Fig. 1(a) of Kim & Powers
@@ -410,6 +422,9 @@ class Bispectrum(object):
                 denY = np.mean(
                     (np.abs(np.conj(Yk[np.abs(i), ...]) * Yk[j, ...])) ** 2,
                     axis=-1)
+
+                denX = np.squeeze(denX)
+                denY = np.squeeze(denY)
 
                 self.b2xy[i + i0, j] = num / (denX * denY)
 
