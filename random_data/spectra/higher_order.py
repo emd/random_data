@@ -260,7 +260,7 @@ class Bispectrum(object):
         Xk = ens.getFFTs(x, detrend=self.detrend, window=self.window)
 
         if not self.same_data:
-            Yk = ens.getFFTs(y, detrend=ens.detrend, window=ens.window)
+            Yk = ens.getFFTs(y, detrend=self.detrend, window=self.window)
         else:
             Yk = Xk
 
