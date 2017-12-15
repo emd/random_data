@@ -288,7 +288,7 @@ class Ensemble(object):
         Returns:
         --------
         Xk - array_like, (L, M, N) where
-                L = `self.Npts_per_real` = `len(self.f)`,
+                L = `len(self.f)` = `(self.Npts_per_real // 2) + 1`,
                 M = number of whole ensembles in data record `x`, and
                 N = `self.Nreal_per_ens`
 
