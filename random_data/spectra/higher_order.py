@@ -98,11 +98,10 @@ class Bispectrum(object):
         If True, the signals `x` and `y` provided at initialization
         were identical.
 
-    Nreal_per_ens - int
-        The number of realizations per ensemble used in the
-        computation of the spectral estimates. The random error
-        (i.e. variance) in both `Bxy` and `b2xy` decreases as
-        ~ 1 / `Nreal_per_ens` (Eqs. (28) & (31) of Kim & Powers).
+    Nreal - int
+        The number of realizations used in the spectral estimates.
+        The random error (i.e. variance) in both `Bxy` and `b2xy`
+        decreases as ~ 1 / `Nreal` (Eqs. (28) & (31) of Kim & Powers).
 
     Npts_per_real - int
         The number of sample points per realization used in the
@@ -124,8 +123,7 @@ class Bispectrum(object):
 
     '''
     def __init__(self, x, y, Fs=1.0, t0=0.,
-                 tlim=None, Nreal_per_ens=10, fraction_overlap=0.5,
-                 Npts_per_real=None, Npts_overlap=None,
+                 tlim=None, Npts_per_real=256,
                  detrend=None, window=mlab.window_hanning,
                  print_params=True, print_status=True):
         '''Create an instance of the `Bispectrum` class.
@@ -155,22 +153,12 @@ class Bispectrum(object):
             The initial time corresponding to `x[0]` (and `y[0]`).
             [t0] = 1 / [Fs]
 
-        tlim - array_like, (2,) or None
+        tlim - array_like, (2, M) or None
             If not None, then only use the portion of `x` and `y`
-            that sit between `min(tlim)` and `max(tlim)`, with
-            the ensemble time defined as `Tens = tlim[1] - tlim[0]`.
+            that sit between `min(tlim[i])` and `max(tlim[i])`
+            for 0 <= i < M. This is useful, for example,
+            when spikes must be filtered from the signal.
             [tlim] = 1 / [Fs]
-
-        Nreal_per_ens - int
-            The number of realizations per ensemble used in the
-            computation of the spectral estimates. The random error
-            (i.e. variance) in both `Bxy` and `b2xy` decreases as
-            ~ 1 / `Nreal_per_ens` (Eqs. (28) & (31) of Kim & Powers).
-            A ValueError is raised if not a positive integer.
-
-        fraction_overlap - float
-            The fractional overlap between adjacent realizations.
-            0 =< `fraction_overlap` < 1, otherwise a ValueError is raised.
 
         Npts_per_real - int
             The number of sample points per realization. If None,
@@ -178,14 +166,6 @@ class Bispectrum(object):
             with `Nreal_per_ens` and efficient FFT computation.
             If not None, `Tens` is ignored. A ValueError is raised
             if not a positive integer.
-
-        Npts_overlap - int
-            The number of overlapping sample points between adjacent
-            realizations. If None, `fraction_overlap` sets the
-            number of overlapping sample points. If not None,
-            `fraction_overlap` is ignored. A ValueError is raised
-            if not a positive integer or if greater than or equal to
-            the number of points per realization.
 
         detrend - string
             The function applied to each realization before taking FFT.
@@ -215,24 +195,12 @@ class Bispectrum(object):
         if len(x) != len(y):
             raise ValueError('`x` and `y` must have the same length!')
 
-        # Use `tlim` to determine the size of the ensemble
-        tind = get_timebase_indices(tlim, Fs, t0, len(x))
-        Tens = (tind[-1] - tind[0]) / Fs
-
-        # Hereafter, the value of `t0` corresponds to first timestamp
-        # of the ensemble. (Note that `tlim[0]` may not be *exactly*
-        # equal to the first timestamp of the ensemble, but we're
-        # only going to be using this as an identification label,
-        # so this is sufficiently accurate).
-        if tlim is not None:
-            if tlim[0] > t0:
-                t0 = tlim[0]
-
         # Determine properties for ensemble averaging
+        # (No use in overlap when `Nreal_per_ens` is unity).
         ens = Ensemble(
-            x[tind], Fs=Fs, t0=t0, Tens=Tens,
-            Nreal_per_ens=Nreal_per_ens, fraction_overlap=fraction_overlap,
-            Npts_per_real=Npts_per_real, Npts_overlap=Npts_overlap)
+            x, Fs=Fs, t0=t0,
+            Npts_per_real=Npts_per_real,
+            Nreal_per_ens=1, Npts_overlap=0)
 
         # Record important aspects of computation
         self.same_data = x is y
@@ -240,7 +208,6 @@ class Bispectrum(object):
         self.Fs = ens.Fs
 
         self.Npts_per_real = ens.Npts_per_real
-        self.Nreal_per_ens = ens.Nreal_per_ens
         self.Npts_overlap = ens.Npts_overlap
         self.Npts_per_ens = ens.Npts_per_ens
 
@@ -272,21 +239,21 @@ class Bispectrum(object):
 
         # Get FFTs
         Xk = ens.getFFTs(
-            x[tind],
+            x,
             detrend=self.detrend,
             window=self.window)
 
         if not self.same_data:
             Yk = ens.getFFTs(
-                y[tind],
+                y,
                 detrend=self.detrend,
                 window=self.window)
         else:
             Yk = Xk
 
         # Estimate bispectral quantities
-        self._getBispectrum(Xk, Yk, print_status=print_status)
-        self._getSquaredBicoherence(Xk, Yk, print_status=print_status)
+        self._getBispectrum(Xk, Yk, tlim, print_status=print_status)
+        self._getSquaredBicoherence(Xk, Yk, tlim, print_status=print_status)
 
     def printSpectralParams(self):
         print '\ndt: %.6g' % self.dt
@@ -294,13 +261,36 @@ class Bispectrum(object):
         print 'Npts_per_real: %i' % self.Npts_per_real
         print ('overlap: %.2f'
                % (np.float(self.Npts_overlap) / self.Npts_per_real))
-        print 'Nreal_per_ens: %i' % self.Nreal_per_ens
         print 'detrend: %s' % self.detrend
         print 'window: %s' % self.window.func_name
 
         return
 
-    def _getBispectrum(self, Xk, Yk, print_status=False):
+    def _getRealizationsBetween(self, tlim):
+        'Get realizations between `tlim`, which is (2, M) array_like.'
+        # Determine parameters of timebases corresponding to
+        # (a) the start of a realization and (b) the end of a
+        # realization
+        Fs = 1. / self.dt
+        Npts = len(self.t)
+        t0a = self.t[0] - (0.5 * self.dt)
+        t0b = self.t[0] + (0.5 * self.dt)
+
+        ind = np.array([])
+
+        # Loop through each temporal bound in `tlim`
+        # (Maybe not the most efficient, but don't
+        # expect this to be a bottleneck...)
+        for i in enumerate(tlim.shape[1]):
+            inda = get_timebase_indices(tlim[i], Fs, t0a, Npts)
+            indb = get_timebase_indices(tlim[i], Fs, t0b, Npts)
+            ind = np.concatenate((
+                ind,
+                np.intersect1d(inda, indb)))
+
+        return ind
+
+    def _getBispectrum(self, Xk, Yk, tlim, print_status=False):
         'Get bispectrum estimate.'
         # Get number of frequencies in computed one-sided FFTs.
         # When `self.Npts_per_real` is 2^N with integer N (as it is
@@ -321,6 +311,13 @@ class Bispectrum(object):
             Np = (shape[0] * shape[1]) // 2
             p = 0.
 
+        if tlim is not None:
+            tind = self._getRealizationsBetween(tlim)
+            self.Nreal = len(tind)
+        else:
+            tind = slice(None, None)
+            self.Nreal = len(self.t)
+
         # Compute over region A from Fig. 1(a) of Kim & Powers
         for i in np.arange(0, (Nf // 2) + 1):  # i >= 0
             for j in np.arange(i, Nf - i):     # j >= 0
@@ -332,15 +329,15 @@ class Bispectrum(object):
                 term2 = Yk[i, ...]
                 term3 = Yk[j, ...]
 
-                # Ensemble dimension (along axis 0) should have 1 element;
+                # Realization dimension (along axis -1) should have 1 element;
                 # remove this dimension, as it causes problems with some
                 # older versions of NumPy
-                term1 = np.squeeze(term1, axis=0)
-                term2 = np.squeeze(term2, axis=0)
-                term3 = np.squeeze(term3, axis=0)
+                term1 = np.squeeze(term1, axis=-1)
+                term2 = np.squeeze(term2, axis=-1)
+                term3 = np.squeeze(term3, axis=-1)
 
                 self.Bxy[i + i0, j] = np.mean(
-                    term1 * term2 * term3,
+                    term1[tind] * term2[tind] * term3[tind],
                     axis=-1)
 
         # Compute over region B from Fig. 1(a) of Kim & Powers
@@ -364,20 +361,20 @@ class Bispectrum(object):
 
                 term3 = Yk[j, ...]
 
-                # Ensemble dimension (along axis 0) should have 1 element;
+                # Realization dimension (along axis -1) should have 1 element;
                 # remove this dimension, as it causes problems with some
                 # older versions of NumPy
-                term1 = np.squeeze(term1, axis=0)
-                term2 = np.squeeze(term2, axis=0)
-                term3 = np.squeeze(term3, axis=0)
+                term1 = np.squeeze(term1, axis=-1)
+                term2 = np.squeeze(term2, axis=-1)
+                term3 = np.squeeze(term3, axis=-1)
 
                 self.Bxy[i + i0, j] = np.mean(
-                    term1 * term2 * term3,
+                    term1[tind] * term2[tind] * term3[tind],
                     axis=-1)
 
         return
 
-    def _getSquaredBicoherence(self, Xk, Yk, print_status=False):
+    def _getSquaredBicoherence(self, Xk, Yk, tlim, print_status=False):
         'Get squared-bicoherence estimate.'
         # Get number of frequencies in computed one-sided FFTs.
         # When `self.Npts_per_real` is 2^N with integer N (as it is
@@ -398,6 +395,11 @@ class Bispectrum(object):
             Np = (shape[0] * shape[1]) // 2
             p = 0.
 
+        if tlim is not None:
+            tind = self._getRealizationsBetween(tlim)
+        else:
+            tind = slice(None, None)
+
         # Compute over region A from Fig. 1(a) of Kim & Powers
         for i in np.arange(0, (Nf // 2) + 1):  # i >= 0
             for j in np.arange(i, Nf - i):     # j >= 0
@@ -407,18 +409,12 @@ class Bispectrum(object):
 
                 num = (np.abs(self.Bxy[i + i0, j])) ** 2
 
+                # Realization dimension (along axis -1) should have 1 element;
+                # thus, we don't need to specify an axis for the averaging
                 denX = np.mean(
-                    (np.abs(Xk[i + j, ...])) ** 2,
-                    axis=-1)
+                    (np.abs(Xk[i + j, tind, ...])) ** 2)
                 denY = np.mean(
-                    (np.abs(Yk[i, ...] * Yk[j, ...])) ** 2,
-                    axis=-1)
-
-                # Ensemble dimension (along axis 0) should have 1 element;
-                # remove this dimension, as it causes problems with some
-                # older versions of NumPy
-                denX = np.squeeze(denX, axis=0)
-                denY = np.squeeze(denY, axis=0)
+                    (np.abs(Yk[i, tind, ...] * Yk[j, tind, ...])) ** 2)
 
                 self.b2xy[i + i0, j] = num / (denX * denY)
 
@@ -436,22 +432,17 @@ class Bispectrum(object):
 
                 num = (np.abs(self.Bxy[i + i0, j])) ** 2
 
+                # Realization dimension (along axis -1) should have 1 element;
+                # thus, we don't need to specify an axis for the averaging
+                #
                 # Note that Xk[i + j] = Xk[j - |i|] for i <= 0
                 denX = np.mean(
-                    (np.abs(Xk[j - np.abs(i), ...])) ** 2,
-                    axis=-1)
+                    (np.abs(Xk[j - np.abs(i), tind, ...])) ** 2)
 
                 # Note that Yk[i] = Yk[-|i|] = (Yk[|i|])* for i <= 0,
                 # where z* indicates the complex conjugate of z
                 denY = np.mean(
-                    (np.abs(np.conj(Yk[np.abs(i), ...]) * Yk[j, ...])) ** 2,
-                    axis=-1)
-
-                # Ensemble dimension (along axis 0) should have 1 element;
-                # remove this dimension, as it causes problems with some
-                # older versions of NumPy
-                denX = np.squeeze(denX, axis=0)
-                denY = np.squeeze(denY, axis=0)
+                    (np.abs(np.conj(Yk[np.abs(i), tind, ...]) * Yk[j, tind, ...])) ** 2)
 
                 self.b2xy[i + i0, j] = num / (denX * denY)
 

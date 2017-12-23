@@ -79,7 +79,7 @@ def test_squared_bicoherence():
     # ------------------------
     B = rd.spectra.Bispectrum(
         x, x, Fs=Fs, t0=t[0],
-        tlim=None, Nreal_per_ens=Nreal)
+        tlim=None, Npts_per_real=Npts_per_real)
 
     # Check bispectrum against expected values:
     # -----------------------------------------
