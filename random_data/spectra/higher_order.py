@@ -276,14 +276,14 @@ class Bispectrum(object):
         t0a = self.t[0] - (0.5 * self.dt)
         t0b = self.t[0] + (0.5 * self.dt)
 
-        ind = np.array([])
+        ind = np.array([], dtype='int')
 
         # Loop through each temporal bound in `tlim`
         # (Maybe not the most efficient, but don't
         # expect this to be a bottleneck...)
         for i in np.arange(tlim.shape[1]):
-            inda = get_timebase_indices(tlim[i], Fs, t0a, Npts)
-            indb = get_timebase_indices(tlim[i], Fs, t0b, Npts)
+            inda = get_timebase_indices(tlim[:, i], Fs, t0a, Npts)
+            indb = get_timebase_indices(tlim[:, i], Fs, t0b, Npts)
             ind = np.concatenate((
                 ind,
                 np.intersect1d(inda, indb)))
