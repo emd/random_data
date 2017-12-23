@@ -281,7 +281,7 @@ class Bispectrum(object):
         # Loop through each temporal bound in `tlim`
         # (Maybe not the most efficient, but don't
         # expect this to be a bottleneck...)
-        for i in enumerate(tlim.shape[1]):
+        for i in np.arange(tlim.shape[1]):
             inda = get_timebase_indices(tlim[i], Fs, t0a, Npts)
             indb = get_timebase_indices(tlim[i], Fs, t0b, Npts)
             ind = np.concatenate((
