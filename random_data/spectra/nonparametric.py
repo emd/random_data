@@ -241,6 +241,7 @@ class AutoSpectralDensity(object):
                             cmap='viridis', interpolation='none', fontsize=16,
                             title=None, xlabel='$t$', ylabel='$f$',
                             cblabel='$|G_{xx}(f)|$',
+                            cborientation='horizontal',
                             ax=None, fig=None, geometry=111):
         'Plot magnitude of spectral density on log scale.'
         if flim is None and AC_coupled:
@@ -251,7 +252,8 @@ class AutoSpectralDensity(object):
             self.t, self.f, np.abs(self.Gxx),
             xlim=tlim, ylim=flim, vlim=vlim,
             norm='log', cmap=cmap, interpolation=interpolation,
-            title=title, xlabel=xlabel, ylabel=ylabel, cblabel=cblabel,
+            title=title, xlabel=xlabel, ylabel=ylabel,
+            cblabel=cblabel, cborientation=cborientation,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
@@ -543,6 +545,7 @@ class CrossSpectralDensity(object):
                             cmap='viridis', interpolation='none', fontsize=16,
                             title=None, xlabel='$t$', ylabel='$f$',
                             cblabel='$|G_{xy}(f)|$',
+                            cborientation='horizontal',
                             ax=None, fig=None, geometry=111):
         'Plot magnitude of spectral density on log scale.'
         if flim is None and AC_coupled:
@@ -553,7 +556,8 @@ class CrossSpectralDensity(object):
             self.t, self.f, np.abs(self.Gxy),
             xlim=tlim, ylim=flim, vlim=vlim,
             norm='log', cmap=cmap, interpolation=interpolation,
-            title=title, xlabel=xlabel, ylabel=ylabel, cblabel=cblabel,
+            title=title, xlabel=xlabel, ylabel=ylabel,
+            cblabel=cblabel, cborientation=cborientation,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
@@ -562,6 +566,7 @@ class CrossSpectralDensity(object):
     def plotCoherence(self, tlim=None, flim=None, vlim=None,
                       cmap='viridis', interpolation='none', fontsize=16,
                       title=None, xlabel='$t$', ylabel='$f$',
+                      cborientation='horizontal',
                       ax=None, fig=None, geometry=111):
         'Plot magnitude squared coherence on linear scale.'
         ax = _plot_image(
@@ -569,7 +574,7 @@ class CrossSpectralDensity(object):
             xlim=tlim, ylim=flim, vlim=vlim,
             norm=None, cmap=cmap, interpolation=interpolation,
             title=title, xlabel=xlabel, ylabel=ylabel,
-            cblabel='$\gamma_{xy}^2$',
+            cblabel='$\gamma_{xy}^2$', cborientation=cborientation,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
@@ -580,6 +585,7 @@ class CrossSpectralDensity(object):
                        tlim=None, flim=None,
                        cmap='RdBu', interpolation='none', fontsize=16,
                        title=None, xlabel='$t$', ylabel='$f$',
+                       cborientation='horizontal',
                        mode_number=False,
                        ax=None, fig=None, geometry=111):
         '''Plot phase angle `theta` if magnitude-squared coherence is
@@ -653,7 +659,7 @@ class CrossSpectralDensity(object):
             xlim=tlim, ylim=flim, vlim=vlim,
             norm=None, cmap=cmap, interpolation=interpolation,
             title=title, xlabel=xlabel, ylabel=ylabel,
-            cblabel=cblabel, cbticks=cbticks,
+            cblabel=cblabel, cborientation=cborientation, cbticks=cbticks,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
