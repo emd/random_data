@@ -932,7 +932,7 @@ class FittedCrossPhaseArray(CrossSpectralDensityArray):
                        tlim=None, flim=None,
                        cmap='RdBu', interpolation='none', fontsize=16,
                        title=None, xlabel='$t$', ylabel='$f$',
-                       cblabel='mode number',
+                       cblabel='mode number', cborientation='horizontal',
                        ax=None, fig=None, geometry=111):
         '''Plot mode number as a function of frequency and time
         provided that the corresponding coefficient of determination R^2
@@ -971,7 +971,7 @@ class FittedCrossPhaseArray(CrossSpectralDensityArray):
             xlim=tlim, ylim=flim, vlim=vlim,
             norm=None, cmap=cmap, interpolation=interpolation,
             title=title, xlabel=xlabel, ylabel=ylabel,
-            cblabel=cblabel, cbticks=cbticks,
+            cblabel=cblabel, cborientation=cborientation, cbticks=cbticks,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
