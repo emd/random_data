@@ -352,6 +352,8 @@ import random_data as rd
 # Spectral-estimation parameters:
 # -------------------------------
 Nreal_per_ens = 100  # number of realizations per ensemble
+p = 10               # AR order for Burg estimate
+Nxi = 100            # Number of points in spatial grid for Burg estimate
 
 # Signal parameters:
 # ------------------
@@ -376,11 +378,15 @@ A = 0.03                 # amplitude
 f0 = 0.1 * Fs            # frequency
 xi0 = 0.25 * Fs_spatial  # spatial frequency
 
+# Noise-floor parameters
+amplitude_noise_floor = 1e-1
+
 # Create signal:
 # --------------
 sig_broadband = rd.signals.RandomSignal2d(
     Fs=Fs, t0=t0, T=T, fc=fc, pole=pole,
-    Fs_spatial=Fs_spatial, z0=z0, Z=Z, vph=vph, Lz=Lz)
+    Fs_spatial=Fs_spatial, z0=z0, Z=Z, vph=vph, Lz=Lz,
+    amplitude_noise_floor=amplitude_noise_floor)
 
 # Extract spatial and temporal grid of broadband signal and
 # use to construct a coherent signal
@@ -416,12 +422,13 @@ asd2d_fourier = rd.spectra2d.TwoDimensionalAutoSpectralDensity(
 # ... via Burg method
 asd2d_burg = rd.spectra2d.TwoDimensionalAutoSpectralDensity(
     corr, spatial_method='burg',
-    burg_params={'p': 5, 'Nxi': 100})
+    burg_params={'p': p, 'Nxi': Nxi})
 
 # Compare Fourier and Burg methods
+vlim = [1e-2, 2e0]
 fig, axes = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(12, 5))
-asd2d_fourier.plotSpectralDensity(ax=axes[0], title='Fourier')
-asd2d_burg.plotSpectralDensity(ax=axes[1], title='Burg')
+asd2d_fourier.plotSpectralDensity(ax=axes[0], title='Fourier', vlim=vlim)
+asd2d_burg.plotSpectralDensity(ax=axes[1], title='Burg', vlim=vlim)
 plt.show()
 # =============================================================================
 
