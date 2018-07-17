@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 
 # Intra-package imports
 from ..ensemble import _largest_power_of_2_leq
+from ..spectra.nonparametric import _plot_image
 
 
 class RandomSignal(object):
@@ -323,9 +324,8 @@ class RandomSignal2d(object):
         # we will subsequently shape the spectrum according
         # to the parameters provided at initialization.
         X = np.fft.fft2(np.random.randn(self.Nz, self.Nt))
-
-        # Before shaping spectrum, specify amplitude noise floor.
-        noise_floor = self._amplitude_noise_floor * X
+        ph = np.angle(X)
+        X = np.mean(np.abs(X)) * np.exp(1j * ph)  # white & Hermitian
 
         # Construct computational grid
         f = np.fft.fftfreq(self.Nt, d=(1. / self.Fs))
@@ -348,13 +348,18 @@ class RandomSignal2d(object):
         f_shaping = (1. / (1 + ((ff / self.fc) ** self.pole)))
         X *= (xi_shaping * f_shaping)
 
-        # Add noise floor, for reasons discussed in `__init__()` docs.
-        X += noise_floor
+        # Add noise floor, `N`, for reasons discussed in `__init__()` docs.
+        # Noise spectrum constructed from real, 2d random signal to ensure
+        # Hermitian symmetry in the spectral domain.
+        N = np.fft.fft2(np.random.randn(self.Nz, self.Nt))
+        N *= self._amplitude_noise_floor
+        X += N
 
         return xi, f, X
 
     def plotFourierRepresentation(
-            self, amplitude_cmap='viridis', phase_cmap='RdBu', Nlev=10):
+            self, amplitude_vlim=None,
+            amplitude_cmap='viridis', phase_cmap='RdBu'):
         '''Plot contours of Fourier amplitudes and phases of signal.
 
         This works best when `self.Nt` and `self.Nz` are not "too big",
@@ -375,20 +380,20 @@ class RandomSignal2d(object):
         fig, axes = plt.subplots(
             2, 1, sharex=True, sharey=True, figsize=(6, 8))
 
-        cmag = axes[0].contourf(
-            xi, f, np.log10(np.abs(X.T)), Nlev, cmap=amplitude_cmap)
-        cph = axes[1].contourf(
-            xi, f, np.angle(X.T), Nlev, cmap=phase_cmap)
+        _plot_image(
+            xi, f, np.abs(X.T),
+            vlim=amplitude_vlim,
+            norm='log', cmap=amplitude_cmap, interpolation='none',
+            title='', xlabel='', ylabel=r'$f$',
+            cblabel=r'$|X(\xi, f)|$', cborientation='vertical',
+            ax=axes[0])
 
-        axes[0].set_ylabel(r'$f$')
-        axes[1].set_xlabel(r'$\xi$')
-        axes[1].set_ylabel(r'$f$')
-
-        cbmag = plt.colorbar(cmag, ax=axes[0])
-        cbmag.set_label(r'$|X(\xi, f)|$')
-
-        cbph = plt.colorbar(cph, ax=axes[1])
-        cbph.set_label(r'$\angle X(\xi, f)$')
+        _plot_image(
+            xi, f, np.angle(X.T),
+            norm=None, cmap=phase_cmap, interpolation='none',
+            title='', xlabel=r'$\xi$', ylabel=r'$f$',
+            cblabel=r'$\angle X(\xi, f)$', cborientation='vertical',
+            ax=axes[1])
 
         plt.tight_layout()
         plt.show()
@@ -407,7 +412,7 @@ class RandomSignal2d(object):
         '''
         return np.real(np.fft.ifft2(self._X))
 
-    def plotSignal(self, cmap='RdBu', Nlev=10):
+    def plotSignal(self, cmap='RdBu', interpolation='none'):
         '''Plot contours of signal `self.x` as a function of
         space and time.
 
@@ -415,14 +420,11 @@ class RandomSignal2d(object):
         which reduces the load on the contour-plotting routines.
 
         '''
-        plt.figure()
-
-        c = plt.contourf(self.z(), self.t(), self.x.T, Nlev, cmap=cmap)
-        plt.xlabel(r'$z$')
-        plt.ylabel(r'$t$')
-
-        cb = plt.colorbar(c)
-        cb.set_label(r'$x(z, t)$')
+        _plot_image(
+            self.z(), self.t(), self.x.T,
+            norm=None, cmap=cmap, interpolation=interpolation,
+            title='', xlabel=r'$z$', ylabel=r'$t$',
+            cblabel=r'$x(z, t)$', cborientation='vertical')
 
         plt.tight_layout()
         plt.show()
