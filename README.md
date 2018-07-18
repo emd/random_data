@@ -331,10 +331,10 @@ can similarly be easily computed and visualized via the
 `random_data.array.SpatialCrossCorrelation` class.
 For example, the below code computes the two-dimensional complex-valued
 correlation function and the two-dimensional autospectral density of
-a signal with both broadband and coherent components.
+a model broadband signal.
 
-(Note that most of the code below is to generate representative
-fake signals, while the spectral computations only involve
+(Note that most of the code below is to generate a model broadband signal,
+while the spectral computations only involve
 initialization of two objects,
 one for the correlation function and
 one for the two-dimensional autospectral density.
@@ -349,12 +349,6 @@ import matplotlib.pyplot as plt
 import random_data as rd
 
 # =============================================================================
-# Spectral-estimation parameters:
-# -------------------------------
-Nreal_per_ens = 100  # number of realizations per ensemble
-p = 10               # AR order for Burg estimate
-Nxi = 100            # Number of points in spatial grid for Burg estimate
-
 # Signal parameters:
 # ------------------
 # Temporal-grid parameters
@@ -365,7 +359,7 @@ T = 10000       # (approximate) temporal record length, [T] = s
 # Spatial-grid parameters
 Fs_spatial = 1  # spatial sample rate, [Fs_spatial] = samples / [distance]
 z0 = 0          # initial spatial sample, [z0] = 1 / [Fs_spatial]
-Z = 50          # (approximate) spatial record length, [Z] = 1 / [Fs_spatial]
+Z = 64          # (approximate) spatial record length, [Z] = 1 / [Fs_spatial]
 
 # Broadband spectral parameters
 fc = 0.1 * Fs   # cutoff frequency
@@ -373,38 +367,48 @@ pole = 2        # strength of cutoff
 vph = 1.0       # phase velocity
 Lz = 5          # correlation length
 
-# Coherent spectral parameters
-A = 0.03                 # amplitude
-f0 = 0.1 * Fs            # frequency
-xi0 = 0.25 * Fs_spatial  # spatial frequency
-
 # Noise-floor parameters
 amplitude_noise_floor = 1e-1
 
-# Create signal:
-# --------------
-sig_broadband = rd.signals.RandomSignal2d(
+# Create signal object:
+# ---------------------
+sig = rd.signals.RandomSignal2d(
     Fs=Fs, t0=t0, T=T, fc=fc, pole=pole,
     Fs_spatial=Fs_spatial, z0=z0, Z=Z, vph=vph, Lz=Lz,
     amplitude_noise_floor=amplitude_noise_floor)
 
-# Extract spatial and temporal grid of broadband signal and
-# use to construct a coherent signal
-z = sig_broadband.z()
-t = sig_broadband.t()
-tt = np.outer(np.ones(len(z)), t)
-zz = np.outer(z, np.ones(len(t)))
-x_coherent = A * np.cos(2 * np.pi * ((xi0 * zz) + (f0 * tt)))
-
-# Combine broadband and coherent fluctuations, and
-# remove mean to avoid low-xi, low-f leakage
-x = sig_broadband.x + x_coherent
-x -= np.mean(x)
+# Sample only a subset of spatial locations:
+# ------------------------------------------
+# Why? The answer is twofold:
+#
+# (1) The broadband signal is constructed via the inverse FFT, which
+#     implicitly imposes periodicity in the spatial and temporal domains.
+#     This produces a complex-valued, spatial cross-correlation function
+#     that has large correlations at large spatial separations, which
+#     is not typically seen in actual experimental data. Restricting
+#     the spatial sampling to *at most* one half of the spatial domain
+#     prevents these "unphysical" correlations.
+#
+# (2) In practice, sampling in time is "cheap" while sampling in space
+#     is "expensive" (i.e. additional channels can require large upfront
+#     capital investment). Thus, in practice, the number of channels
+#     is often limited. Above, we created a broadband signal with a
+#     high degree of spectral resolution, but we may not have the
+#     required number of channels to reconstruct the spectrum at
+#     the full resolution.
+#
+# The spatial sampling can be easily altered by changing the parameter
+# `spatial_sampling` below.
+spatial_sampling = slice(None, 32)
+x = sig.x[spatial_sampling, :]
+z = sig.z()[spatial_sampling]
 # =============================================================================
 
 # =============================================================================
 # Complex-valued, spatial cross-correlation function:
 # ---------------------------------------------------
+Nreal_per_ens = 100  # number of realizations per ensemble
+
 corr = rd.array.SpatialCrossCorrelation(
     x, z, Fs=Fs, t0=t0,
     Nreal_per_ens=Nreal_per_ens)
@@ -420,6 +424,9 @@ asd2d_fourier = rd.spectra2d.TwoDimensionalAutoSpectralDensity(
     fourier_params={'window': np.hanning})
 
 # ... via Burg method
+p = 12               # AR order for Burg estimate
+Nxi = 100            # Number of points in spatial grid for Burg estimate
+
 asd2d_burg = rd.spectra2d.TwoDimensionalAutoSpectralDensity(
     corr, spatial_method='burg',
     burg_params={'p': p, 'Nxi': Nxi})
