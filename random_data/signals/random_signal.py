@@ -108,7 +108,7 @@ class RandomSignal(object):
 
 
 class RandomSignal2d(object):
-    '''A class for the creation of 2-dimensional random.
+    '''A class for the creation of 2-dimensional random signals.
 
     Note that `M` >= 1 turbulent branches can be specified simultaneously.
 
@@ -148,6 +148,23 @@ class RandomSignal2d(object):
         a power of 2, for fastest FFT computations.
         [Nt] = unitless
 
+    xi0 - array_like, (`M`,)
+        The dominant spatial frequency of each turbulent branch.
+        Note that a non-zero `xi0` will also produce a non-zero
+        dominant frequency `f0` if the branch phase velocity `vph`
+        is non-zero (i.e. f0 = vph * xi0).
+        [xi0] = [self.Fs_spatial]
+
+    Lz - array_like, (`M`,)
+        The spatial correlation length of each turbulent branch, where
+        a Gaussian correlation function has been assumed.
+        [Lz] = 1 / [self.Fs_spatial]
+
+    tau - array_like, (`M`,)
+        The correlation time of each turbulent branch, where
+        a Gaussian correlation function has been assumed.
+        [tau] = 1 / [self.Fs]
+
     vph - array_like, (`M`,)
         The phase velocity, vph, of each turbulent branch, defined as
 
@@ -157,26 +174,11 @@ class RandomSignal2d(object):
         k = 2 * pi * xi is the wavenumber (xi is the spatial frequency).
         [vph] = [self.Fs] / [self.Fs_spatial]
 
-    Lz - array_like, (`M`,)
-        The spatial correlation length of each turbulent branch, where
-        a Gaussian correlation function has been assumed.
-        [Lz] = 1 / [self.Fs_spatial]
-
-    fc - array_like, (`M`,)
-        Cutoff frequency of each turbulent branch, where frequencies
-        f > self.fc have been "cutoff" with a strength determined by
-        `self.pole`.
-        [fc] = [self.Fs]
-
-    pole - array_like, (`M`,)
-        Order of the pole for f > `self.fc` for each turbulent branch.
-        [pole] = unitless
-
     '''
     def __init__(self,
                  Fs_spatial=1., z0=0., Z=64.,
                  Fs=1., t0=0., T=128.,
-                 vph=[1.], Lz=[5.], fc=[0.1], pole=[2],
+                 xi0=[0.], Lz=[5.], tau=[10.], vph=[1.],
                  noise_floor=1e-2):
         '''Create an instance of the `RandomSignal2d` class.
 
@@ -224,6 +226,23 @@ class RandomSignal2d(object):
             power of 2 that is less than or equal to `a`.
             [T] = 1 / [Fs]
 
+        xi0 - array_like, (`M`,)
+            The dominant spatial frequency of each turbulent branch.
+            Note that a non-zero `xi0` will also produce a non-zero
+            dominant frequency `f0` if the branch phase velocity `vph`
+            is non-zero (i.e. f0 = vph * xi0).
+            [xi0] = [Fs_spatial]
+
+        Lz - array_like, (`M`,)
+            The spatial correlation length of each turbulent branch, where
+            a Gaussian correlation function has been assumed.
+            [Lz] = 1 / [Fs_spatial]
+
+        tau - array_like, (`M`,)
+            The correlation time of each turbulent branch, where
+            a Gaussian correlation function has been assumed.
+            [tau] = 1 / [Fs]
+
         vph - array_like, (`M`,)
             The phase velocity, vph, of each turbulent branch, defined as
 
@@ -232,20 +251,6 @@ class RandomSignal2d(object):
             where omega = 2 * pi * f is the angular frequency and
             k = 2 * pi * xi is the wavenumber (xi is the spatial frequency).
             [vph] = [Fs] / [Fs_spatial]
-
-        Lz - array_like, (`M`,)
-            The spatial correlation length of each turbulent branch, where
-            a Gaussian correlation function has been assumed.
-            [Lz] = 1 / [Fs_spatial]
-
-        fc - array_like, (`M`,)
-            Cutoff frequency of each turbulent branch; frequencies f > fc
-            will be "cutoff" with a strength determined by `pole`.
-            [fc] = [Fs]
-
-        pole - array_like, (`M`,)
-            Order of the pole for f > fc for each turbulent branch.
-            [pole] = unitless
 
         noise_floor - float
             The noise floor of the random process's autospectral density.
@@ -265,10 +270,10 @@ class RandomSignal2d(object):
         self.Nt = _largest_power_of_2_leq(T * Fs)
 
         # Turbulence parameters
-        self.vph = np.array(vph, dtype='float', ndmin=1)
+        self.xi0 = np.array(xi0, dtype='float', ndmin=1)
         self.Lz = np.array(Lz, dtype='float', ndmin=1)
-        self.fc = np.array(fc, dtype='float', ndmin=1)
-        self.pole = np.array(pole, dtype='float', ndmin=1)
+        self.tau = np.array(tau, dtype='float', ndmin=1)
+        self.vph = np.array(vph, dtype='float', ndmin=1)
 
         #  Noise floor of the random process's autospectral density
         self._noise_floor = noise_floor
@@ -325,26 +330,26 @@ class RandomSignal2d(object):
         Sxx = np.zeros(ff.shape)
 
         # Iteratively incorporate autospectral density of each branch
-        for branch_ind, vph in enumerate(self.vph):
-            # Parse additional turbulence parameters of branch `b`
+        for branch_ind in np.arange(len(self.xi0)):
+            # Parse turbulence parameters of branch
+            xi0 = self.xi0[branch_ind]
             Lz = self.Lz[branch_ind]
-            fc = self.fc[branch_ind]
-            pole = self.pole[branch_ind]
+            tau = self.tau[branch_ind]
+            vph = self.vph[branch_ind]
 
-            # Given the dispersion relation omega(k), the phase
-            # velocity vph is given as
+            # Shape auto-spectral density, Sxx.
+            #
+            # Note that the dispersion relation omega(k) of a given branch,
+            # the phase velocity vph is given as
             #
             #       vph = omega(k) / k = f(xi) / xi.
             #
-            # Thus, the mode branch lies on the (xi, f) satisfying
+            # Thus, the branch lies on the (xi, f) satisfying
             #
-            #       xi - (f / vph) == 0.
+            #       f - (vph * xi) == 0.
             #
-            branch = xixi - (ff / vph)
-
-            # Shape auto-spectral density, Sxx
-            xi_shaping = np.exp(-((np.pi * Lz * branch) ** 2))
-            f_shaping = 1. / (1 + ((ff / fc) ** pole))
+            xi_shaping = np.exp(-((np.pi * Lz * (xixi - xi0)) ** 2))
+            f_shaping = np.exp(-((np.pi * tau * (ff - (vph * xixi))) ** 2))
             Sxx += (xi_shaping * f_shaping)
 
         # Define peak autospectral density of turbulence to be unity
