@@ -150,9 +150,6 @@ class RandomSignal2d(object):
 
     xi0 - array_like, (`M`,)
         The dominant spatial frequency of each turbulent branch.
-        Note that a non-zero `xi0` will also produce a non-zero
-        dominant frequency `f0` if the branch phase velocity `vph`
-        is non-zero (i.e. f0 = vph * xi0).
         [xi0] = [self.Fs_spatial]
 
     Lz - array_like, (`M`,)
@@ -160,25 +157,33 @@ class RandomSignal2d(object):
         a Gaussian correlation function has been assumed.
         [Lz] = 1 / [self.Fs_spatial]
 
+    f0 - array_like, (`M`,)
+        The dominant temporal frequency of each turbulent branch
+        in the medium's rest frame (i.e. `f0` is *not* attributable
+        to a Doppler shift; see `v` for Doppler-shift effects).
+        [f0] = [self.Fs]
+
     tau - array_like, (`M`,)
         The correlation time of each turbulent branch, where
         a Gaussian correlation function has been assumed.
         [tau] = 1 / [self.Fs]
 
-    vph - array_like, (`M`,)
-        The phase velocity, vph, of each turbulent branch, defined as
+    v - array_like, (`M`,)
+        The lab-frame velocity of the medium through which
+        the turbulent branch is propagating. Note that
+        non-zero velocity produces a Doppler-shifted
+        lab-frame frequency
 
-                    vph = omega / k = f / xi,
+                            df = xi * v
 
-        where omega = 2 * pi * f is the angular frequency and
-        k = 2 * pi * xi is the wavenumber (xi is the spatial frequency).
-        [vph] = [self.Fs] / [self.Fs_spatial]
+        where `xi` is the spatial frequency.
+        [v] = [self.Fs] / [self.Fs_spatial]
 
     '''
     def __init__(self,
                  Fs_spatial=1., z0=0., Z=64.,
                  Fs=1., t0=0., T=128.,
-                 xi0=[0.], Lz=[5.], tau=[10.], vph=[1.],
+                 xi0=[0.], Lz=[5.], f0=[0.], tau=[10.], v=[1.],
                  noise_floor=1e-2, seed=None):
         '''Create an instance of the `RandomSignal2d` class.
 
@@ -228,9 +233,6 @@ class RandomSignal2d(object):
 
         xi0 - array_like, (`M`,)
             The dominant spatial frequency of each turbulent branch.
-            Note that a non-zero `xi0` will also produce a non-zero
-            dominant frequency `f0` if the branch phase velocity `vph`
-            is non-zero (i.e. f0 = vph * xi0).
             [xi0] = [Fs_spatial]
 
         Lz - array_like, (`M`,)
@@ -238,19 +240,27 @@ class RandomSignal2d(object):
             a Gaussian correlation function has been assumed.
             [Lz] = 1 / [Fs_spatial]
 
+        f0 - array_like, (`M`,)
+            The dominant temporal frequency of each turbulent branch
+            in the medium's rest frame (i.e. `f0` is *not* attributable
+            to a Doppler shift; see `v` for Doppler-shift effects).
+            [f0] = [Fs]
+
         tau - array_like, (`M`,)
             The correlation time of each turbulent branch, where
             a Gaussian correlation function has been assumed.
             [tau] = 1 / [Fs]
 
-        vph - array_like, (`M`,)
-            The phase velocity, vph, of each turbulent branch, defined as
+        v - array_like, (`M`,)
+            The lab-frame velocity of the medium through which
+            the turbulent branch is propagating. Note that
+            non-zero velocity produces a Doppler-shifted
+            lab-frame frequency
 
-                        vph = omega / k = f / xi,
+                                df = xi * v
 
-            where omega = 2 * pi * f is the angular frequency and
-            k = 2 * pi * xi is the wavenumber (xi is the spatial frequency).
-            [vph] = [Fs] / [Fs_spatial]
+            where `xi` is the spatial frequency.
+            [v] = [Fs] / [Fs_spatial]
 
         noise_floor - float
             The noise floor of the random process's autospectral density.
@@ -276,8 +286,9 @@ class RandomSignal2d(object):
         # Turbulence parameters
         self.xi0 = np.array(xi0, dtype='float', ndmin=1)
         self.Lz = np.array(Lz, dtype='float', ndmin=1)
+        self.f0 = np.array(f0, dtype='float', ndmin=1)
         self.tau = np.array(tau, dtype='float', ndmin=1)
-        self.vph = np.array(vph, dtype='float', ndmin=1)
+        self.v = np.array(v, dtype='float', ndmin=1)
 
         #  Noise floor of the random process's autospectral density
         self._noise_floor = noise_floor
@@ -338,22 +349,16 @@ class RandomSignal2d(object):
             # Parse turbulence parameters of branch
             xi0 = self.xi0[branch_ind]
             Lz = self.Lz[branch_ind]
+            f0 = self.f0[branch_ind]
             tau = self.tau[branch_ind]
-            vph = self.vph[branch_ind]
+            v = self.v[branch_ind]
 
             # Shape auto-spectral density, Sxx.
-            #
-            # Note that the dispersion relation omega(k) of a given branch,
-            # the phase velocity vph is given as
-            #
-            #       vph = omega(k) / k = f(xi) / xi.
-            #
-            # Thus, the branch lies on the (xi, f) satisfying
-            #
-            #       f - (vph * xi) == 0.
-            #
             xi_shaping = np.exp(-((np.pi * Lz * (xixi - xi0)) ** 2))
-            f_shaping = np.exp(-((np.pi * tau * (ff - (vph * xixi))) ** 2))
+
+            df = v * xixi
+            f_shaping = np.exp(-((np.pi * tau * (ff - f0 - df)) ** 2))
+
             Sxx += (xi_shaping * f_shaping)
 
         # Define peak autospectral density of turbulence to be unity
