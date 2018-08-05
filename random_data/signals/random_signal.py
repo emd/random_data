@@ -179,11 +179,15 @@ class RandomSignal2d(object):
         where `xi` is the spatial frequency.
         [v] = [self.Fs] / [self.Fs_spatial]
 
+    S0 - array_like, (`M`,)
+        The relative peak autospectral density of each branch.
+        [S0] = unitless
+
     '''
     def __init__(self,
                  Fs_spatial=1., z0=0., Z=64.,
                  Fs=1., t0=0., T=128.,
-                 xi0=[0.], Lz=[5.], f0=[0.], tau=[10.], v=[1.],
+                 xi0=[0.], Lz=[5.], f0=[0.], tau=[10.], v=[1.], S0=[1.],
                  noise_floor=1e-2, seed=None):
         '''Create an instance of the `RandomSignal2d` class.
 
@@ -262,6 +266,10 @@ class RandomSignal2d(object):
             where `xi` is the spatial frequency.
             [v] = [Fs] / [Fs_spatial]
 
+        S0 - array_like, (`M`,)
+            The relative peak autospectral density of each branch.
+            [S0] = unitless
+
         noise_floor - float
             The noise floor of the random process's autospectral density.
             [noise_floor] = [self.x]^2 / [Fs] / [Fs_spatial], where
@@ -289,6 +297,7 @@ class RandomSignal2d(object):
         self.f0 = np.array(f0, dtype='float', ndmin=1)
         self.tau = np.array(tau, dtype='float', ndmin=1)
         self.v = np.array(v, dtype='float', ndmin=1)
+        self.S0 = np.array(S0, dtype='float', ndmin=1)
 
         #  Noise floor of the random process's autospectral density
         self._noise_floor = noise_floor
@@ -352,6 +361,7 @@ class RandomSignal2d(object):
             f0 = self.f0[branch_ind]
             tau = self.tau[branch_ind]
             v = self.v[branch_ind]
+            S0 = self.S0[branch_ind]
 
             # Shape auto-spectral density, Sxx.
             xi_shaping = np.exp(-((np.pi * Lz * (xixi - xi0)) ** 2))
@@ -359,7 +369,7 @@ class RandomSignal2d(object):
             df = v * xixi
             f_shaping = np.exp(-((np.pi * tau * (ff - f0 - df)) ** 2))
 
-            Sxx += (xi_shaping * f_shaping)
+            Sxx += (S0 * xi_shaping * f_shaping)
 
         # Define peak autospectral density of turbulence to be unity
         Sxx /= np.max(Sxx)
