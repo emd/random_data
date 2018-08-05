@@ -179,7 +179,7 @@ class RandomSignal2d(object):
                  Fs_spatial=1., z0=0., Z=64.,
                  Fs=1., t0=0., T=128.,
                  xi0=[0.], Lz=[5.], tau=[10.], vph=[1.],
-                 noise_floor=1e-2):
+                 noise_floor=1e-2, seed=None):
         '''Create an instance of the `RandomSignal2d` class.
 
         Note that `M` >= 1 turbulent branches can be specified simultaneously.
@@ -258,6 +258,10 @@ class RandomSignal2d(object):
                 `self.x` is the realization of the random process
                 created at object initialization.
 
+        seed - int or None
+            Random seed used to initialize pseudo-random number generator.
+            If `None`, generator is seeded from `/dev/urandom` or the clock.
+
         '''
         # Spatial-grid parameters
         self.Fs_spatial = Fs_spatial
@@ -285,7 +289,7 @@ class RandomSignal2d(object):
         self._Sxx = res[2]
 
         # Get a space-time realization of the 2d random process
-        self.x = self._getSignal()
+        self.x = self._getSignal(seed=seed)
 
     def _getAutoSpectralDensity(self):
         '''Get autospectral density Sxx(xi, f) of the 2d random process.
@@ -360,8 +364,14 @@ class RandomSignal2d(object):
 
         return xi, f, Sxx
 
-    def _getSignal(self):
+    def _getSignal(self, seed=None):
         '''Get a space-time realization of the 2d random process.
+
+        Input parameters:
+        -----------------
+        seed - int or None
+            Random seed used to initialize pseudo-random number generator.
+            If `None`, generator is seeded from `/dev/urandom` or the clock.
 
         Returns:
         --------
@@ -404,6 +414,9 @@ class RandomSignal2d(object):
         # must be applied first, and then the forward two-sided FFT (in space)
         # can be applied. When computing the inverse FFTs, the opposite
         # ordering must be used.
+        if seed is not None:
+            np.random.seed(seed)
+
         y = np.random.randn(self.Nz, self.Nt)
         Y = np.fft.fft(np.fft.rfft(y, axis=1), axis=0)
         ph = np.angle(Y)
