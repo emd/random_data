@@ -203,9 +203,15 @@ def test_Ensemble_getFFTs():
     Fs = 4e6            # [Fs] = samples / s
     t0 = 0              # [t0] = s
     T = 100e-3          # [T] = s
-    fc = 200e3          # [fc] = Hz
-    pole = 2
-    sig = RandomSignal(Fs, t0, T, fc=fc, pole=pole)
+    f0_broad = 0.
+    tau_broad = 2. / Fs
+    G0 = 1.
+    noise_floor = 1e-6
+    seed = None
+    sig = RandomSignal(
+        Fs=Fs, t0=t0, T=T,
+        f0=f0_broad, tau=tau_broad, G0=G0,
+        noise_floor=noise_floor, seed=seed)
 
     # Create ensemble object
     Tens = 5e-3         # [Tens] = s
