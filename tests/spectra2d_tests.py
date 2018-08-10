@@ -42,15 +42,15 @@ def average_autospectral_density(x, Fs, t0, Tens, Nreal_per_ens):
 
 # Signal and spectral-estimation parameters:
 # ------------------------------------------
-# Temporal-grid parameters
-Fs = 1.
-t0 = 0
-T = 10000
-
 # Spatial-grid parameters
 Fs_spatial = 1.
 z0 = 0
 Z = 50
+
+# Temporal-grid parameters
+Fs = 1.
+t0 = 0
+T = 10000
 
 # Coherent spectral parameters
 A = 0.03
@@ -58,10 +58,14 @@ f0 = 0.1 * Fs
 xi0 = 0.25 * Fs_spatial
 
 # Broadband spectral parameters
-fc = 0.1 * Fs
-pole = 2
-vph = 1.0
-Lz = 5
+xi0_broad = 0.
+Lz = 5.
+f0_broad = 0.
+tau = 10.
+v = 1.
+S0 = 1.
+noise_floor = 1e-6
+seed = None
 
 # Spectral-estimation parameters
 Nreal_per_ens = 100
@@ -70,8 +74,10 @@ Nreal_per_ens = 100
 # ---------------
 # Create broadband signal
 sig_broadband = rd.signals.RandomSignal2d(
-    Fs=Fs, t0=t0, T=T, fc=fc, pole=pole,
-    Fs_spatial=Fs_spatial, z0=z0, Z=Z, vph=vph, Lz=Lz)
+    Fs_spatial=Fs_spatial, z0=z0, Z=Z,
+    Fs=Fs, t0=t0, T=T,
+    xi0=xi0_broad, Lz=Lz, f0=f0_broad, tau=tau, v=v, S0=S0,
+    noise_floor=noise_floor, seed=seed)
 
 # Subtract mean to minimize low-f, low-xi leakage
 x_broadband = sig_broadband.x - np.mean(sig_broadband.x)

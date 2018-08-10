@@ -1,7 +1,9 @@
 from nose import tools
 import numpy as np
+from matplotlib import mlab
 from random_data.ensemble import (
     Ensemble, _largest_power_of_2_leq, closest_index)
+from random_data.signals import RandomSignal
 
 
 def test__largest_power_of_2_leq():
@@ -194,6 +196,61 @@ def test_Ensemble_getFrequencies():
     ens = Ensemble(x, Fs=(c * Fs), Tens=(Tens / float(c)),
                    Nreal_per_ens=Nreal_per_ens)
     np.testing.assert_equal(ens.f, c * fexp)
+
+
+def test_Ensemble_getFFTs():
+    # Construct a random signal
+    Fs = 4e6            # [Fs] = samples / s
+    t0 = 0              # [t0] = s
+    T = 100e-3          # [T] = s
+    f0_broad = 0.
+    tau_broad = 2. / Fs
+    G0 = 1.
+    noise_floor = 1e-6
+    seed = None
+    sig = RandomSignal(
+        Fs=Fs, t0=t0, T=T,
+        f0=f0_broad, tau=tau_broad, G0=G0,
+        noise_floor=noise_floor, seed=seed)
+
+    # Create ensemble object
+    Tens = 5e-3         # [Tens] = s
+    Nreal_per_ens = 100
+    ens = Ensemble(
+        sig.x, Fs=sig.Fs, t0=sig.t0,
+        Tens=Tens, Nreal_per_ens=Nreal_per_ens)
+
+    # FFT procedure's should raise ValueError if signal is complex
+    detrend = mlab.detrend_none
+    window = mlab.window_hanning
+    tools.assert_raises(
+        ValueError,
+        ens.getFFTs,
+        sig.x.astype('complex'),
+        **{'detrend': detrend, 'window': window})
+
+    # Compute one-sided autospectral density from FFTs
+    Xk = ens.getFFTs(sig.x)
+    XkstarXk = np.real(np.conj(Xk) * Xk)
+    EXkstarXk = np.mean(np.mean(XkstarXk, axis=-1), axis=-1)
+    C0 = 2 / (ens.Npts_per_real * ens.Fs)
+    Gxx = C0 * EXkstarXk
+
+    # Compute one-sided autospectral density from mlab functions
+    # using same spectral-estimation parameters as above
+    Gxx_mlab, f_mlab = mlab.psd(
+        sig.x, NFFT=ens.Npts_per_real, Fs=ens.Fs,
+        detrend=detrend, window=window)
+
+    # Test that the two spectral estimates are equal
+    # (within numerical precision; also, neglect off-by-two
+    # discrepancy at DC and Nyquist frequencies)
+    sl = slice(1, -1)
+    rtol = 1. / np.sqrt(Nreal_per_ens)
+    np.testing.assert_allclose(Gxx_mlab[sl], Gxx[sl], rtol=rtol)
+    np.testing.assert_allclose(f_mlab, ens.f)
+
+    return
 
 
 def test_Ensemble_getTimes():

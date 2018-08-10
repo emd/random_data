@@ -98,6 +98,51 @@ def ind2coord(ind, grid):
     return grid[0] + (ind * grid_spacing)
 
 
+def get_timebase_indices(tlim, Fs, t0, Npts):
+    '''For a timebase determined by {Fs, t0, Npts}, get the indices
+    corresponding to `tlim`.
+
+    Input parameters:
+    -----------------
+    tlim - array_like, (2,) or None
+        The initial and final times, respectively. If `None`,
+        return indices corresponding to the full timebase.
+        [tlim] = 1 / [Fs]
+
+    Fs - float
+        The sample rate.
+        [Fs] = arbitrary units
+
+    t0 - float
+        The timestamp of the first point in the timebase.
+        [t0] = 1 / [Fs]
+
+    Npts - int
+        The number of points in the timebase.
+        [Npts] = unitless
+
+    Returns:
+    --------
+    ind - array_like, (`M`,) with `M <= Npts`
+        The indices of the timebase determined by {Fs, t0, Npts} that are
+        both (a) greater than or equal to `min(tlim)` and (b) less than or
+        equal to `min(tlim)`.
+        [ind] = unitless
+
+    '''
+    if tlim is not None:
+        # Construct the timebase of raw signal
+        t = t0 + (np.arange(Npts) / np.float(Fs))
+
+        ind = np.where(np.logical_and(
+            t >= np.min(tlim),
+            t <= np.max(tlim)))[0]
+    else:
+        ind = np.arange(Npts)
+
+    return ind
+
+
 def line_profile_coordinates(src, dst, N=100, lwr=None, lwc=None, L=5):
     '''Get coordinates of image profile along specified scan line.
 

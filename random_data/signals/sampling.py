@@ -410,7 +410,7 @@ class TriggerOffset(object):
         A = np.dot(np.diag(w), A0)
         b = np.dot(np.diag(w), self.E)
 
-        self.Efit = np.linalg.lstsq(A, b)[0]
+        self.Efit = np.linalg.lstsq(A, b, rcond=None)[0]
 
         return
 

@@ -14,6 +14,7 @@ from fractions import gcd
 from .ensemble import closest_index
 from .spectra.nonparametric import CrossSpectralDensity, _plot_image, wrap
 from .errors import cross_phase_std_dev
+from .utilities import get_timebase_indices
 
 
 class ArrayStencil(object):
@@ -888,7 +889,7 @@ class FittedCrossPhaseArray(CrossSpectralDensityArray):
                 # weighting `A` and `b` by `diag(1. / sigma)`.
                 A = np.dot(np.diag(1. / sigma), A0)
                 b = np.dot(np.diag(1. / sigma), theta_xy)
-                soln = np.linalg.lstsq(A, b)
+                soln = np.linalg.lstsq(A, b, rcond=None)
 
                 # Unpack solution and relevant metrics
                 self.mode_number[find, tind] = soln[0][0]
@@ -931,7 +932,7 @@ class FittedCrossPhaseArray(CrossSpectralDensityArray):
                        tlim=None, flim=None,
                        cmap='RdBu', interpolation='none', fontsize=16,
                        title=None, xlabel='$t$', ylabel='$f$',
-                       cblabel='mode number',
+                       cblabel='mode number', cborientation='horizontal',
                        ax=None, fig=None, geometry=111):
         '''Plot mode number as a function of frequency and time
         provided that the corresponding coefficient of determination R^2
@@ -970,7 +971,7 @@ class FittedCrossPhaseArray(CrossSpectralDensityArray):
             xlim=tlim, ylim=flim, vlim=vlim,
             norm=None, cmap=cmap, interpolation=interpolation,
             title=title, xlabel=xlabel, ylabel=ylabel,
-            cblabel=cblabel, cbticks=cbticks,
+            cblabel=cblabel, cborientation=cborientation, cbticks=cbticks,
             fontsize=fontsize,
             ax=ax, fig=fig, geometry=geometry)
 
@@ -1157,7 +1158,7 @@ class SpatialCrossCorrelation(object):
         self.Fs = np.float(csd_kwargs['Fs'])
 
         # Use `tlim` to determine the size of the ensemble
-        tind = _get_timebase_indices(
+        tind = get_timebase_indices(
             tlim, self.Fs, csd_kwargs['t0'], signals.shape[-1])
 
         csd_kwargs['Tens'] = (tind[-1] - tind[0]) / self.Fs
@@ -1486,51 +1487,6 @@ def _find_first_nan(x):
         return np.where(np.isnan(x))[0][0]
     except IndexError:
         return None
-
-
-def _get_timebase_indices(tlim, Fs, t0, Npts):
-    '''For a timebase determined by {Fs, t0, Npts}, get the indices
-    corresponding to `tlim`.
-
-    Input parameters:
-    -----------------
-    tlim - array_like, (2,) or None
-        The initial and final times, respectively. If `None`,
-        return indices corresponding to the full timebase.
-        [tlim] = 1 / [Fs]
-
-    Fs - float
-        The sample rate.
-        [Fs] = arbitrary units
-
-    t0 - float
-        The timestamp of the first point in the timebase.
-        [t0] = 1 / [Fs]
-
-    Npts - int
-        The number of points in the timebase.
-        [Npts] = unitless
-
-    Returns:
-    --------
-    ind - array_like, (`M`,) with `M <= Npts`
-        The indices of the timebase determined by {Fs, t0, Npts} that are
-        both (a) greater than or equal to `min(tlim)` and (b) less than or
-        equal to `min(tlim)`.
-        [ind] = unitless
-
-    '''
-    if tlim is not None:
-        # Construct the timebase of raw signal
-        t = t0 + (np.arange(Npts) / np.float(Fs))
-
-        ind = np.where(np.logical_and(
-            t >= np.min(tlim),
-            t <= np.max(tlim)))[0]
-    else:
-        ind = np.arange(Npts)
-
-    return ind
 
 
 def _equalize(x):

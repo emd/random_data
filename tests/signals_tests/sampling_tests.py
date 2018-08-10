@@ -305,11 +305,17 @@ def test_circular_resample():
     T = N_power_of_2 / Fs
 
     # Parameters of broadband spectrum
-    fc = 0.1 * Fs
-    pole = 2
+    f0_broad = 0.
+    tau_broad = 2.
+    G0 = 1.
+    noise_floor = 1e-2
+    seed = None
 
     # Broadband signal, where `len(sig.x)` is a power of 2
-    sig = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
+    sig = rd.signals.RandomSignal(
+        Fs=Fs, t0=t0, T=T,
+        f0=f0_broad, tau=tau_broad, G0=G0,
+        noise_floor=noise_floor, seed=seed)
 
     # Only take the first `N` points of `sig.x`, producing
     # a signal with a length that is *not* a 5-smooth number
@@ -396,11 +402,11 @@ def test_TriggerOffset_2signals():
     shifts = np.arange(-10, 11, 1)
 
     # Spectral parameters of broadband signal common to digital records 1 & 2
-    fc = 0.2 * Fs                   # [fc] = [Fs]
-    pole = 2                        # [pole] = unitless
-
-    # Spectral density of uncorrelated noise between digital records 1 & 2
-    Gnn = 1e-12                     # [Gnn] = [signal]^2 / [Fs]
+    f0_broad = 0.
+    tau_broad = 2. / Fs
+    G0 = 1.
+    noise_floor = 1e-12
+    seed = None
 
     # Spectral-estimation parameters
     Nreal_per_ens = 1000            # [Nreal_per_ens] = unitless
@@ -408,9 +414,11 @@ def test_TriggerOffset_2signals():
 
     # Tests:
     # ------
-    sig = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
+    sig = rd.signals.RandomSignal(
+        Fs=Fs, t0=t0, T=T,
+        f0=f0_broad, tau=tau_broad, G0=G0,
+        noise_floor=0., seed=seed)
     N = len(sig.x)
-    t = sig.t()
 
     # Generate two digital records that are identical *except* for
     # timebase offset `tau`. Note that `x1[0]` physically occurs at
@@ -419,8 +427,7 @@ def test_TriggerOffset_2signals():
     x2 = rd.signals.sampling.circular_resample(sig.x, Fs, tau)
 
     # Add uncorrelated noise to generate two distinct signals
-    noise_power =  Gnn * (0.5 * Fs)
-    noise_amplitude = np.sqrt(noise_power)
+    noise_amplitude = np.sqrt(0.5 * Fs * noise_floor)
     x1 += (noise_amplitude * np.random.randn(N))
     x2 += (noise_amplitude * np.random.randn(N))
 
@@ -481,12 +488,12 @@ def test_TriggerOffset_4signals():
     # to probe the timebase discrepancy `tau`
     shifts = np.arange(-10, 11, 1)
 
-    # Spectral parameters of broadband signal common to digital records 1 & 2
-    fc = 0.2 * Fs                   # [fc] = [Fs]
-    pole = 2                        # [pole] = unitless
-
-    # Spectral density of uncorrelated noise between digital records 1 & 2
-    Gnn = 1e-12                     # [Gnn] = [signal]^2 / [Fs]
+    # Spectral parameters of broadband signal common to digital records
+    f0_broad = 0.
+    tau_broad = 2. / Fs
+    G0 = 1.
+    noise_floor = 1e-12
+    seed = None
 
     # Spectral-estimation parameters
     Nreal_per_ens = 1000            # [Nreal_per_ens] = unitless
@@ -495,9 +502,11 @@ def test_TriggerOffset_4signals():
     # Tests:
     # ------
     # Common broadband signal
-    sig = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
+    sig = rd.signals.RandomSignal(
+        Fs=Fs, t0=t0, T=T,
+        f0=f0_broad, tau=tau_broad, G0=G0,
+        noise_floor=0., seed=seed)
     N = len(sig.x)
-    t = sig.t()
 
     xhat = np.fft.rfft(sig.x)
     f = np.fft.rfftfreq(len(sig.x), d=(1. / Fs))
@@ -522,8 +531,7 @@ def test_TriggerOffset_4signals():
     y2 = rd.signals.sampling.circular_resample(y2, Fs, tau)
 
     # Finally, add uncorrelated noise
-    noise_power =  Gnn * (0.5 * Fs)
-    noise_amplitude = np.sqrt(noise_power)
+    noise_amplitude = np.sqrt(0.5 * Fs * noise_floor)
     x1 += (noise_amplitude * np.random.randn(N))
     y1 += (noise_amplitude * np.random.randn(N))
     x2 += (noise_amplitude * np.random.randn(N))

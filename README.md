@@ -41,6 +41,7 @@ In addition, `random_data` provides:
   an array of measurements (the array need not be uniformly spaced),
 - robust methods for visualizing the relevant spectral estimates
   (magnitude, coherence, phase angle, mode number, and quality of fit),
+- a class for autoregressive (AR) autospectral-density estimation,
 - a class for "spike" identification and
   removal from spectral estimates, and
 - a class for determining the "trigger offset" between a collection
@@ -149,13 +150,12 @@ t0 = 0      # initial time, [t0] = s
 T = 1       # (approximate) record length, [T] = s
 
 # Generate two random signals
-fc = 25e3   # cutoff frequency, [fc] = Hz
-pole = 2    # 2-pole filter above fc
-sig1 = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
-sig2 = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
+tau = 4. / Fs       # correlation time
+sig1 = rd.signals.RandomSignal(Fs=Fs, t0=t0, T=T, tau=tau)
+sig2 = rd.signals.RandomSignal(Fs=Fs, t0=t0, T=T, tau=tau)
 
 # Add a coherent signal with well-known phase difference
-A = 3e-4                # amplitude, [A] = [sig1.x]
+A = 20.                 # amplitude, [A] = [sig1.x]
 f0 = 50e3               # frequency, [f0] = Hz
 theta12 = np.pi / 2     # cross-phase, [theta12] = radian
 
@@ -176,7 +176,7 @@ csd = rd.spectra.CrossSpectralDensity(
     Tens=Tens, Nreal_per_ens=Nreal_per_ens)
 
 # Create plots
-fig, axes = plt.subplots(1, 3, sharex=True, sharey=True)
+fig, axes = plt.subplots(1, 3, sharex=True, sharey=True, figsize=(12, 5))
 csd.plotSpectralDensity(ax=axes[0], title='|cross-spectral density|')
 csd.plotCoherence(ax=axes[1], title='magnitude-squared coherence')
 csd.plotPhaseAngle(ax=axes[2], title='cross-phase')
@@ -244,16 +244,15 @@ locations = (np.pi / 180) * np.array(
 Nsig = len(locations)
 
 # Generate representative random signal
-fc = 25e3   # cutoff frequency, [fc] = Hz
-pole = 2    # 2-pole filter above fc
-sig = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
+tau = 8. / Fs
+sig = rd.signals.RandomSignal(Fs=Fs, t0=t0, T=T, tau=tau)
 Npts = len(sig.t())
 
 # Initialize signal array
 signals = np.zeros((Nsig, Npts))
 
 # Coherent signal properties
-A0 = 1e-3  # amplitude, [A0] = [sig1.x]
+A0 = 25.   # amplitude, [A0] = [sig1.x]
 f0 = 50e3  # frequency, [f0] = Hz
 n = -3     # mode number
 omega0_t = 2 * np.pi * f0 * sig.t()
@@ -268,7 +267,7 @@ for i in np.arange(Nsig):
     signals[i, :] = A0 * np.cos(omega0_t + dtheta)
 
     # Uncorrelated noise
-    signals[i, :] += (rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)).x
+    signals[i, :] += (rd.signals.RandomSignal(Fs=Fs, t0=t0, T=T, tau=tau)).x
 # =============================================================================
 
 # =============================================================================
@@ -286,6 +285,7 @@ A = rd.array.FittedCrossPhaseArray(
 fig, axes = plt.subplots(1, 2, sharex=True, sharey=True)
 A.plotR2(ax=axes[0], title='R^2')
 A.plotModeNumber(ax=axes[1], title='mode number')
+plt.tight_layout()
 plt.show()
 # =============================================================================
 
@@ -309,7 +309,8 @@ A.plotSlice('theta_xy', f=50e3, t=0.05)
 
 ![mode_number_fit](https://raw.githubusercontent.com/emd/random_data/master/figs/mode_number_fit.png)
 
-The error bars indicate the *random error* in the estimated cross-phase angle.
+The error bars (barely visible)
+indicate the *random error* in the estimated cross-phase angle.
 Plotting slices of other spectral quantities
 (`'Gxy'` for cross-spectral density,
 `'gamma2xy'` for magnitude-squared coherence)
@@ -331,10 +332,11 @@ can similarly be easily computed and visualized via the
 `random_data.array.SpatialCrossCorrelation` class.
 For example, the below code computes the two-dimensional complex-valued
 correlation function and the two-dimensional autospectral density of
-a signal with both broadband and coherent components.
+a model signal with multiple fluctuation branches.
 
-(Note that most of the code below is to generate representative
-fake signals, while the spectral computations only involve
+(Note that most of the code below is to generate a model signal
+with multiple fluctuation branches,
+while the spectral computations only involve
 initialization of two objects,
 one for the correlation function and
 one for the two-dimensional autospectral density.
@@ -349,56 +351,71 @@ import matplotlib.pyplot as plt
 import random_data as rd
 
 # =============================================================================
-# Spectral-estimation parameters:
-# -------------------------------
-Nreal_per_ens = 100  # number of realizations per ensemble
-
 # Signal parameters:
 # ------------------
-# Temporal-grid parameters
-Fs = 1.         # sample rate, [Fs] = samples / s
-t0 = 0          # initial time, [t0] = s
-T = 10000       # (approximate) temporal record length, [T] = s
-
 # Spatial-grid parameters
 Fs_spatial = 1  # spatial sample rate, [Fs_spatial] = samples / [distance]
 z0 = 0          # initial spatial sample, [z0] = 1 / [Fs_spatial]
-Z = 50          # (approximate) spatial record length, [Z] = 1 / [Fs_spatial]
+Z = 512
 
-# Broadband spectral parameters
-fc = 0.1 * Fs   # cutoff frequency
-pole = 2        # strength of cutoff
-vph = 1.0       # phase velocity
-Lz = 5          # correlation length
+# Temporal-grid parameters
+Fs = 1.         # sample rate, [Fs] = samples / s
+t0 = 0          # initial time, [t0] = s
+T = 32768       # (approximate) temporal record length, [T] = s
 
-# Coherent spectral parameters
-A = 0.03                 # amplitude
-f0 = 0.1 * Fs            # frequency
-xi0 = 0.25 * Fs_spatial  # spatial frequency
+# Parameters of each fluctuation branch
+# (Here, we specify 4 distinct branches, each with unique characteristics)
+xi0 = [0.0,   0., -0.075,   0.2]
+Lz = [ 2.5,   4.,    25.,   50.]
+f0 = [  0.,   0.,     0.,   0.2]
+tau = [10.,  10.,    25.,  100.]
+v = [  0.5, -0.5,    -4.,    0.]
+S0 = [  1.,   1.,    0.1,    3.]
 
-# Create signal:
-# --------------
-sig_broadband = rd.signals.RandomSignal2d(
-    Fs=Fs, t0=t0, T=T, fc=fc, pole=pole,
-    Fs_spatial=Fs_spatial, z0=z0, Z=Z, vph=vph, Lz=Lz)
+# Noise-floor parameters
+noise_floor = 1e-5
+seed = None
 
-# Extract spatial and temporal grid of broadband signal and
-# use to construct a coherent signal
-z = sig_broadband.z()
-t = sig_broadband.t()
-tt = np.outer(np.ones(len(z)), t)
-zz = np.outer(z, np.ones(len(t)))
-x_coherent = A * np.cos(2 * np.pi * ((xi0 * zz) + (f0 * tt)))
+# Create signal object:
+# ---------------------
+sig = rd.signals.RandomSignal2d(
+    Fs_spatial=Fs_spatial, z0=z0, Z=Z,
+    Fs=Fs, t0=t0, T=T,
+    xi0=xi0, Lz=Lz, f0=f0, tau=tau, v=v, S0=S0,
+    noise_floor=noise_floor, seed=seed)
 
-# Combine broadband and coherent fluctuations, and
-# remove mean to avoid low-xi, low-f leakage
-x = sig_broadband.x + x_coherent
-x -= np.mean(x)
+# Sample only a subset of spatial locations:
+# ------------------------------------------
+# Why? The answer is twofold:
+#
+# (1) The broadband signal is constructed via the inverse FFT, which
+#     implicitly imposes periodicity in the spatial and temporal domains.
+#     This produces a complex-valued, spatial cross-correlation function
+#     that has large correlations at large spatial separations, which
+#     is not typically seen in actual experimental data. Restricting
+#     the spatial sampling to *at most* one half of the spatial domain
+#     prevents these "unphysical" correlations.
+#
+# (2) In practice, sampling in time is "cheap" while sampling in space
+#     is "expensive" (i.e. additional channels can require large upfront
+#     capital investment). Thus, in practice, the number of channels
+#     is often limited. Above, we created a broadband signal with a
+#     high degree of spectral resolution, but we may not have the
+#     required number of channels to reconstruct the spectrum at
+#     the full resolution.
+#
+# The spatial sampling can be easily altered by changing the parameter
+# `spatial_sampling` below.
+spatial_sampling = slice(None, 32)
+x = sig.x[spatial_sampling, :]
+z = sig.z()[spatial_sampling]
 # =============================================================================
 
 # =============================================================================
 # Complex-valued, spatial cross-correlation function:
 # ---------------------------------------------------
+Nreal_per_ens = 100  # number of realizations per ensemble
+
 corr = rd.array.SpatialCrossCorrelation(
     x, z, Fs=Fs, t0=t0,
     Nreal_per_ens=Nreal_per_ens)
@@ -414,15 +431,50 @@ asd2d_fourier = rd.spectra2d.TwoDimensionalAutoSpectralDensity(
     fourier_params={'window': np.hanning})
 
 # ... via Burg method
+p = 15               # AR order for Burg estimate
+Nxi = 1000           # Number of points in spatial grid for Burg estimate
+
 asd2d_burg = rd.spectra2d.TwoDimensionalAutoSpectralDensity(
     corr, spatial_method='burg',
-    burg_params={'p': 5, 'Nxi': 100})
+    burg_params={'p': p, 'Nxi': Nxi})
 
-# Compare Fourier and Burg methods
-fig, axes = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(12, 5))
-asd2d_fourier.plotSpectralDensity(ax=axes[0], title='Fourier')
-asd2d_burg.plotSpectralDensity(ax=axes[1], title='Burg')
+# Compare true autospectral density to Fourier and Burg methods:
+# --------------------------------------------------------------
+fig, axs = plt.subplots(1, 3, figsize=(9, 4.25))
+fontsize = 12
+vlim = [sig._noise_floor, np.max(sig._Sxx)]
+
+sig.plotSpectralDensity(
+    ax=axs[0],
+    title='true',
+    fontsize=fontsize,
+    vlim=vlim)
+asd2d_fourier.plotSpectralDensity(
+    ax=axs[1],
+    title='FFT in space',
+    fontsize=fontsize,
+    vlim=vlim)
+asd2d_burg.plotSpectralDensity(
+    ax=axs[2],
+    title='p = %i Burg AR in space' % p,
+    fontsize=fontsize,
+    vlim=vlim)
+
+plt.tight_layout()
+
+# Tight layout alters tick labels...
+for ax in axs:
+    ax.set_xticks([-0.5, -0.25, 0, 0.25, 0.5])
+    ax.set_yticks([0.1, 0.2, 0.3, 0.4, 0.5])
+
 plt.show()
+
+# # Compare Fourier and Burg methods
+# vlim = [noise_floor, np.max(sig._Sxx)]
+# fig, axes = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(12, 5))
+# asd2d_fourier.plotSpectralDensity(ax=axes[0], title='Fourier', vlim=vlim)
+# asd2d_burg.plotSpectralDensity(ax=axes[1], title='Burg', vlim=vlim)
+# plt.show()
 # =============================================================================
 
 ```
@@ -431,7 +483,7 @@ plt.show()
 
 Here, contributions from both the broadband and coherent signals are visible.
 Note that this is a plot of the *normalized* complex-valued, spatial
-cross-correlation function. That is, at each freqency `f`,
+cross-correlation function. That is, at each frequency `f`,
 the correlation function `Gxy(delta, f)` is normalized to `Gxy(0, f)`
 (i.e. its value at zero separation (`delta = 0`) and frequency `f`).
 This allows for easy visualization of the correlation function's structure
@@ -450,7 +502,6 @@ Further, note that the spatial spectral estimates
 can be estimated from the correlation function `corr` via
 a `'fourier'` or `'burg'` method.
 The Burg method can produce superior resolution
-(see e.g. the coherent peak),
 particularly when the number of spatial samples are limited, but
 the Burg method is also subject to "pole splitting", which
 typically becomes more manifest as the pole order `p` is increased.
@@ -489,9 +540,15 @@ t0 = 0      # initial time, [t0] = s
 T = 0.2     # (approximate) record length, [T] = s
 
 # Generate representative random signal
-fc = 25e3   # cutoff frequency, [fc] = Hz
-pole = 2    # 2-pole filter above fc
-sig = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
+f0 = 0.
+tau = 4. / Fs
+G0 = 1.
+noise_floor=1e-5
+seed = None
+sig = rd.signals.RandomSignal(
+    Fs=Fs, t0=t0, T=T,
+    f0=f0, tau=tau, G0=G0,
+    noise_floor=noise_floor, seed=seed)
 
 # Add "spikes" to various points of signal
 N = 200
@@ -517,6 +574,7 @@ SH = rd.signals.SpikeHandler(
 # ------------------------------------------
 window_fraction = [0.1, 0.9]
 SH.plotTraceWithSpikeColor(sig.x, sig.t(), window_fraction=window_fraction)
+plt.tight_layout()
 plt.show()
 # =============================================================================
 
@@ -604,10 +662,15 @@ T = 1e5                         # (approximate) record length, [T] = s
 tau = 0.5 / Fs                  # [tau] = s, nonzero
 
 # Spectral parameters of broadband signal common to digital records 1 & 2
-fc = 0.1 * Fs                   # [fc] = [Fs]
-pole = 2                        # [pole] = unitless
+f0_broad = 0.
+tau_broad = 2. / Fs  # correlation time
+G0 = 1.
+seed = None
 
-sig = rd.signals.RandomSignal(Fs, t0, T, fc=fc, pole=pole)
+sig = rd.signals.RandomSignal(
+    Fs=Fs, t0=t0, T=T,
+    f0=f0_broad, tau=tau_broad, G0=G0,
+    noise_floor=0., seed=seed)
 N = len(sig.x)
 t = sig.t()
 

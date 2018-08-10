@@ -7,6 +7,7 @@ It is assumed that all spectral analysis is done with the FFT.
 
 # Standard library imports
 import numpy as np
+from matplotlib import mlab
 
 
 class Ensemble(object):
@@ -259,6 +260,103 @@ class Ensemble(object):
 
         # The returned time base corresponds to the midpoint of each ensemble
         return t0 + (Tens * np.arange(0.5, Nens, 1))
+
+    def getFFTs(self, x, detrend=mlab.detrend_none,
+                window=mlab.window_hanning):
+        '''Get array of FFTs corresponding to each realization of `x`.
+
+        Parameters:
+        -----------
+        x - array_like, (`N`,)
+            Signal to be analyzed. Signal is split into several
+            realizations, and the FFT of each realization is computed.
+            [x] = arbitrary units
+
+        detrend - string
+            The function applied to each realization before taking FFT.
+            May be [ 'default' | 'constant' | 'mean' | 'linear' | 'none']
+            or callable, as specified in :py:func: `csd <matplotlib.mlab.csd>`.
+
+            *Warning*: Naively detrending (even with something as simple as
+            `mean` or `linear` detrending) can introduce detrimental artifacts
+            into the computed spectrum, so *no* detrending is the default.
+
+        window - callable or ndarray
+            The window applied to each realization before taking FFT,
+            as specified in :py:func: `csd <matplotlib.mlab.csd>`.
+
+        Returns:
+        --------
+        Xk - array_like, (L, M, N) where
+                L = `len(self.f)` = `(self.Npts_per_real // 2) + 1`,
+                M = number of whole ensembles in data record `x`, and
+                N = `self.Nreal_per_ens`
+
+            The FFTs of each realization in each ensemble.
+            The FFTs are indexed by frequency, ensemble, and realization.
+
+            [Xk] = [x]
+
+        '''
+        # Only real-valued signals are expected/supported at the moment
+        if np.iscomplexobj(x):
+            raise ValueError('`x` must be a real-valued signal!')
+
+        # Determine the number of *whole* ensembles in the data record
+        # (Disregard fractional ensemble at the end of the data, if present)
+        Nens = np.int(len(x) / self.Npts_per_ens)
+
+        # Determine number of frequencies in 1-sided FFT, noting that
+        # `self.Npts_per_real` is constrained to be a power of 2
+        Nf = (self.Npts_per_real // 2) + 1
+
+        # Initialize.
+        Xk = np.zeros(
+            (Nf, Nens, self.Nreal_per_ens),
+            dtype='complex')
+
+        # Loop through each ensemble, computing the FFT of each realization
+        # via strides for efficient use of memory. (Note that the below
+        # procedure closely parallels that of Matplotlib's internal function
+        #
+        #     :py:func:`_spectral_helper <matplotlib.mlab._spectral_helper>`
+        #
+        # Here, we use our own implementation so as not to rely on
+        # an internal function)
+        stride_axis = 0
+        for ens in np.arange(Nens):
+            # Split the ensemble into realizations
+            sl = slice(
+                ens * self.Npts_per_ens,
+                (ens + 1) * self.Npts_per_ens)
+
+            result = mlab.stride_windows(
+                x[sl],
+                self.Npts_per_real,
+                self.Npts_overlap,
+                axis=stride_axis)
+
+            # Detrend each realization
+            result = mlab.detrend(
+                result,
+                detrend,
+                axis=stride_axis)
+
+            # Window each realization (power loss compensated outside loop)
+            result, windowVals = mlab.apply_window(
+                result,
+                window,
+                axis=stride_axis,
+                return_window=True)
+
+            # Finally compute and return the FFT of each realization
+            Xk[:, ens, :] = np.fft.rfft(result, axis=stride_axis)
+
+        # Compensate for windowing power loss
+        norm = np.sqrt(np.mean((np.abs(windowVals)) ** 2))
+        Xk /= norm
+
+        return Xk
 
 
 def _largest_power_of_2_leq(x):

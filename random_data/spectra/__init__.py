@@ -1,2 +1,3 @@
 from nonparametric import AutoSpectralDensity, CrossSpectralDensity
 from parametric import BurgAutoSpectralDensity
+from higher_order import Bispectrum
