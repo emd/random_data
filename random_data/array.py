@@ -889,7 +889,7 @@ class FittedCrossPhaseArray(CrossSpectralDensityArray):
                 # weighting `A` and `b` by `diag(1. / sigma)`.
                 A = np.dot(np.diag(1. / sigma), A0)
                 b = np.dot(np.diag(1. / sigma), theta_xy)
-                soln = np.linalg.lstsq(A, b)
+                soln = np.linalg.lstsq(A, b, rcond=None)
 
                 # Unpack solution and relevant metrics
                 self.mode_number[find, tind] = soln[0][0]
