@@ -263,20 +263,26 @@ def test_BurgAutoSpectralDensity_windowing():
     # are not smoothly tapered/windowed to zero at their edges:
     # --------------------------------------------------------------------
     # Sampling parameters
-    Fs = 10. # 1.
+    Fs = 10.  # 1.
     t0 = 0
     T = 1e3
 
     # Random signal parameters
-    fc = 0.2
-    pole = 2
+    f0_broad = 0.
+    tau_broad = 4. / Fs
+    G0 = 1.
+    noise_floor = 1e-6
+    seed = None
 
     # Coherent signal parameters
     f0 = 2.5  # 0.25
-    A = 0.0005
+    A = 0.3
 
     # Generate random signal
-    sig = RandomSignal(Fs, t0, T, fc=fc, pole=pole)
+    sig = RandomSignal(
+        Fs=Fs, t0=t0, T=T,
+        f0=f0_broad, tau=tau_broad, G0=G0,
+        noise_floor=noise_floor, seed=seed)
     t = sig.t()
     x = sig.x.copy()
 

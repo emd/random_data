@@ -13,38 +13,60 @@ from ..spectra.nonparametric import _plot_image
 
 
 class RandomSignal(object):
-    '''A class for the creation of random signals.
+    '''A class for the creation of 1-dimensional random signals.
+
+    Note that `M` >= 1 turbulent branches can be specified simultaneously.
 
     Attributes:
     -----------
+    x - array_like, (`self.Nt`,)
+        The 1-dimensional random signal with the autospectral density
+        specified at initialization. The signal is constrained to be real.
+        [x] = arbitrary units
+
     Fs - float
-        Sample rate.
+        Temporal sampling rate of signal `self.x`.
         [Fs] = arbitrary units
 
     t0 - float
-        Initial time (i.e. when sampling begins).
-        [t0] = 1 / [Fs]
+        Initial time stamp of signal `self.x`.
+        [t0] = 1 / [self.Fs]
 
-    fc - float, optional
-        Cutoff frequency; frequencies f > fc are "cutoff"
-        with a strength determined by `self.pole`
-        [fc] = [Fs]
+    Nt - int
+        The number of timestamps in `self.x`. Constrained to be
+        a power of 2, for fastest FFT computations.
+        [Nt] = unitless
 
-    pole - float, optional
-        Order of the pole for f > fc
+    f0 - array_like, (`M`,)
+        The dominant temporal frequency of each turbulent branch.
+        [f0] = [self.Fs]
+
+    tau - array_like, (`M`,)
+        The correlation time of each turbulent branch, where
+        a Gaussian correlation function has been assumed.
+        [tau] = 1 / [self.Fs]
+
+    G0 - array_like, (`M`,)
+        The relative peak one-sided autospectral density of each branch.
+        [G0] = unitless
 
     '''
-    def __init__(self, Fs, t0, T, fc=np.inf, pole=None):
+    def __init__(self,
+                 Fs=1., t0=0., T=128.,
+                 f0=[0.], tau=[10.], G0=[1.],
+                 noise_floor=1e-2, seed=None):
         '''Create instance of the `RandomSignal` class.
 
-        Parameters:
-        -----------
+        Note that `M` >= 1 turbulent branches can be specified simultaneously.
+
+        Input parameters:
+        -----------------
         Fs - float
-            Sample rate.
+            Temporal sampling rate.
             [Fs] = arbitrary units
 
         t0 - float
-            Initial time (i.e. when sampling begins).
+            Initial time stamp.
             [t0] = 1 / [Fs]
 
         T - float
@@ -53,58 +75,148 @@ class RandomSignal(object):
             (which is fastest for powers of two), the realized time
             interval `Treal` will be selected such that
 
-                    Treal * Fs = nearest_power_of_2(T * Fs).
+                Treal * Fs = _largest_power_of_2_leq(T * Fs),
 
+            where `_largest_power_of_2_leq(a)` selects the largest
+            power of 2 that is less than or equal to `a`.
             [T] = 1 / [Fs]
 
-        fc - float
-            Cutoff frequency; frequencies f > fc will be "cutoff"
-            with a strength determined by `pole`.
-            [fc] = [Fs]
+        f0 - array_like, (`M`,)
+            The dominant temporal frequency of each turbulent branch
+            in the medium's rest frame (i.e. `f0` is *not* attributable
+            to a Doppler shift; see `v` for Doppler-shift effects).
+            [f0] = [Fs]
 
-        pole - float, optional
-            Order of the pole for f > fc.
+        tau - array_like, (`M`,)
+            The correlation time of each turbulent branch, where
+            a Gaussian correlation function has been assumed.
+            [tau] = 1 / [Fs]
+
+        G0 - array_like, (`M`,)
+            The relative peak one-sided autospectral density of each branch.
+            [G0] = unitless
+
+        noise_floor - float
+            The noise floor of the random process's autospectral density.
+            [noise_floor] = [self.x]^2 / [Fs] / [Fs_spatial], where
+                `self.x` is the realization of the random process
+                created at object initialization.
+
+        seed - int or None
+            Random seed used to initialize pseudo-random number generator.
+            If `None`, generator is seeded from `/dev/urandom` or the clock.
 
         '''
+        # Grid parameters
         self.Fs = Fs
         self.t0 = t0
-        self.fc = fc
-        self.pole = pole
+        self.Nt = _largest_power_of_2_leq(T * Fs)
 
-        # Construct the random signal in the frequency domain
+        # Turbulence parameters
+        self.f0 = np.array(f0, dtype='float', ndmin=1)
+        self.tau = np.array(tau, dtype='float', ndmin=1)
+        self.G0 = np.array(G0, dtype='float', ndmin=1)
+
+        #  Noise floor of the random process's autospectral density
+        self._noise_floor = noise_floor
+
+        # Get autospectral density of random process
+        res = self._getAutoSpectralDensity()
+        self._f = res[0]
+        self._Gxx = res[1]
+
+        # Get a temporal realization of the random process
+        self.x = self._getSignal(seed=seed)
+
+    def _getAutoSpectralDensity(self):
+        '''Get one-sided autospectral density Gxx(f) of the 1d random process.
+
+        Returns:
+        --------
+        (f, Gxx) - tuple, where
+
+        f - array_like, ((`self.Nt` // 2) + 1,)
+            The (one-sided) frequency in ascending order.
+            [f] = [self.Fs]
+
+        Gxx - array_like, (`self.Nt`,)
+            The one-sided autospectral density Gxx(f) of the 1d random process.
+
+            [Gxx] = [self.x]^2 / [self.Fs], where
+                `self.x` is the realization of the random process
+                created at object initialization.
+
+        '''
+        # Construct the spectral grid.
+        f = np.fft.rfftfreq(self.Nt, d=(1. / self.Fs))
+
+        # Initialize autospectral density with zeros
+        Gxx = np.zeros(f.shape)
+
+        # Iteratively incorporate autospectral density of each branch
+        for branch_ind in np.arange(len(self.f0)):
+            # Parse turbulence parameters of branch
+            f0 = self.f0[branch_ind]
+            tau = self.tau[branch_ind]
+            G0 = self.G0[branch_ind]
+
+            # Shape auto-spectral density, Sxx.
+            f_shaping = G0 * np.exp(-((np.pi * tau * (f - f0)) ** 2))
+            Gxx += f_shaping
+
+        # Define peak autospectral density of turbulence to be unity
+        Gxx /= np.max(Gxx)
+
+        # Finally, incorporate noise floor
+        Gxx += self._noise_floor
+
+        return f, Gxx
+
+    def _getSignal(self, seed=None):
+        '''Get a temporal realization of the 1d random process.
+
+        Input parameters:
+        -----------------
+        seed - int or None
+            Random seed used to initialize pseudo-random number generator.
+            If `None`, generator is seeded from `/dev/urandom` or the clock.
+
+        Returns:
+        --------
+        x - array_like, (`self.Nt`,)
+            A realization of the 1d random process in time.
+
+            For a given random process, the temporal representation
+            will vary from one realization to the next, but the underlying
+            autospectral density of each realization will be identical.
+
+            [x] = arbitrary units
+
+        '''
+        # Compute *magnitude* of FFT corresponding to autospectral density.
         #
-        # As we are dealing with *real* signals, the Fourier transform
-        # is Hermitian, so we can simply look at the one-sided spectrum.
-        # This reduces the number of bins in the frequency domain by 2.
-        Nfreq_1sided = T * Fs / 2.
+        # The frequency normalization includes an additional factor of 2
+        # to account for the one-sided in frequency representation of
+        # the autospectral density.
+        f_norm = 2. / (self.Nt * self.Fs)
+        Xmag = np.sqrt(self._Gxx / f_norm)
 
-        # However, we want the resulting signal to have length equal
-        # to a power of 2 for most efficient FFT computations, so
-        # we will find the nearest power of 2
-        exponent = int(np.round(np.log2(Nfreq_1sided)))
-        Nfreq_1sided = (2 ** exponent) + 1
+        # To obtain a realization of the random process, we now need
+        # to add a random phase to each point of the FFT.
+        if seed is not None:
+            np.random.seed(seed)
 
-        # Signal phase, random
-        ph = 2 * np.pi * np.random.random(Nfreq_1sided)
+        ph = 2 * np.pi * np.random.rand(len(self._f))
 
-        # Signal magnitude, random
-        Xf = np.abs(np.random.standard_normal(Nfreq_1sided))
+        # Construct the complex-valued FFT of the realization by
+        # multiplying the FFT magnitude by the set of random phases.
+        X = Xmag * np.exp(1j * ph)
 
-        # If desired, weight signal magnitude with a pole of order `pole`
-        # above cutoff frequency `fc`
-        if pole is not None:
-            f = np.linspace(0, Fs / 2., Nfreq_1sided)
-            Xf = Xf / (1 + ((f / fc) ** pole))
-
-        # Random signal's frequency domain representation, magnitude and phase
-        Xf = Xf * np.exp(1j * ph)
-
-        # Random signal in the time domain
-        self.x = np.fft.irfft(Xf)
+        return np.fft.irfft(X)
 
     def t(self):
         'Get times for points in `self.x`.'
-        return self.t0 + (np.arange(len(self.x)) / self.Fs)
+        return _uniform_grid(self.Nt, self.t0, 1. / self.Fs)
 
 
 class RandomSignal2d(object):
