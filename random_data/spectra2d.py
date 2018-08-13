@@ -187,10 +187,10 @@ class TwoDimensionalAutoSpectralDensity(object):
         self.detrend = corr.detrend
         self.window = corr.window
 
-        self.f = corr.f
+        self.f = corr.f.copy()
         self.df = corr.df
 
-        self.t = corr.t
+        self.t = corr.t.copy()
         self.dt = np.nan
 
         if self.spatial_method == 'burg':
@@ -269,7 +269,7 @@ class TwoDimensionalAutoSpectralDensity(object):
 
         # Determine maximum valid separation, `Delta`, of points
         # in the correlation function
-        separation = corr.separation[corr._central_block]
+        separation = corr.separation[corr._central_block].copy()
         Delta = separation[-1] - separation[0]
 
         # Loop through frequency, estimating spatial autospectral density
